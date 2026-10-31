@@ -1,0 +1,39 @@
+{
+  "name": "agentseye",
+  "version": "1.0.0",
+  "description": "Zero-dependency browser runtime inspector CLI and skill for autonomous AI agents and developers",
+  "type": "module",
+  "bin": {
+    "agentseye": "agentsEye.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "author": "herehossein",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/herehossein/agentsEye.git"
+  },
+  "bugs": {
+    "url": "https://github.com/herehossein/agentsEye/issues"
+  },
+  "homepage": "https://github.com/herehossein/agentsEye",
+  "files": [
+    "agentsEye.mjs",
+    "SKILL.md",
+    "references/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "agent",
+    "cdp",
+    "devtools",
+    "layout",
+    "overflow",
+    "inspector",
+    "ai-agent",
+    "skills"
+  ]
+}
