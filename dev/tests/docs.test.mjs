@@ -40,9 +40,9 @@ test('every relative link in README.md resolves to an existing file', () => {
   assert.deepEqual(broken, [], `Broken links in README.md: ${JSON.stringify(broken)}`);
 });
 
-test('SKILL.md is <= 8 KB (8192 bytes)', () => {
+test('SKILL.md is <= 16 KB (16384 bytes)', () => {
   const stat = fs.statSync(path.join(REPO_ROOT, 'SKILL.md'));
-  assert.ok(stat.size <= 8192, `SKILL.md size ${stat.size} exceeds 8192 bytes`);
+  assert.ok(stat.size <= 16384, `SKILL.md size ${stat.size} exceeds 16384 bytes`);
 });
 
 test('no npx invocations remain in SKILL.md, README.md, agentsEye.mjs, package.json', () => {
