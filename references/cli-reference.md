@@ -1,6 +1,6 @@
 # agentsEye CLI Reference
 
-> **Tool**: `agentsEye` v1.0.0 (Runtime Inspector v2.1)  
+> **Tool**: `agentsEye` v1.0.0  
 > **Node.js**: `>= 22.0.0` (native WebSocket, `node:fs/promises`, `node:crypto`)  
 > **Protocol**: Chromium DevTools Protocol (CDP) over native loopback WebSocket  
 
@@ -57,7 +57,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 
 | Flag | Argument | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--viewport` | `<WxH>` | `1280x800` | Emulated viewport resolution in CSS pixels (e.g., `375x812`, `768x1024`, `1920x1080`). Auto-enables touch and mobile viewport flags when `width <= 500`. |
+| `--viewport` | `<WxH>` | `1280x800` | Emulated viewport resolution in CSS pixels (e.g., `375x812`, `768x1024`, `1920x1080`). `--mobile` and `--touch` must be passed explicitly (or via `--matrix` which sets `mobile: true` for `375x812`). |
 | `--width` | `<px>` | `1280` | Explicit viewport width in CSS pixels. |
 | `--height` | `<px>` | `800` | Explicit viewport height in CSS pixels. |
 | `--dpr` | `<n>` | `1` | Device pixel ratio (e.g. `2` or `3` for Retina/High-DPI displays). |
@@ -94,17 +94,17 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--selector` | `<css-selector>` | `documentElement`| Scopes inspection to the subtree matching this selector. |
 | `--all-matches` | boolean | `false` | When `--selector` is passed, inspects every matching element under a `roots` array. |
 | `--max-nodes` | `<n>` | `3000` | Hard cap on total DOM nodes traversed to protect memory and token context. |
-| `--max-depth` | `<n>` | `32` | Maximum tree traversal depth. |
-| `--text-limit` | `<n>` | `240` | Maximum character length preserved per DOM node text content. |
-| `--attribute-limit`| `<n>` | `20` | Maximum number of HTML attributes preserved per DOM element. |
-| `--style-props` | `<list \| none>` | 18 layout props | Comma-separated list of computed CSS styles to capture (e.g. `display,overflow,position`). |
+| `--max-depth` | `<n>` | `40` | Maximum tree traversal depth. |
+| `--text-limit` | `<n>` | `160` | Maximum character length preserved per DOM node text content. |
+| `--attribute-limit`| `<n>` | `24` | Maximum number of HTML attributes preserved per DOM element. |
+| `--style-props` | `<list \| none>` | 30 common properties | Comma-separated list of computed CSS styles to capture (e.g. `display,overflow,position`). Default captures 30 common layout and typography properties (`DEFAULT_STYLE_PROPS`). Passing `--style-props` disables `compactStyles` to capture all listed properties. |
 | `--visible-only` | boolean | `false` | Prunes visually hidden elements (`display: none`, `visibility: hidden`, `opacity: 0`). |
 | `--no-shadow-dom` | boolean | `false` | Skips traversing open Shadow DOM roots. |
 | `--no-iframes` | boolean | `false` | Skips expanding same-origin iframe document trees. |
 | `--include-templates`| boolean | `false` | Traverses `<template>` fragment contents. |
 | `--css-vars` | boolean | `false` | Collects computed CSS custom properties (`--*`) on the root element. |
 | `--a11y` | boolean | `false` | Opt-in extraction of the full Chromium Accessibility (AX) tree. |
-| `--max-a11y-nodes` | `<n>` | `500` | Cap on accessibility tree nodes returned. |
+| `--max-a11y-nodes` | `<n>` | `1000` | Cap on accessibility tree nodes returned. |
 
 ### F. Interactions & State Exploration
 
@@ -113,10 +113,10 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--click` | `<css-selector>` | `null` | Performs hit-test validation and dispatches a native pointer click on target selector, recording DOM diff. |
 | `--hover` | `<css-selector>` | `null` | Dispatches native mouse pointer movement to selector bounding-box center. |
 | `--scroll` | `<X,Y>` | `null` | Dispatches native mouse wheel scroll deltas (e.g. `0,600`). |
-| `--key` | `<name>` | `null` | Dispatches safe keyboard key event (`Escape`, `Tab`, `Enter`, `Space`). |
+| `--key` | `<name>` | `null` | Dispatches safe keyboard key event. Supports 12 keys: `Enter`, `Escape`, `Tab`, `Space`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home`, `End`, `PageUp`, `PageDown`. |
 | `--explore` | boolean | `false` | Conservatively discovers and clicks interactive disclosure elements (menus, accordions, tabs) and logs before/after diffs. |
 | `--max-explore` | `<n>` | `8` | Maximum number of exploratory clicks allowed (upper bound: 50). |
-| `--allow-destructive`| boolean | `false` | Bypasses destructive text guardrails during `--explore`. *(Never allows form submission or file inputs).* |
+| `--allow-destructive`| boolean | `false` | Disables the destructive-label text blacklist for `--click`, `--key`, and `--explore`. *(Form submission, reset controls, navigation, and file inputs remain strictly blocked).* |
 
 ### G. Responsive Analysis
 
@@ -132,7 +132,8 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--temp` | boolean | `false` | Stores run artifacts in OS temporary directory (`%TEMP%/.agentsEye/runs/`) instead of workspace `.agentsEye/runs/`. |
 | `--ephemeral` | boolean | `false` | Automatically deletes the run directory immediately after producing stdout. |
 | `--focus` | `<slice>` | `null` | Emits a focused slice directly to stdout. Allowed: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`. |
-| `--console-filter` | `<pattern>` | `null` | Filters console entries by substring match (e.g. `'[AGENT_DEBUG_TAG]'`). Used with `--focus console` or `show`. |
+| `--console-filter` | `<pattern>` | `null` | Filters console entries by case-insensitive substring or `/regex/flags` pattern (e.g. `'[AGENT_DEBUG_TAG]'` or `/\/api\/error/i`). Works live with `--focus console` and offline via `show`. |
+| `--console-level` | `<levels>` | `all` | Filters console entries by comma-separated levels: `error,warn,info,log,debug,all`. Works live and offline via `show`. |
 | `--full` | boolean | `false` | Emits complete comprehensive JSON report to stdout. *(Not recommended for AI agent contexts).* |
 | `--summary-only` | boolean | `true` (default) | Explicit alias for standard compact `minimalSummary` JSON. |
 | `--format` | `json \| text` | `json` | Formats stdout output as JSON or clean plain human-readable text. |
@@ -155,6 +156,8 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--storage` | boolean | `false` | Opt-in retention of `localStorage` and `sessionStorage` keys and values (subject to redaction). |
 | `--cookies` | boolean | `false` | Opt-in retention of cookie names and values (subject to redaction). |
 | `--redact` | `sensitive \| all \| none` | `sensitive` | Configures credential and PII sanitization across stdout, reports, and disk artifacts. |
+| `--sanitize-injections` | `neutralize \| warn \| none` | `neutralize` | Indirect Prompt Injection defense mode (`neutralize`: neutralizes LLM control tokens/delimiters and audits injection lures; `warn`: logs findings without neutralizing text; `none`: disables prompt injection sanitization). |
+| `--no-sanitize-injections` | boolean | `false` | Disables prompt injection sanitization (unsafe). |
 
 ---
 
@@ -169,7 +172,7 @@ When you need deeper details on a specific subsystem without context window blow
 | **`dom`** | Compact DOM tree structure, computed CSS layout properties, element selectors, and tree depth stats. | Inspecting rendered DOM hierarchy, CSS class structures, and component boundaries. |
 | **`network`** | Request count, HTTP status breakdown, failed requests (4xx/5xx/CORS/aborts), top 5 slowest endpoints, transfer bytes. | Investigating API failures, hanging requests, slow backend services, and asset sizes. |
 | **`perf`** | Core Web Vitals (LCP, CLS, FCP, FID, INP), timing milestones (navigation, paint timings), DOM node count. | Auditing frontend performance regressions and layout stability. |
-| **`console`** | Console entries matching optional `--console-filter`, console error/warn/log counts. | Targeted log-driven agent debugging, inspecting injected debug tags, and filtering out framework noise. |
+| **`console`** | Console entries matching optional `--console-filter` and `--console-level`, console error/warn/log counts. | Targeted log-driven agent debugging, inspecting injected debug tags, and filtering out framework noise. |
 | **`storage`** | Extracted key-values from `localStorage` and `sessionStorage` (with sensitive value redaction), entry counts, and storage availability. | Inspecting client-side session state, auth tokens, cached filters, and storage quota bugs. |
 
 ---

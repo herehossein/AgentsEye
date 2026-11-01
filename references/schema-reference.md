@@ -1,6 +1,6 @@
 # agentsEye Schema Reference
 
-> **Tool**: `agentsEye` v1.0.0 (Runtime Inspector v1.0)  
+> **Tool**: `agentsEye` v1.0.0  
 > **Schema Version**: `1.0`  
 > **Output Formats**: `minimalSummary` (stdout), `report.json` (disk artifact), `diffReports` (structural diff)  
 
@@ -21,6 +21,15 @@ export interface MinimalSummary {
 
   /** Schema version identifier (e.g. "1.0") */
   schemaVersion: "1.0";
+
+  /** Top-level prompt injection audit & safety status */
+  security: {
+    promptInjectionDetected: boolean;
+    threatLevel: "clean" | "medium" | "high" | "critical";
+    notice: string;
+    findingsCount: number;
+    findings?: Array<object>;
+  };
 
   /** Target URL and navigation metadata */
   target: {
@@ -160,6 +169,7 @@ export interface MinimalSummary {
   "required": [
     "ok",
     "schemaVersion",
+    "security",
     "target",
     "run",
     "viewport",
@@ -176,7 +186,18 @@ export interface MinimalSummary {
   ],
   "properties": {
     "ok": { "type": "boolean" },
-    "schemaVersion": { "type": "string", "enum": ["2.1"] },
+    "schemaVersion": { "type": "string", "enum": ["1.0"] },
+    "security": {
+      "type": "object",
+      "required": ["promptInjectionDetected", "threatLevel", "notice", "findingsCount"],
+      "properties": {
+        "promptInjectionDetected": { "type": "boolean" },
+        "threatLevel": { "type": "string", "enum": ["clean", "medium", "high", "critical"] },
+        "notice": { "type": "string" },
+        "findingsCount": { "type": "integer" },
+        "findings": { "type": "array", "items": { "type": "object" } }
+      }
+    },
     "target": {
       "type": "object",
       "required": ["requestedUrl", "finalUrl", "httpStatus"],
@@ -260,17 +281,24 @@ export interface MinimalSummary {
 
 ## 2. Complete Telemetry Schema (`report.json`)
 
-Saved locally to `.runtime-inspector/runs/<run-id>/report.json`. This document contains unbudgeted, high-fidelity browser inspection telemetry.
+Saved locally to `.agentsEye/runs/<run-id>/report.json`. This document contains unbudgeted, high-fidelity browser inspection telemetry.
 
 ### Top-Level Structure
 
 ```typescript
 export interface FullReport {
   ok: boolean;
-  schemaVersion: "2.1";
+  schemaVersion: "1.0";
   tool: { name: string; version: string };
   generatedAt: string;          // ISO 8601 timestamp
-  durationMs: number;
+  durationMs: number | null;
+  security: {
+    promptInjectionDetected: boolean;
+    threatLevel: "clean" | "medium" | "high" | "critical";
+    notice: string;
+    findingsCount: number;
+    findings?: Array<object>;
+  };
   target: {
     requestedUrl: string;
     finalUrl: string;
@@ -301,11 +329,7 @@ export interface FullReport {
       clientHeight: number;
       horizontalOverflow: boolean;
       overflowElements: Array<{
-        selector: string;
-        scrollWidth: number;
-        offsetWidth: number;
-        viewportWidth: number;
-        overflowPixels: number;
+        cssPath: string;
         rect: { x: number; y: number; width: number; height: number };
       }>;
     };
@@ -333,38 +357,27 @@ export interface FullReport {
     truncated: boolean;
   };
   landmarks: Record<string, { count: number; items: Array<{ selector: string }> }>;
-  headings: Array<{ level: number; text: string; selector: string }>;
-  forms: Array<{
-    id?: string;
-    name?: string;
-    action?: string;
-    method?: string;
-    controls: Array<{
-      tag: string;
-      type: string;
-      name?: string;
-      fontSize: string;
-      below16px: boolean;
-      validation: { valid: boolean; validationMessage?: string };
-    }>;
-  }>;
-  interactive: Array<{
-    selector: string;
-    tag: string;
-    role?: string;
-    rect: { x: number; y: number; width: number; height: number };
-    touchTargetSize: { width: number; height: number; below44px: boolean };
-  }>;
-  images: Array<{
-    selector: string;
-    src: string;
-    alt: string | null;
-    missingAlt: boolean;
-    naturalWidth: number;
-    naturalHeight: number;
-    renderedWidth: number;
-    renderedHeight: number;
-  }>;
+  headings: {
+    count: number;
+    items: Array<{ level: number; text: string; id?: string; cssPath: string; rect: object | null }>;
+    truncated: boolean;
+  };
+  forms: {
+    count: number;
+    items: Array<object>;
+    truncated: boolean;
+  };
+  interactive: {
+    count: number;
+    items: Array<object>;
+    truncated: boolean;
+  };
+  images: {
+    count: number;
+    missingAltCount: number;
+    items: Array<object>;
+    truncated: boolean;
+  };
   frames: Array<{ id: string; url: string; securityOrigin: string }>;
   network: {
     requests: Array<NetworkEntry>;
@@ -395,9 +408,14 @@ export interface FullReport {
       paints: Array<{ name: string; startTime: number }>;
       navigation: { duration: number; domContentLoaded: number; loadEvent: number };
     };
+    cdp: Record<string, number> | null;
   };
   storage: { localStorage: Record<string, string>; sessionStorage: Record<string, string> };
-  cookies: Array<{ name: string; value: string; domain: string; path: string; secure: boolean }>;
+  cookies: {
+    count: number;
+    entries: Array<object>;
+    truncated: boolean;
+  };
   cssVars?: Record<string, string>;
   screenshots: Array<{ path: string; width: number; height: number }>;
   issues: Array<DetectedIssue>;
@@ -418,7 +436,7 @@ Emitted when executing `node agentsEye.mjs diff <run-id-1> <run-id-2>`. Compares
 ```typescript
 export interface DiffReport {
   ok: boolean;
-  schemaVersion: "2.1";
+  schemaVersion: "1.0";
   before: string;           // Before Run ID (e.g. "2026-10-23T17-00-00-111Z-a1b2")
   after: string;            // After Run ID  (e.g. "2026-10-23T17-05-00-222Z-c3d4")
   
@@ -478,10 +496,10 @@ The `issues` array in `minimalSummary` and `report.json` surfaces the following 
 
 | Issue Code | Severity | Trigger Threshold / Rule |
 | :--- | :---: | :--- |
-| `horizontal-document-overflow` | `error` | Document scroll width exceeds viewport width: `document.documentElement.scrollWidth > innerWidth`. Offending selectors are recorded in `page.metrics.overflowElements`. |
+| `horizontal-document-overflow` | `warn` | Document scroll width exceeds viewport width: `document.documentElement.scrollWidth > innerWidth + 1` or horizontal overflow elements detected. Offending elements are recorded in `page.metrics.overflowElements` with `{ cssPath, rect }`. |
 | `scroll-lock-trap-risk` | `error` | `overflow: hidden` or `position: fixed` applied to `html` or `body` while total content height exceeds inner viewport height (`contentHeight > innerHeight`). |
-| `small-touch-target` | `warn` | Interactive control (`button`, `a`, `input`, `select`) has physical dimensions `< 44px` width or `< 44px` height (WCAG 2.5.5 / 2.5.8 recommendation). |
+| `small-touch-target` | `info` | Interactive control (`button`, `a`, `input`, `select`) has physical dimensions `< 44px` width or `< 44px` height (WCAG 2.5.5 / 2.5.8 recommendation). |
 | `input-font-below-16px` | `warn` | Form text input element has computed `font-size < 16px`. On iOS WebKit, tapping this input triggers an unwanted automatic page zoom. |
-| `image-missing-alt` | `warn` | `<img>` tag without an `alt` attribute or with missing accessibility description. |
+| `image-missing-alt` | `info` | `<img>` tag without an `alt` attribute or with missing accessibility description. |
 | `duplicate-id` | `warn` | An identical `id` attribute appears on two or more distinct DOM elements in the tree. |
 | `low-text-contrast` | `warn` | Text color against solid background fails WCAG 2.1 AA minimum contrast ratio (4.5:1 for regular text, 3:1 for large text). |

@@ -23,12 +23,15 @@ Run agentsEye targeting your local dev server, filtering stdout to only your tag
 # Direct run with console filter
 node agentsEye.mjs http://localhost:3000 --temp --focus console --console-filter '[AGENT_DEBUG_TAG]'
 
-# Or capture logs after an interactive click/action:
-node agentsEye.mjs http://localhost:3000 --temp --click "#submit-btn" --focus console --console-filter '[AGENT_DEBUG_TAG]'
+# Or capture logs after an interactive click/action (e.g. accordion, tab, or modal toggle):
+node agentsEye.mjs http://localhost:3000 --temp --click "#toggle-btn" --focus console --console-filter '[AGENT_DEBUG_TAG]'
 
 # Or query a previous run offline:
 node agentsEye.mjs show <run-id> console --console-filter '[AGENT_DEBUG_TAG]'
 ```
+
+> [!NOTE]
+> `agentsEye` enforces strict safety policies in `interactionSafety`: buttons or elements with labels containing words like `submit`, `save`, `delete`, or `pay` are blocked by default by the destructive text policy (unless `--allow-destructive` is explicitly passed), and form submission controls (`<button type="submit">`, `<input type="submit">`), navigation links, and file inputs are hard-blocked unconditionally to prevent unintended side effects. When inspecting event logs, click benign interactive controls like `#toggle-btn`, or supply `--allow-destructive` for non-submission controls with sensitive labels.
 
 Using `--console-filter` cuts through noisy framework output and third-party scripts, delivering a concise trace showing exact execution order and payload values.
 

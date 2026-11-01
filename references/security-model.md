@@ -1,6 +1,6 @@
 # agentsEye Security Model & Threat Guarantees
 
-> **Tool**: `agentsEye` v1.0.0 (Runtime Inspector v2.1)  
+> **Tool**: `agentsEye` v1.0.0  
 > **Security Posture**: Read-Only Default, Defense-in-Depth, SSRF Guardrails, Origin-Isolated Headers, Multi-tier Redaction  
 
 Autonomous AI coding agents frequently invoke terminal commands and inspect arbitrary, third-party, or developer-submitted web applications without human intervention. To operate safely in open-source, enterprise, and cloud environments, `agentsEye` enforces strict security boundaries designed to prevent Server-Side Request Forgery (SSRF), credential exfiltration, destructive state mutation, and browser compromise.
@@ -76,7 +76,7 @@ If any resolved address belongs to the following categories, execution terminate
 
 ## 3. Credential Redaction Architecture
 
-All data collected by `agentsEye` passes through a regex and entropy sanitizer before being emitted to stdout or written to `.runtime-inspector/runs/<id>/report.json`.
+All data collected by `agentsEye` passes through a regex and entropy sanitizer before being emitted to stdout or written to `.agentsEye/runs/<id>/report.json` (and OS temp when `--temp` is used).
 
 ```
 Raw Telemetry -> [REDACTION PIPELINE] -> Sanitized stdout & report.json
@@ -157,11 +157,11 @@ When exploration is requested (`--explore` or `--click`), elements are subjected
 Interactive buttons, inputs, links, or controls with labels or attributes matching destructive actions are **strictly denied**:
 
 ```javascript
-/\b(?:delete|remove|clear|pay|payment|purchase|buy|order|checkout|logout|sign\s*out|log\s*out|submit|send|save|confirm|reset|discard|unsubscribe)\b|حذف|پاک|پرداخت|خرید|سفارش|خروج|ارسال|ذخیره|تایید|تأیید|لغو/i
+/\b(?:delete|remove|clear|drop|purge|destroy|wipe|format|pay|payment|purchase|buy|order|checkout|logout|sign\s*out|log\s*out|submit|send|save|confirm|reset|discard|unsubscribe|cancel\s*(?:subscription|membership|plan|account))\b|حذف|پاک|پرداخت|خرید|سفارش|خروج|ارسال|ذخیره|تایید|تأیید|لغو|نابود|پاکسازی/i
 ```
 
 #### Denied Action Keywords:
-- **English Actions**: `delete`, `remove`, `clear`, `pay`, `payment`, `purchase`, `buy`, `order`, `checkout`, `logout`, `sign out`, `log out`, `submit`, `send`, `save`, `confirm`, `reset`, `discard`, `unsubscribe`.
+- **English Actions**: `delete`, `remove`, `clear`, `drop`, `purge`, `destroy`, `wipe`, `format`, `pay`, `payment`, `purchase`, `buy`, `order`, `checkout`, `logout`, `sign out`, `log out`, `submit`, `send`, `save`, `confirm`, `reset`, `discard`, `unsubscribe`, `cancel subscription/membership/plan/account`.
 - **Persian (Farsi) Actions**:
   - `حذف` (Delete)
   - `پاک` / `پاک کردن` (Clear / Erase)
@@ -173,6 +173,8 @@ Interactive buttons, inputs, links, or controls with labels or attributes matchi
   - `ذخیره` (Save)
   - `تایید` / `تأیید` (Confirm)
   - `لغو` (Cancel / Discard)
+  - `نابود` (Destroy)
+  - `پاکسازی` (Purge / Wipe)
 
 #### Unicode & Normalization Safety:
 Target labels are normalized using Unicode NFKC (`target.normalize('NFKC')`) and zero-width non-joiners/joiners (`\u200c`, `\u200d`) are stripped prior to regex matching to prevent obfuscation.
