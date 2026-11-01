@@ -50,9 +50,11 @@ The agent can edit source files and suggest component architectures, but it cann
 - Did an unmounted modal leave `overflow: hidden` on `<body>`, **completely freezing page scroll**?
 - Did an applied code tweak fix the issue, or did it introduce visual and runtime regressions elsewhere?
 
-Asking an AI agent to diagnose these by dumping full raw HTML or hundreds of lines of DOM consumes massive amounts of context, saturates model memory, and leads to confused reasoning.
+Attempts to bridge this gap typically fail for two reasons:
+1. **Dumping raw HTML or full DOM trees**: Squeezes thousands of lines into the agent's context window, burning tokens while still completely missing computed styles, viewport overflow, uncaught client exceptions, hydration mismatches, and failed API calls.
+2. **Installing heavy test frameworks (Playwright, Puppeteer)**: Requires multi-megabyte dependencies, dedicated browser binary downloads, complex boilerplate scripts, and high cold-start overhead that slows down agile AI pair programming.
 
-**agentsEye is the agent's runtime eyes and sensory feedback loop.** Connecting directly to installed Chromium browsers (Google Chrome, Microsoft Edge, Brave, Chromium) via the native Chrome DevTools Protocol (CDP) with **zero external dependencies**, agentsEye inspects running web pages and local dev servers. It extracts precise structural diagnostics, layout faults, network statuses, and console errors into a compact summary that agents and humans can act on instantly.
+**agentsEye is the agent's runtime eyes and sensory feedback loop.** Connecting directly to installed Chromium browsers (Google Chrome, Microsoft Edge, Brave, Chromium) via the native Chrome DevTools Protocol (CDP) with **zero external dependencies** and single-file execution, agentsEye inspects running web pages and local dev servers. It extracts precise structural diagnostics, layout faults, network statuses, and console errors into a token-budgeted summary that agents and humans can act on instantly.
 
 #### Completely Framework & Stack Agnostic
 agentsEye is not coupled to any specific library or ecosystem. If it compiles or renders into a browser window, agentsEye inspects it:
@@ -69,7 +71,7 @@ agentsEye provides a closed-loop engineering workflow for developers and coding 
 
 | Lifecycle Phase | What agentsEye Inspects | Practical Value for Developers & Agents |
 | :--- | :--- | :--- |
-| **1. Explore & Build** | • Live DOM hierarchy & computed styles<br/>• Outgoing API requests & HTTP methods<br/>• Active dev sessions via CDP (`--cdp`)<br/>• Headings outline (`h1`–`h6`) & landmarks<br/>• Web storage (`localStorage`, `sessionStorage`) | Understands runtime page structure, local state, and data flow without reading thousands of lines of raw HTML. |
+| **1. Explore & Build** | • Live DOM hierarchy & computed styles<br/>• Outgoing API requests & HTTP methods<br/>• Running Chromium processes via CDP (`--cdp`)<br/>• Headings outline (`h1`–`h6`) & landmarks<br/>• Web storage (`localStorage`, `sessionStorage`) | Understands runtime page structure, local state, and data flow without reading thousands of lines of raw HTML or paying cold-start penalties. |
 | **2. Diagnose & Debug** | • Uncaught JS exceptions, hydration errors & `console.error`<br/>• Failed network requests (4xx/5xx) & missing headers<br/>• Targeted components (`--selector "#modal"`) & `hiddenReason`<br/>• Elements overflowing mobile viewports<br/>• Scroll-lock traps (`overflow: hidden` on `<body>`)<br/>• Interactive actions & state triggers (`--click`, `--explore`) | Pinpoints the exact CSS selector, faulty script, frozen scroll trap, or failing endpoint in seconds. |
 | **3. Verify & Quality Gate** | • Structural before/after diffing (`agentsEye diff`)<br/>• Cross-device multi-breakpoint checks (`--matrix`)<br/>• Layout shifts (CLS) & bounding box deltas<br/>• Regression gate: confirms `newErrors === 0` and `newIssues === 0` | Objectively validates that a bugfix worked across all viewports and introduced zero side-effects or new errors. |
 
@@ -99,7 +101,7 @@ flowchart LR
 | **Token-Budgeted Context Probes** | Emits a tightly structured summary tailored for LLMs (`--summary-only`, `--focus <slice>`, `show <id> <path>`). | Drastically reduces context consumption compared to dumping raw HTML trees, keeping agent reasoning focused and fast. |
 | **Multi-Device Responsive Matrix (`--matrix`)** | Sequentially audits Mobile (`375px`), Tablet (`768px`), and Desktop (`1440px`) breakpoints in a single run. | Catches cross-breakpoint layout breakages and responsive discrepancies across devices automatically. |
 | **Deep Layout & Usability Diagnostics** | Detects viewport overflow leaks, body scroll-lock traps (`overflow: hidden`), touch target sizes, and form constraints (e.g. iOS auto-zoom on inputs < 16px). | Pinpoints the exact CSS selectors causing layout overflow or usability traps with precise bounding boxes. |
-| **Live Developer Session Attachment (`--cdp`)** | Connects directly to an existing Chromium instance via `--cdp http://127.0.0.1:9222`. | Inspects authenticated pages, pre-filled forms, or active dev sessions without restarting the browser or losing local state. |
+| **Running Chromium Attachment (`--cdp`)** | Connects to an already running Chromium browser process via `--cdp http://127.0.0.1:9222`. | Eliminates browser cold-start launch overhead; operates within a clean, isolated incognito context (`Target.createBrowserContext`). Use `--header` for origin-scoped auth. |
 | **Universal Stack Support** | Inspects React, Next.js, Vue, Nuxt, Svelte, Angular, vanilla JS, Astro, Flutter Web, and WebAssembly (Wasm). | Operates at the browser runtime level, completely agnostic of frontend libraries or build tooling. |
 | **Pragmatic Defensive Hygiene** | Built-in safeguards: heuristic prompt injection screening, credential masking across headers/storage, download suppression, and isolated temp profiles. | Keeps autonomous agent executions clean, contained, and protected against accidental leaks or instruction tampering. |
 
@@ -135,13 +137,13 @@ Ask your assistant:
    *"The user dismissed the modal or mobile drawer, but the entire page remains frozen and cannot be scrolled; there are no errors in the console."*  
    → The agent runs `node agentsEye.mjs <url> --focus issues --temp` to inspect `page.scrollLock`. It pinpoints that the unmounted component failed to clean up `overflow: hidden` or fixed positioning on `<body>`, and writes the cleanup logic.
 
-3. **Dynamic Interactions & Trapped Modals:**  
-   *"Clicking the checkout button doesn't reveal the side drawer. Is the click handler failing or is the drawer trapped behind another layer?"*  
-   → The agent runs `node agentsEye.mjs <url> --click "#checkout-btn" --selector "#drawer" --temp` to dispatch a native click and inspect post-action DOM deltas, bounding boxes, and the exact `hiddenReason` (e.g. `pointer-events: none` or bad `z-index`).
+3. **Dynamic Interactions & Trapped Drawers:**  
+   *"Clicking the drawer toggle button doesn't reveal the side drawer. Is the click handler failing or is the drawer trapped behind another layer?"*  
+   → The agent runs `node agentsEye.mjs <url> --click "#drawer-toggle" --selector "#drawer" --temp` to dispatch a native click and inspect post-action DOM deltas, bounding boxes, and the exact `hiddenReason` (e.g. `pointer-events: none` or bad `z-index`). *Note: In accordance with interaction safety, buttons matching destructive terms (e.g. `delete`, `pay`, `checkout`, `submit`) require `--allow-destructive` on safe dev servers; navigation links (`<a href>`) and native form submit buttons are hard-blocked from clicking.*
 
-4. **Debugging Active Sessions Without Data Loss:**  
-   *"I'm logged in locally and filled out a complex multi-step form. Submitting step 4 fails and I don't want to restart the browser or lose state. Can you diagnose the request?"*  
-   → The agent attaches directly to the active tab via `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --focus network --temp`, diagnosing the failing 4xx/5xx endpoint or missing headers without restarting the browser or exposing credentials.
+4. **Eliminating Cold-Start Overhead with Running Chromium & Scoped Auth:**  
+   *"We have an already running Chromium instance on port 9222, and we need to inspect a protected internal route without waiting for a cold browser launch. Can you inspect it?"*  
+   → The agent attaches instantly via `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --header "Authorization: Bearer <token>" --focus network --temp`. It creates a clean, isolated incognito context with zero cold-start delay, scopes the auth token strictly to the target origin, and diagnoses the failing 4xx/5xx network endpoints.
 
 5. **Cross-Breakpoint Zero-Regression Quality Gate:**  
    *"I just refactored the global grid system and hero section. Verify that mobile, tablet, and desktop layouts remain intact without introducing new errors."*  
@@ -169,9 +171,15 @@ Ask your assistant:
 | **App Crash / JS Errors** | `node agentsEye.mjs <url> --focus console --temp` | Lists uncaught runtime exceptions, hydration errors, and `console.error` traces. |
 | **Network & API Failures** | `node agentsEye.mjs <url> --focus network --temp` | Lists broken endpoints (4xx/5xx), failed fetches, and slowest assets. |
 | **Inspect Specific Element** | `node agentsEye.mjs <url> --selector "#login-modal" --temp` | Inspects computed styles, bounding box, and exact `hiddenReason`. |
+| **Exact Computed CSS** | `node agentsEye.mjs <url> --selector "#modal" --style-props "display,position,z-index,backdrop-filter" --temp` | Disables style compaction to extract exact computed CSS values. |
 | **Interactive Click Test** | `node agentsEye.mjs <url> --click "#menu-button" --temp` | Simulates user click and captures post-action DOM and layout changes. |
+| **Chained Action Sequence** | `node agentsEye.mjs <url> --click "#menu" --key Escape --scroll 0,500 --temp` | Sequences up to 50 clicks, hovers, scrolls, and keyboard inputs in one run. |
 | **Explore Interactive UI** | `node agentsEye.mjs <url> --explore --temp` | Auto-discovers and tests disclosure elements (menus, accordions, tabs). |
-| **Attach to Running Browser** | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --temp` | Inspects active user/dev session without restarting browser or losing state. |
+| **Wait for Dynamic SPA** | `node agentsEye.mjs <url> --wait-for "#root" --temp` | Waits for dynamic SPA component to render before taking snapshot. |
+| **Dark Mode & Contrast** | `node agentsEye.mjs <url> --color-scheme dark --focus issues --temp` | Emulates dark theme and audits WCAG text contrast issues. |
+| **RTL & Localization** | `node agentsEye.mjs <url> --locale fa-IR --timezone Asia/Tehran --temp` | Emulates Persian locale, timezone, and right-to-left layout dynamics. |
+| **Attach to Running Browser** | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --temp` | Connects to running Chromium over CDP, eliminating launch overhead (isolated incognito context). |
+| **Offline Regex Console Query** | `node agentsEye.mjs show <run-id> console --console-filter "/\\[AUTH\\]|error/i"` | Surgically queries console logs offline with regular expressions without opening browser. |
 | **Mobile Overflow Check** | `node agentsEye.mjs <url> --viewport 375x812 --mobile --focus issues --temp` | Highlights elements overflowing mobile viewport with exact CSS selectors. |
 | **All-Screen Matrix** | `node agentsEye.mjs <url> --matrix --temp` | Sequentially audits Mobile (`375px`), Tablet (`768px`), and Desktop (`1440px`). |
 | **Verify Bugfix (Diff)** | `node agentsEye.mjs diff <before-id> <after-id>` | Zero-browser deterministic diff proving zero new errors or layout shifts. |
@@ -248,6 +256,7 @@ Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
 - URL and SSRF preflight rejecting local cloud metadata, RFC 1918 private subnets, and link-local ranges (with documented boundaries).
 - Best-effort credential and token redaction across headers, storage, and telemetry.
 - Passive and read-only by default (no clicks, form submissions, or navigation unless explicitly requested).
+- Interaction safety guards: sensitive/destructive keywords (e.g. `delete`, `pay`, `checkout`, `submit`) require `--allow-destructive`; navigation links (`<a href>`) and native form submit buttons are hard-blocked.
 - Heuristic indirect prompt injection detection and neutralization.
 
 **Known Limitations & Unmitigated Risks**:
@@ -278,9 +287,11 @@ Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
 - آیا بستن یک مدال باعث بر جای ماندن `overflow: hidden` روی تگ `<body>` و **فریز شدن کامل اسکرول صفحه** شده است؟
 - آیا کدی که ایجنت تغییر داده، واقعاً باگ را حل کرده یا باعث ایجاد رگرسیون تصویری و خطای جدیدی در بخش دیگری شده است؟
 
-اگر بخواهیم کل کدهای HTML یا ساختار خام DOM را برای ایجنت ارسال کنیم، کانتکست مدل پر شده، تمرکز تحلیل از بین می‌رود و هزینه پردازش به شدت بالا می‌رود.
+تلاش برای حل این مشکل معمولاً با دو رویکرد ناموفق مواجه می‌شود:
+۱. **دامپ کردن کدهای خام HTML یا ساختار کامل DOM**: هزاران خط کد تکراری را وارد کانتکست ایجنت می‌کند؛ در حالی که استایل‌های محاسبه‌شده CSS، سرریز المان‌ها در ویوپورت، کرش‌های کلاینت، عدم تطابق‌های هیدریشن و وضعیت درخواست‌های ناموفق API را به کلی جا می‌اندازد.
+۲. **نصب فریم‌ورک‌های سنگین تست مانند Playwright یا Puppeteer**: نیازمند نصب وابستگی‌های حجیم npm، دانلود باینری‌های چندصد مگابایتی مرورگر، نوشتن اسکریپت‌های پیچیده و تاخیر زیاد در راه‌اندازی (Cold-start) است که چابکی تعامل زنده ایجنت را از بین می‌برد.
 
-**ابزار agentsEye چشمان هوشمند ایجنت در زمان اجرای برنامه است.** این ابزار مستقیماً از طریق پروتکل بومی CDP به مرورگرهای کرومیوم (Chrome، Edge، Brave یا Chromium) متصل شده و بدون **هیچ‌گونه وابستگی خارجی (Zero Dependencies)**، صفحه لوکال‌هاست یا وب‌سایت در حال اجرا را بررسی می‌کند. خروجی آن یک خلاصه فشرده، دقیق و تفکیک‌شده از ارورها، تله‌های اسکرول، وضعیت شبکه و چیدمان است که ایجنت می‌تواند در کسری از ثانیه آن را بفهمد و باگ را حل کند.
+**ابزار agentsEye چشمان هوشمند ایجنت در زمان اجرای برنامه است.** این ابزار مستقیماً از طریق پروتکل بومی CDP به مرورگرهای کرومیوم (Chrome، Edge، Brave یا Chromium) متصل شده و بدون **هیچ‌گونه وابستگی خارجی (Zero Dependencies)** و در قالب یک فایل مستقل، صفحه لوکال‌هاست یا وب‌سایت در حال اجرا را بررسی می‌کند. خروجی آن یک خلاصه فشرده، متناسب با بودجه توکن و تفکیک‌شده از ارورها، تله‌های اسکرول، وضعیت شبکه و چیدمان است که ایجنت و انسان می‌توانند در کسری از ثانیه آن را بفهمند و باگ را حل کند.
 
 #### کاملاً مستقل از فریم‌ورک و کتابخانه (Framework Agnostic)
 این ابزار به هیچ فریم‌ورک خاصی محدود نیست؛ هر چیزی که در مرورگر رندر شود توسط agentsEye قابل بازرسی و خطایابی است:
@@ -297,7 +308,7 @@ Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
 
 | مرحله کاری | مواردی که agentsEye بررسی می‌کند | ارزش کاربردی برای برنامه‌نویس و ایجنت |
 | :--- | :--- | :--- |
-| **۱. کاوش و ساخت** | • ساختار زنده DOM و استایل‌های محاسبه‌شده CSS<br/>• درخواست‌های شبکه، متدها و وضعیت APIها<br/>• نشست‌های فعال توسعه‌دهنده از طریق CDP (`--cdp`)<br/>• ساختار سلسله‌مراتبی تیترها (`h1` تا `h6`) و لندمارک‌ها<br/>• حافظه محلی مرورگر (`localStorage` و `sessionStorage`) | شناخت سریع معماری صفحه، وضعیت محلی و داده‌ها بدون بارگذاری هزاران خط کد HTML خام. |
+| **۱. کاوش و ساخت** | • ساختار زنده DOM و استایل‌های محاسبه‌شده CSS<br/>• درخواست‌های شبکه، متدها و وضعیت APIها<br/>• اتصال به پروسه کرومیوم از طریق CDP (`--cdp`)<br/>• ساختار سلسله‌مراتبی تیترها (`h1` تا `h6`) و لندمارک‌ها<br/>• حافظه محلی مرورگر (`localStorage` و `sessionStorage`) | شناخت سریع معماری صفحه، وضعیت محلی و داده‌ها بدون خواندن هزاران خط HTML خام یا معطلی راه‌اندازی مرورگر. |
 | **۲. خطایابی و دیباگ دقیق** | • استک‌تریس کرش‌های کنترل‌نشده، ارورهای کنسول و هیدریشن<br/>• درخواست‌های ناموفق یا قطع‌شده شبکه (4xx/5xx) و هدرهای مفقود<br/>• بررسی هدفمند کامپوننت خاص (`--selector "#modal"`) و دلیل مخفی بودن (`hiddenReason`)<br/>• المان‌های بیرون‌زده از صفحه در موبایل<br/>• تله‌های قفل اسکرول (`overflow: hidden` روی body)<br/>• اکشن‌های تعاملی و تغییرات استیت (`--click` و `--explore`) | شناسایی دقیق سلکتور مقصر در اسکرول، اسکریپت معیوب، تله قفل اسکرول یا اندپوینت خراب در کوتاه‌ترین زمان. |
 | **۳. راستی‌آزمایی نهایی** | • مقایسه ساختاری قبل و بعد از تغییر کد (`agentsEye diff`)<br/>• ممیزی تطبیقی در ماتریس بریک‌پوینت‌ها (`--matrix`)<br/>• پرش‌های ناخواسته ساختاری (CLS) و جابجایی کادرها<br/>• گیت رگرسیون: اثبات اینکه `newErrors === 0` و `newIssues === 0` است | اثبات قطعی اینکه تغییر اعمال‌شده در تمام دستگاه‌ها مشکل را رفع کرده و هیچ خطای جدیدی به بار نیاورده است. |
 
@@ -327,7 +338,7 @@ flowchart LR
 | **اقتصاد توکن و کانتکست جراحی‌شده برای هوش مصنوعی** | به جای تزریق هزاران خط کد خام HTML، خلاصه‌های ساختاریافته، کم‌حجم و هدفمند تولید می‌کند (`--summary-only`, `--focus <slice>`, `show <id> <path>`). | از اشباع حافظه کانتکست مدل جلوگیری کرده، تمرکز استدلال ایجنت را حفظ می‌کند و سرعت حل مسئله را بالا می‌برد. |
 | **ماتریس تست چندسکویی (`--matrix`)** | صفحه را در سه بریک‌پوینت استاندارد موبایل (`375px`)، تبلت (`768px`) و دسکتاپ (`1440px`) به صورت زنجیره‌ای بررسی می‌کند. | ناهماهنگی‌های ریسپانسیو و شکست‌های چیدمان بین دستگاه‌های مختلف را در یک اجرا کشف می‌کند. |
 | **عارضه‌یابی عمیق چیدمان و ارگونومی موبایل** | المان‌های دارای سرریز افقی، تله‌های قفل اسکرول (`overflow: hidden` روی body)، اندازه اهداف لمسی و الزامات فرم‌ها (مانند فونت‌های زیر ۱۶ پیکسل در iOS) را شناسایی می‌کند. | سلکتورهای دقیق CSS المان‌های مقصر را به همراه ابعاد کادر محاسبه‌شده در اختیار ایجنت قرار می‌دهد. |
-| **اتصال به نشست در حال کار توسعه‌دهنده (`--cdp`)** | با پرچم `--cdp http://127.0.0.1:9222` به پنجره فعال مرورگر که برنامه‌نویس در حال کار روی آن است متصل می‌شود. | امکان بررسی صفحات دارای احراز هویت، فرم‌های پرشده یا وضعیت محلی پیچیده را بدون ری‌استارت مرورگر یا از دست رفتن نشست فراهم می‌کند. |
+| **اتصال به پروسه کرومیوم در حال اجرا (`--cdp`)** | با پرچم `--cdp http://127.0.0.1:9222` به مرورگر در حال اجرا متصل می‌شود. | تاخیر راه‌اندازی اولیه (Cold-start) را حذف می‌کند و در یک کانتکست ایزوله و تمیز اینکاگنیتو (`createBrowserContext`) اجرا می‌شود. برای سشن‌های نیازمند احراز هویت از `--header` با اسکوپ مبدأ استفاده کنید. |
 | **استقلال کامل از فریم‌ورک و پشته نرم‌افزاری** | از React، Next.js، Vue، Nuxt، Svelte، Angular، جاوااسکریپت خام، Astro تا Flutter Web و WebAssembly را پشتیبانی می‌کند. | بازرسی در سطح لایه رندر بومی مرورگر انجام می‌شود و کاملاً مستقل از کتابخانه‌ها و ابزارهای بیلد است. |
 | **بهداشت دفاعی و ایمنی پیش‌فرض** | ماسک‌گذاری خودکار توکن‌ها و اطلاعات حساس در هدرها و حافظه محلی، ایزوله‌سازی پروفایل موقت مرورگر و غربالگری پرامپت اینجکشن‌های غیرمستقیم. | اجرای خودکار ایجنت را ایمن نگه می‌دارد و از نشت اطلاعات حساس یا اجرای دستورات ناخواسته جلوگیری می‌کند. |
 
@@ -363,13 +374,13 @@ flowchart LR
    *«کاربر پاپ‌آپ یا منوی موبایل را بسته، اما کل صفحه فریز شده و اسکرول کار نمی‌کند؛ در کنسول هم هیچ اروری نیست.»*  
    ← ایجنت با دستور `node agentsEye.mjs <url> --focus issues --temp` فیلد `page.scrollLock` را می‌خواند؛ مشخص می‌شود کامپوننت هنگام بسته‌شدن فراموش کرده استایل `overflow: hidden` یا `position: fixed` را از `<body>` پاک کند، و ایجنت تابع Cleanup را در کد می‌نویسد.
 
-3. **شکست تعاملات پویا و المان‌های به‌ظاهر گم‌شده (Dynamic Interaction & Trapped Drawers):**  
-   *«روی دکمه تسویه‌حساب (Checkout) کلیک می‌کنم ولی منوی کناری یا مدال باز نمی‌شود؛ بررسی کن ایونت اجرا می‌شود یا المان پشت لایه‌ها گیر کرده است.»*  
-   ← ایجنت با دستور `node agentsEye.mjs <url> --click "#checkout-btn" --selector "#drawer" --temp` کلیک واقعی ماوس را شبیه‌سازی کرده و با بررسی تفاوت DOM، ابعاد کادر (Bounding Box) و فیلد `hiddenReason` متوجه می‌شود که آیا دکمه ایونت هندلر ندارد یا دراور به خاطر `pointer-events: none` یا `z-index` نامناسب پشت المان دیگری پنهان مانده است.
+3. **شکست تعاملات پویا و منوهای پنهان‌شده (Dynamic Interaction & Trapped Drawers):**  
+   *«روی دکمه باز کردن منو (#drawer-toggle) کلیک می‌کنم ولی منوی کناری باز نمی‌شود؛ بررسی کن ایونت اجرا می‌شود یا المان پشت لایه‌ها گیر کرده است.»*  
+   ← ایجنت با دستور `node agentsEye.mjs <url> --click "#drawer-toggle" --selector "#drawer" --temp` کلیک ماوس را شبیه‌سازی کرده و با بررسی دگرگونی‌های DOM، ابعاد کادر و فیلد `hiddenReason` متوجه می‌شود که آیا دکمه ایونت هندلر ندارد یا دراور به خاطر `pointer-events: none` یا `z-index` نامناسب مخفی مانده است. *توجه: طبق قواعد ایمنی، کلمات حساس (مانند `delete`، `pay`، `checkout`، `حذف`، `پرداخت`) نیازمند پرچم `--allow-destructive` هستند؛ و لینک‌های ناوبری (`<a href>`) یا دکمه‌های Submit فرم هرگز کلیک نمی‌شوند.*
 
-4. **دیباگ در سشن فعال کاربر بدون از دست رفتن داده‌های فرم (Active Authenticated Dev Session):**  
-   *«من وارد حساب کاربری شده‌ام و یک فرم ۵ مرحله‌ای را پر کرده‌ام؛ مرحله آخر خطا می‌دهد و نمی‌خواهم سشنم بپرد یا فرم پاک شود؛ رکوئست‌ها را چک کن.»*  
-   ← ایجنت بدون ری‌استارت مرورگر یا باز کردن تب جدید، با پرچم `--cdp http://127.0.0.1:9222 --temp` به همان تب فعال وصل شده، ترانزیت ناموفق شبکه (`--focus network`) و وضعیت استوریج (`--focus storage`) را بدون نشت اطلاعات حساس بررسی و مشکل اندپوینت ۴xx/۵xx یا هدر احراز هویت را حل می‌کند.
+4. **حذف معطلی راه‌اندازی با کرومیوم فعال و احراز هویت امن (Running Chromium & Scoped Auth):**  
+   *«یک پروسه کرومیوم روی پورت ۹۲۲۲ فعال است و می‌خواهیم یک مسیر محافظت‌شده داخلی را بدون اتلاف وقت برای باز شدن مرورگر تست کنیم؛ چطور بررسی‌اش کنیم؟»*  
+   ← ایجنت با دستور `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --header "Authorization: Bearer <token>" --focus network --temp` بلافاصله به مرورگر در حال کار متصل می‌شود. این اتصال یک کانتکست مجزا و ایزوله اینکاگنیتو با هدر ایمن (محدود به دامنه هدف) ایجاد کرده و اندپوینت‌های ناموفق ۴xx/۵xx را بدون تاخیر cold-start شناسایی می‌کند.
 
 5. **گیت تضمین صفر-رگرسیون در ماتریس بریک‌پوینت‌ها (Zero-Regression Quality Gate):**  
    *«سیستم گرید و استایل‌های بخش اصلی صفحه را بازنویسی کردم؛ مطمئن شو هم در موبایل هم تبلت و هم دسکتاپ ساختار سالم مانده و خطای جدیدی ایجاد نشده باشد.»*  
@@ -399,7 +410,15 @@ flowchart LR
 | **بازرسی یک المان خاص** | `node agentsEye.mjs <url> --selector "#login-modal" --temp` | بررسی استایل‌ها، ابعاد و دلیل دقیق مخفی بودن المان (`hiddenReason`). |
 | **تست تعاملی کلیک** | `node agentsEye.mjs <url> --click "#menu-button" --temp` | شبیه‌سازی کلیک کاربر و ثبت دگرگونی‌های لایوت و DOM بعد از کلیک. |
 | **کاوش المان‌های تعاملی** | `node agentsEye.mjs <url> --explore --temp` | کشف و تست خودکار المان‌های بازشونده (منوها، آکاردئون‌ها، تب‌ها). |
-| **اتصال به مرورگر در حال کار** | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --temp` | بررسی نشست فعال توسعه‌دهنده بدون ری‌استارت مرورگر یا پاک شدن فرم‌ها. |
+| **استایل‌های محاسباتی دقیق** | `node agentsEye.mjs <url> --selector "#modal" --style-props "display,position,z-index,backdrop-filter" --temp` | غیرفعال‌سازی خلاصه‌سازی استایل و استخراج مقادیر دقیق و بدون پیش‌فرض CSS. |
+| **تست تعاملی کلیک** | `node agentsEye.mjs <url> --click "#menu-button" --temp` | شبیه‌سازی کلیک کاربر و ثبت دگرگونی‌های لایوت و DOM بعد از کلیک. |
+| **زنجیره تعاملات متوالی** | `node agentsEye.mjs <url> --click "#menu" --key Escape --scroll 0,500 --temp` | اجرای متوالی تا ۵۰ کلیک، هاور، اسکرول و کلید کیبورد در یک اجرا. |
+| **کاوش المان‌های تعاملی** | `node agentsEye.mjs <url> --explore --temp` | کشف و تست خودکار المان‌های بازشونده (منوها، آکاردئون‌ها، تب‌ها). |
+| **صبر برای کامپوننت داینامیک** | `node agentsEye.mjs <url> --wait-for "#root" --temp` | صبر تا رندر شدن کامپوننت داینامیک در SPA قبل از ثبت گزارش. |
+| **تم دارک و کنتراست** | `node agentsEye.mjs <url> --color-scheme dark --focus issues --temp` | شبیه‌سازی تم تاریک و سنجش کنتراست رنگ متون طبق استاندارد WCAG. |
+| **بومی‌سازی و راست‌چین** | `node agentsEye.mjs <url> --locale fa-IR --timezone Asia/Tehran --temp` | شبیه‌سازی زبان فارسی، منطقه زمانی تهران و چیدمان راست‌به‌چپ (RTL). |
+| **اتصال به مرورگر در حال کار** | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --temp` | اتصال به پروسه کرومیوم در حال اجرا از طریق CDP برای حذف تاخیر راه‌اندازی (در کانتکست ایزوله اینکاگنیتو). |
+| **فیلتر ریجکس آفلاین لاگ‌ها** | `node agentsEye.mjs show <run-id> console --console-filter "/\[AUTH\]|error/i"` | جستجوی دقیق لاگ‌های کنسول با رجکس به صورت آفلاین و بدون باز کردن مجدد مرورگر. |
 | **بررسی اسکرول موبایل** | `node agentsEye.mjs <url> --viewport 375x812 --mobile --focus issues --temp` | بررسی ابعاد موبایل و استخراج سلکتورهای دقیق المان‌های بیرون‌زده. |
 | **ماتریس تمام رزولوشن‌ها** | `node agentsEye.mjs <url> --matrix --temp` | بررسی متوالی در سایزهای موبایل (۳۷۵px)، تبلت (۷۶۸px) و دسکتاپ (۱۴۴۰px). |
 | **راستی‌آزمایی رفع باگ (Diff)** | `node agentsEye.mjs diff <before-id> <after-id>` | مقایسه آفلاین دو ران برای اثبات حل مشکل و عدم ایجاد باگ جدید. |
@@ -476,6 +495,7 @@ flowchart LR
 - بررسی آدرس URL برای جلوگیری از حملات SSRF و بلاک کردن متادیتای ابری و رنج‌های شبکه خصوصی RFC 1918.
 - ماسک‌گذاری بهینه توکن‌ها و اطلاعات حساس در هدرها و تلمتری.
 - عملکرد غیرفعال و فقط‌خواندنی به صورت پیش‌فرض (عدم ثبت فرم، کلیک یا ناوبری مگر با دستور صریح).
+- گیت‌های ایمنی تعاملی: کلمات کلیدی مخرب یا حساس (مانند `delete`، `pay`، `checkout`، `حذف`، `پرداخت`) نیازمند `--allow-destructive` هستند؛ لینک‌های ناوبری (`<a href>`) و دکمه‌های Submit فرم هرگز کلیک نمی‌شوند.
 - شناسایی و خنثی‌سازی نشانه‌های اولیه تزریق غیرمستقیم پرامپت.
 
 **محدودیت‌ها و ریسک‌های مدیریت‌نشده**:
