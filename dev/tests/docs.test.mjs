@@ -40,13 +40,18 @@ test('every relative link in README.md resolves to an existing file', () => {
   assert.deepEqual(broken, [], `Broken links in README.md: ${JSON.stringify(broken)}`);
 });
 
+test('every relative link in README.fa.md resolves to an existing file', () => {
+  const broken = checkLinks(path.join(REPO_ROOT, 'README.fa.md'));
+  assert.deepEqual(broken, [], `Broken links in README.fa.md: ${JSON.stringify(broken)}`);
+});
+
 test('SKILL.md is <= 16 KB (16384 bytes)', () => {
   const stat = fs.statSync(path.join(REPO_ROOT, 'SKILL.md'));
   assert.ok(stat.size <= 16384, `SKILL.md size ${stat.size} exceeds 16384 bytes`);
 });
 
-test('no npx invocations remain in SKILL.md, README.md, agentsEye.mjs, package.json', () => {
-  const filesToCheck = ['SKILL.md', 'README.md', 'agentsEye.mjs', 'package.json'];
+test('no npx invocations remain in SKILL.md, README.md, README.fa.md, agentsEye.mjs, package.json', () => {
+  const filesToCheck = ['SKILL.md', 'README.md', 'README.fa.md', 'agentsEye.mjs', 'package.json'];
   for (const file of filesToCheck) {
     const filePath = path.join(REPO_ROOT, file);
     if (!fs.existsSync(filePath)) continue;
@@ -57,7 +62,7 @@ test('no npx invocations remain in SKILL.md, README.md, agentsEye.mjs, package.j
 });
 
 test('no numeric token claims or absolute security claims remain in docs', () => {
-  const filesToCheck = ['SKILL.md', 'README.md', 'references/cli-reference.md', 'references/schema-reference.md', 'references/security-model.md'];
+  const filesToCheck = ['SKILL.md', 'README.md', 'README.fa.md', 'references/cli-reference.md', 'references/schema-reference.md', 'references/security-model.md'];
   const forbiddenPatterns = [
     /\b1\.5[kK]\b/,
     /\b[~≈]?1[,.]?500\s+tokens?\b/i,
