@@ -22,8 +22,8 @@
   - [9. Layout Shift vs Intentional Animations (CLS vs Motion)](#9-layout-shift-vs-intentional-animations-cls-vs-motion)
   - [10. Safety and Limitations](#10-safety-and-limitations)
 - [راهنمای فارسی](#راهنمای-فارسی-persian-guide)
-  - [۱. چرا agentsEye ساخته شد و چه دردی را دوا می‌کند؟](#۱-چرا-agentseye-ساخته-شد-و-چه-دردی-را-دوا-میکند)
-  - [۲. چرخه کامل مهندسی فرانت‌اند (توسعه → خطایابی → راستی‌آزمایی نهایی)](#۲-چرخه-کامل-مهندسی-فرانتاند-توسعه--خطایابی--راستیآزمایی-نهایی)
+  - [۱. چرا agentsEye ساخته شد و چه مشکلی را حل می‌کند؟](#۱-چرا-agentseye-ساخته-شد-و-چه-مشکلی-را-حل-میکند)
+  - [۲. چرخه کامل مهندسی فرانت‌اند (توسعه ← خطایابی ← راستی‌آزمایی نهایی)](#۲-چرخه-کامل-مهندسی-فرانتاند-توسعه--خطایابی--راستیآزمایی-نهایی)
   - [۳. نحوه کارکرد به زبان ساده](#۳-نحوه-کارکرد-به-زبان-ساده)
   - [۴. قابلیت‌های کلیدی و برجسته](#۴-قابلیتهای-کلیدی-و-برجسته)
   - [۵. چطور از این ابزار به عنوان «اسکیل» در هوش مصنوعی استفاده کنیم؟](#۵-چطور-از-این-ابزار-به-عنوان-اسکیل-در-هوش-مصنوعی-استفاده-کنیم)
@@ -115,15 +115,15 @@ Equip your AI coding assistant (**Claude Code**, **Google Antigravity**, **Curso
 To use agentsEye as an agent skill, copy these items into your assistant's skills directory:
 
 ```text
-📁 agentsEye/
+📁 agents-eye/
 ├── 📄 agentsEye.mjs       # Standalone CLI engine (no npm packages required)
 ├── 📄 SKILL.md            # Standardized instructions and decision tree for agents
 └── 📁 references/         # In-depth technical guides (layout shifts, log debugging)
 ```
 
 #### Where to Copy Them:
-- **Claude Code**: `.claude/skills/agentsEye/`
-- **Google Antigravity / Gemini CLI**: `.agent/skills/agentsEye/` or `~/.gemini/antigravity-cli/skills/agentsEye/`
+- **Claude Code**: `.claude/skills/agents-eye/`
+- **Google Antigravity / Gemini CLI**: `.agent/skills/agents-eye/` or `~/.gemini/antigravity-cli/skills/agents-eye/`
 - **Cursor / Custom Setup**: Your workspace skills directory.
 
 #### Example Interactions (Tackling Complex Frontend Scenarios):
@@ -219,11 +219,14 @@ When diagnosing dynamic lifecycle timing or complex state in modern SPAs, dumpin
    ```javascript
    console.log('[AGENT_DEBUG_TAG] Auth state:', userStatus);
    ```
+
 2. Run agentsEye with targeted log filtering:
    ```bash
    node agentsEye.mjs http://localhost:3000 --temp --focus console --console-filter '[AGENT_DEBUG_TAG]'
    ```
+
 3. Read the exact lifecycle logs without noise from framework logs or third-party libraries.
+
 4. Surgically remove the tagged log statements once the bug is resolved.
 
 Consult the [Log-Driven Debugging Guide](references/log-driven-debugging.md) for details.
@@ -275,7 +278,7 @@ Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
 
 ## راهنمای فارسی (Persian Guide)
 
-### ۱. چرا agentsEye ساخته شد و چه دردی را دوا می‌کند؟
+### ۱. چرا agentsEye ساخته شد و چه مشکلی را حل می‌کند؟
 
 وقتی یک برنامه‌نویس به کمک یک دستیار هوش مصنوعی (مثل Claude Code، Antigravity، Cursor یا Windsurf) مشغول توسعه یا خطایابی یک وب‌اپلیکیشن است، با یک چالش اساسی مواجه می‌شود: **هوش مصنوعی نسبت به اتفاقاتی که در صفحه مرورگر رخ می‌دهد، کاملاً نابیناست.**
 
@@ -288,7 +291,9 @@ Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
 - آیا کدی که ایجنت تغییر داده، واقعاً باگ را حل کرده یا باعث ایجاد رگرسیون تصویری و خطای جدیدی در بخش دیگری شده است؟
 
 تلاش برای حل این مشکل معمولاً با دو رویکرد ناموفق مواجه می‌شود:
+
 ۱. **دامپ کردن کدهای خام HTML یا ساختار کامل DOM**: هزاران خط کد تکراری را وارد کانتکست ایجنت می‌کند؛ در حالی که استایل‌های محاسبه‌شده CSS، سرریز المان‌ها در ویوپورت، کرش‌های کلاینت، عدم تطابق‌های هیدریشن و وضعیت درخواست‌های ناموفق API را به کلی جا می‌اندازد.
+
 ۲. **نصب فریم‌ورک‌های سنگین تست مانند Playwright یا Puppeteer**: نیازمند نصب وابستگی‌های حجیم npm، دانلود باینری‌های چندصد مگابایتی مرورگر، نوشتن اسکریپت‌های پیچیده و تاخیر زیاد در راه‌اندازی (Cold-start) است که چابکی تعامل زنده ایجنت را از بین می‌برد.
 
 **ابزار agentsEye چشمان هوشمند ایجنت در زمان اجرای برنامه است.** این ابزار مستقیماً از طریق پروتکل بومی CDP به مرورگرهای کرومیوم (Chrome، Edge، Brave یا Chromium) متصل شده و بدون **هیچ‌گونه وابستگی خارجی (Zero Dependencies)** و در قالب یک فایل مستقل، صفحه لوکال‌هاست یا وب‌سایت در حال اجرا را بررسی می‌کند. خروجی آن یک خلاصه فشرده، متناسب با بودجه توکن و تفکیک‌شده از ارورها، تله‌های اسکرول، وضعیت شبکه و چیدمان است که ایجنت و انسان می‌توانند در کسری از ثانیه آن را بفهمند و باگ را حل کنند.
@@ -302,7 +307,7 @@ Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
 
 ---
 
-### ۲. چرخه کامل مهندسی فرانت‌اند (توسعه → خطایابی → راستی‌آزمایی نهایی)
+### ۲. چرخه کامل مهندسی فرانت‌اند (توسعه ← خطایابی ← راستی‌آزمایی نهایی)
 
 ابزار agentsEye یک چرخه بسته و مهندسی‌شده برای همکاری برنامه‌نویس و ایجنت فراهم می‌کند:
 
@@ -352,15 +357,15 @@ flowchart LR
 تنها کافی است این موارد را در پوشه اسکیل‌های ایجنت کپی کنید:
 
 ```text
-📁 agentsEye/
+📁 agents-eye/
 ├── 📄 agentsEye.mjs       # موتور اجرایی بدون نیاز به پکیج‌های خارجی
 ├── 📄 SKILL.md            # راهنما و درخت تصمیم‌گیری اختصاصی هوش مصنوعی
 └── 📁 references/         # راهنماهای تکمیلی (پرش‌های ساختاری، خطایابی لاگ‌محور)
 ```
 
 #### مسیرهای پیشنهادی کپی:
-- **Claude Code**: در مسیر `.claude/skills/agentsEye/`
-- **Antigravity / Gemini CLI**: در مسیر `.agent/skills/agentsEye/` یا `~/.gemini/antigravity-cli/skills/agentsEye/`
+- **Claude Code**: در مسیر `.claude/skills/agents-eye/`
+- **Antigravity / Gemini CLI**: در مسیر `.agent/skills/agents-eye/` یا `~/.gemini/antigravity-cli/skills/agents-eye/`
 - **Cursor یا سایر ایجنت‌ها**: در پوشه اسکیل‌های پروژه شما.
 
 #### نمونه سناریوهای تعامل (حل چالش‌های واقعی و پیچیده مهندسی فرانت‌اند):
@@ -456,11 +461,14 @@ flowchart LR
    ```javascript
    console.log('[AGENT_DEBUG_TAG] Auth state:', userStatus);
    ```
+
 ۲. ابزار را با فیلتر لاگ اجرا کنید:
    ```bash
    node agentsEye.mjs http://localhost:3000 --temp --focus console --console-filter '[AGENT_DEBUG_TAG]'
    ```
+
 ۳. تنها لاگ‌های مربوط به متغیر مورد نظر را بدون شلوغی و نویز فریم‌ورک مشاهده کنید.
+
 ۴. پس از رفع باگ، لاگ‌های موقت را پاک نمایید.
 
 برای مطالعه بیشتر به [راهنمای خطایابی لاگ‌محور](references/log-driven-debugging.md) مراجعه کنید.

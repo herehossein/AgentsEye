@@ -1,5 +1,5 @@
 ---
-name: agentseye
+name: agents-eye
 description: >-
   Inspect live web applications in Chromium as the eyes of the AI coding assistant. Universal stack support. Diagnoses runtime JS exceptions, console errors, hydration crashes, failed network/API requests, web storage, invisible UI, interactions, mobile overflow, log-driven debugging, CLS vs motion, and validates bugfixes with offline diffs.
 ---
