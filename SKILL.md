@@ -15,7 +15,7 @@ Works universally across any framework or stack that runs in the browser: **Reac
 ## 1. When to Use & When NOT to Use This Skill
 
 ### When to Use (Triggers & Contexts)
-Activate `agentsEye` whenever encountering any of the following scenarios:
+Activate `agents-eye` whenever encountering any of the following scenarios:
 
 - **Post-Code Verification & Quality Gate**: Verify frontend edits (CSS, JS, TS, HTML) in Chromium to confirm zero regressions (`summary.newErrors === 0` and `summary.newIssues === 0`).
 - **Runtime Crashes & Blank Pages**: Diagnose client crashes, blank screens, or hydration mismatches (React, Next.js, Nuxt, Remix) where build logs show no errors.
