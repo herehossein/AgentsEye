@@ -108,7 +108,7 @@ The redaction engine identifies and sanitizes:
 6. **Storage Values**: `localStorage` and `sessionStorage` values are masked unless opted-in via `--storage`, and even then pass through the redaction engine.
 
 > [!WARNING]
-> Viewport screenshots (`viewport-1280x800.png`) capture raw rendered browser pixels and are **not** text-redacted.
+> Viewport screenshots (`viewport-375x667.png` or `viewport-<WxH>.png`) capture raw rendered browser pixels and are **not** text-redacted.
 
 ---
 

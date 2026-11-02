@@ -176,8 +176,8 @@ The autonomous verification loop:
 | **Test Button Click / Toggle** | `node agentsEye.mjs <url> --click "#drawer-toggle" --temp` | Dispatches pointer click, records alterations |
 | **Sequential Interactions** | `node agentsEye.mjs <url> --click "#menu" --key Escape --scroll 0,500 --temp` | Sequential actions & per-action diffs (<=50) |
 | **Diagnose Skipped Click** | `node agentsEye.mjs show <id> interactions.actions` | Checks skip reason (overlay vs blacklist) |
-| **Mobile Overflow / Scroll Trap** | `node agentsEye.mjs <url> --viewport 375x812 --mobile --focus issues --temp` | Leaking elements and body scroll traps |
-| **Responsive Matrix Audit** | `node agentsEye.mjs <url> --matrix --temp` | Audits 375, 768, 1440 viewports |
+| **Mobile Overflow / Scroll Trap** | `node agentsEye.mjs <url> --focus issues --temp` | Default mobile-first viewport overflow & scroll traps |
+| **Responsive Matrix Audit** | `node agentsEye.mjs <url> --matrix --temp` | Audits Tailwind breakpoints (mobile..2xl) |
 | **Dark Theme & Contrast** | `node agentsEye.mjs <url> --color-scheme dark --focus issues --temp` | Dark theme contrast auditing |
 | **RTL & Localization** | `node agentsEye.mjs <url> --locale fa-IR --timezone Asia/Tehran --temp` | Emulates Persian locale, RTL layout |
 | **Fast Running Chromium Attach** | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --header "Authorization: Bearer <tok>" --temp` | Isolated incognito context with scoped auth |

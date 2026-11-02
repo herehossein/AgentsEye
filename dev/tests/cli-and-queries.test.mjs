@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArgs, queryReport, focusReport } from '../../agentsEye.mjs';
+import { parseArgs, parseViewport, queryReport, focusReport, TAILWIND_VIEWPORTS, MATRIX_VIEWPORTS, DEFAULTS } from '../../agentsEye.mjs';
 
 test('parseArgs: valid flags and viewport parsing', () => {
   const options = parseArgs(['http://example.com', '--viewport', '375x812', '--focus', 'issues', '--quiet']);
@@ -110,4 +110,88 @@ test('focusReport: slices report correctly across known slices', () => {
 
   const perfSlice = focusReport(dummyReport, 'perf');
   assert.ok(perfSlice.performance);
+});
+
+test('viewport: default is mobile-first (375x667, mobile: true)', () => {
+  const options = parseArgs(['http://example.com']);
+  assert.equal(options.viewport.width, 375);
+  assert.equal(options.viewport.height, 667);
+  assert.equal(options.viewport.mobile, true);
+  assert.equal(options.viewport.dpr, 1);
+});
+
+test('viewport: parses all standard Tailwind presets', () => {
+  const presets = [
+    { name: 'mobile', width: 375, height: 667, mobile: true },
+    { name: 'sm', width: 640, height: 800, mobile: false },
+    { name: 'md', width: 768, height: 1024, mobile: false },
+    { name: 'lg', width: 1024, height: 768, mobile: false },
+    { name: 'xl', width: 1280, height: 800, mobile: false },
+    { name: '2xl', width: 1536, height: 960, mobile: false },
+  ];
+
+  for (const preset of presets) {
+    const parsed = parseViewport(preset.name);
+    assert.equal(parsed.width, preset.width, `Preset ${preset.name} width`);
+    assert.equal(parsed.height, preset.height, `Preset ${preset.name} height`);
+    assert.equal(parsed.mobile, preset.mobile, `Preset ${preset.name} mobile flag`);
+
+    const options = parseArgs(['http://example.com', '--viewport', preset.name]);
+    assert.equal(options.viewport.width, preset.width);
+    assert.equal(options.viewport.height, preset.height);
+    assert.equal(options.viewport.mobile, preset.mobile);
+  }
+});
+
+test('viewport: supports custom dimensions and flags', () => {
+  // Custom mobile-sized viewport
+  const mobileCustom = parseArgs(['http://example.com', '--viewport', '412x915']);
+  assert.equal(mobileCustom.viewport.width, 412);
+  assert.equal(mobileCustom.viewport.height, 915);
+  assert.equal(mobileCustom.viewport.mobile, true);
+
+  // Custom desktop-sized viewport
+  const desktopCustom = parseArgs(['http://example.com', '--viewport', '1920x1080']);
+  assert.equal(desktopCustom.viewport.width, 1920);
+  assert.equal(desktopCustom.viewport.height, 1080);
+  assert.equal(desktopCustom.viewport.mobile, false);
+
+  // Explicit --desktop / --no-mobile overrides mobile default
+  const desktopOverride = parseArgs(['http://example.com', '--viewport', '375x667', '--desktop']);
+  assert.equal(desktopOverride.viewport.mobile, false);
+
+  const noMobileOverride = parseArgs(['http://example.com', '--no-mobile']);
+  assert.equal(noMobileOverride.viewport.mobile, false);
+
+  // Explicit --mobile forces mobile emulation even for desktop dimensions
+  const mobileForced = parseArgs(['http://example.com', '--viewport', '1920x1080', '--mobile']);
+  assert.equal(mobileForced.viewport.mobile, true);
+});
+
+test('viewport: --viewports enables matrix mode with custom list', () => {
+  const options = parseArgs(['http://example.com', '--viewports', '375x667,sm,1024x768']);
+  assert.equal(options.matrix, true);
+  assert.ok(Array.isArray(options.customViewports));
+  assert.equal(options.customViewports.length, 3);
+  assert.equal(options.customViewports[0].width, 375);
+  assert.equal(options.customViewports[1].width, 640);
+  assert.equal(options.customViewports[2].width, 1024);
+});
+
+test('viewport: MATRIX_VIEWPORTS contains mobile and standard Tailwind breakpoints', () => {
+  assert.equal(MATRIX_VIEWPORTS.length, 6);
+  assert.deepEqual(
+    MATRIX_VIEWPORTS.map((v) => v.width),
+    [375, 640, 768, 1024, 1280, 1536]
+  );
+  assert.equal(MATRIX_VIEWPORTS[0].mobile, true);
+  assert.equal(MATRIX_VIEWPORTS[1].mobile, false);
+});
+
+test('viewport: DEFAULTS.breakpoints includes Tailwind 2xl (1536px)', () => {
+  assert.ok(DEFAULTS.breakpoints.includes(640));
+  assert.ok(DEFAULTS.breakpoints.includes(768));
+  assert.ok(DEFAULTS.breakpoints.includes(1024));
+  assert.ok(DEFAULTS.breakpoints.includes(1280));
+  assert.ok(DEFAULTS.breakpoints.includes(1536));
 });

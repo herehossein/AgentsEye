@@ -8,7 +8,7 @@
  *
  * Quick start:
  *   node agentsEye.mjs http://localhost:3000
- *   node agentsEye.mjs http://localhost:3000 --viewport 375x812 --focus issues
+ *   node agentsEye.mjs http://localhost:3000 --viewport sm --focus issues
  *   node agentsEye.mjs diff <before-id> <after-id>
  *   node agentsEye.mjs --help
  *
@@ -30,11 +30,23 @@ const TOOL_NAME = 'agentsEye';
 const TOOL_VERSION = '1.0.0';
 const SCHEMA_VERSION = '1.0';
 const FOCUS_SLICES = ['issues', 'forms', 'dom', 'network', 'perf', 'console', 'storage'];
-const MATRIX_VIEWPORTS = [
-  { width: 375, height: 812, dpr: 1, mobile: true },
-  { width: 768, height: 1024, dpr: 1, mobile: false },
-  { width: 1440, height: 900, dpr: 1, mobile: false },
-];
+const TAILWIND_VIEWPORTS = Object.freeze({
+  mobile: Object.freeze({ width: 375, height: 667, dpr: 1, mobile: true }),
+  sm: Object.freeze({ width: 640, height: 800, dpr: 1, mobile: false }),
+  md: Object.freeze({ width: 768, height: 1024, dpr: 1, mobile: false }),
+  lg: Object.freeze({ width: 1024, height: 768, dpr: 1, mobile: false }),
+  xl: Object.freeze({ width: 1280, height: 800, dpr: 1, mobile: false }),
+  '2xl': Object.freeze({ width: 1536, height: 960, dpr: 1, mobile: false }),
+});
+
+const MATRIX_VIEWPORTS = Object.freeze([
+  { ...TAILWIND_VIEWPORTS.mobile },
+  { ...TAILWIND_VIEWPORTS.sm },
+  { ...TAILWIND_VIEWPORTS.md },
+  { ...TAILWIND_VIEWPORTS.lg },
+  { ...TAILWIND_VIEWPORTS.xl },
+  { ...TAILWIND_VIEWPORTS['2xl'] },
+]);
 
 const DEFAULTS = Object.freeze({
   timeoutMs: 30_000,
@@ -57,8 +69,8 @@ const DEFAULTS = Object.freeze({
   maxStorageValueLength: 2_000,
   maxCssVars: 200,
   maxIssues: 80,
-  viewport: { width: 1280, height: 800, dpr: 1, mobile: false },
-  breakpoints: [320, 360, 375, 412, 640, 768, 1024, 1280, 1440, 1920],
+  viewport: Object.freeze({ width: 375, height: 667, dpr: 1, mobile: true }),
+  breakpoints: [320, 360, 375, 412, 640, 768, 1024, 1280, 1536, 1920],
 });
 
 const KNOWN_SECTIONS = new Set([
@@ -452,10 +464,11 @@ Target:
   --disable-cache               Disable the browser HTTP cache
 
 Viewport / emulation:
-  --viewport <WxH>              Emulated viewport (default ${DEFAULTS.viewport.width}x${DEFAULTS.viewport.height})
+  --viewport <WxH|preset>       Emulated viewport (default ${DEFAULTS.viewport.width}x${DEFAULTS.viewport.height}; presets: mobile, sm, md, lg, xl, 2xl)
   --width <px> --height <px>    Individual viewport dimensions
   --dpr <n>                     Device pixel ratio (default 1)
-  --mobile                      Mobile emulation flag
+  --mobile                      Mobile emulation flag (default true for mobile-first auditing)
+  --desktop, --no-mobile        Disable mobile emulation (desktop mode)
   --touch                       Enable touch emulation
   --user-agent <string>         Override the User-Agent
   --color-scheme <light|dark>   Emulate prefers-color-scheme
@@ -512,7 +525,8 @@ Interactions (opt-in; can cause application side effects):
   --allow-destructive           Disable destructive-label blacklist only
 
 Responsive analysis:
-  --matrix                      Inspect 375x812, 768x1024 and 1440x900
+  --matrix                      Inspect Tailwind breakpoints: mobile, sm, md, lg, xl, 2xl
+  --viewports <list>            Inspect comma-separated list of viewports or presets (e.g. 375x667,sm,lg)
   --diff <run-1> <run-2>       Compare two saved reports without navigation
 
 Output:
@@ -581,11 +595,22 @@ function parseEnum(value, name, allowed) {
 }
 
 function parseViewport(value) {
-  const match = /^(\d+)x(\d+)$/i.exec(String(value).trim());
-  if (!match) throw new UsageError('--viewport expects WIDTHxHEIGHT, e.g. 375x812');
+  const trimmed = String(value).trim();
+  const lower = trimmed.toLowerCase();
+  if (Object.hasOwn(TAILWIND_VIEWPORTS, lower)) {
+    return { ...TAILWIND_VIEWPORTS[lower] };
+  }
+  const match = /^(\d+)x(\d+)$/i.exec(trimmed);
+  if (!match) {
+    throw new UsageError('--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl)');
+  }
+  const width = parseInteger(match[1], '--viewport width', { min: 1, max: 20_000 });
+  const height = parseInteger(match[2], '--viewport height', { min: 1, max: 20_000 });
   return {
-    width: parseInteger(match[1], '--viewport width', { min: 1, max: 20_000 }),
-    height: parseInteger(match[2], '--viewport height', { min: 1, max: 20_000 }),
+    width,
+    height,
+    dpr: 1,
+    mobile: width < 768,
   };
 }
 
@@ -650,6 +675,8 @@ function parseArgs(argv) {
     noProxy: false,
     disableCache: false,
     viewport: { ...DEFAULTS.viewport },
+    explicitMobile: false,
+    customViewports: null,
     touch: false,
     userAgent: null,
     colorScheme: null,
@@ -795,11 +822,19 @@ function parseArgs(argv) {
         const v = parseViewport(take());
         options.viewport.width = v.width;
         options.viewport.height = v.height;
+        if (!options.explicitMobile && v.mobile !== undefined) {
+          options.viewport.mobile = v.mobile;
+        }
         break;
       }
-      case 'width':
-        options.viewport.width = parseInteger(take(), '--width', { min: 1, max: 20_000 });
+      case 'width': {
+        const w = parseInteger(take(), '--width', { min: 1, max: 20_000 });
+        options.viewport.width = w;
+        if (!options.explicitMobile) {
+          options.viewport.mobile = w < 768;
+        }
         break;
+      }
       case 'height':
         options.viewport.height = parseInteger(take(), '--height', { min: 1, max: 20_000 });
         break;
@@ -813,7 +848,31 @@ function parseArgs(argv) {
       }
       case 'mobile':
         options.viewport.mobile = true;
+        options.explicitMobile = true;
         break;
+      case 'desktop':
+      case 'no-mobile':
+        options.viewport.mobile = false;
+        options.explicitMobile = true;
+        break;
+      case 'viewports': {
+        const raw = take();
+        const parts = parseList(raw);
+        if (parts.length === 0) {
+          throw new UsageError('--viewports expects a comma-separated list of viewports or presets');
+        }
+        options.customViewports = parts.map((part) => {
+          const parsed = parseViewport(part);
+          return {
+            width: parsed.width,
+            height: parsed.height,
+            dpr: parsed.dpr ?? options.viewport.dpr ?? 1,
+            mobile: parsed.mobile ?? (parsed.width < 768),
+          };
+        });
+        options.matrix = true;
+        break;
+      }
       case 'touch':
         options.touch = true;
         break;
@@ -6093,12 +6152,12 @@ async function main() {
       browserInfo = await launchBrowser(options, (message) => logInfo(options, message));
       cdp = browserInfo.cdp;
     }
-    const viewports = options.matrix ? MATRIX_VIEWPORTS : [options.viewport];
+    const viewports = options.matrix ? (options.customViewports ?? MATRIX_VIEWPORTS) : [options.viewport];
     const snapshots = [];
     for (const [index, viewport] of viewports.entries()) {
       const runOptions = {
         ...options,
-        viewport: { ...viewport, dpr: options.viewport.dpr },
+        viewport: { ...viewport, dpr: options.viewport.dpr ?? viewport.dpr ?? 1 },
         // Each matrix entry owns one screenshot; user-specified output is copied
         // afterwards to avoid overwriting it on the second viewport.
         screenshot: path.join(activeRun.directory, `viewport-${viewport.width}x${viewport.height}.${options.screenshotFormat}`),
@@ -6159,7 +6218,7 @@ async function main() {
 }
 
 export {
-  parseArgs, selectSections, redactReport, redactString, redactUrl,
+  parseArgs, parseViewport, selectSections, redactReport, redactString, redactUrl,
   makeProbeConfig, inPageProbe, evaluate, findBrowser,
   minimalSummary, compactDom, focusReport, queryReport, diffReports,
   readRun, createRun, persistRun, cleanRuns, validateRunId,
@@ -6171,6 +6230,7 @@ export {
   formatText, serializeOutput, outputView,
   validateBrowserArg, resolveSafePath,
   neutralizeControlTokens, scanPromptInjection, sanitizePromptInjection, auditAndSanitizeReport,
+  TAILWIND_VIEWPORTS, MATRIX_VIEWPORTS, DEFAULTS,
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

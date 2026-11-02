@@ -57,12 +57,13 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 
 | Flag | Argument | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--viewport` | `<WxH>` | `1280x800` | Emulated viewport resolution in CSS pixels (e.g., `375x812`, `768x1024`, `1920x1080`). `--mobile` and `--touch` must be passed explicitly (or via `--matrix` which sets `mobile: true` for `375x812`). |
-| `--width` | `<px>` | `1280` | Explicit viewport width in CSS pixels. |
-| `--height` | `<px>` | `800` | Explicit viewport height in CSS pixels. |
+| `--viewport` | `<WxH\|preset>` | `375x667` | Emulated viewport resolution in CSS pixels. Defaults to mobile-first baseline (`375x667`, `mobile: true`). Supports Tailwind presets (`mobile`, `sm`, `md`, `lg`, `xl`, `2xl`) or custom dimensions (`<WxH>`, e.g. `412x915`, `1920x1080`). For custom dimensions, widths `< 768px` infer `mobile: true`. |
+| `--width` | `<px>` | `375` | Explicit viewport width in CSS pixels. Widths `< 768px` infer `mobile: true` unless overridden. |
+| `--height` | `<px>` | `667` | Explicit viewport height in CSS pixels. |
 | `--dpr` | `<n>` | `1` | Device pixel ratio (e.g. `2` or `3` for Retina/High-DPI displays). |
-| `--mobile` | boolean | `false` | Explicitly enables mobile browser viewport meta tag interpretation. |
-| `--touch` | boolean | `false` | Enables touch event emulation and touch hit-testing. |
+| `--mobile` | boolean | `true` | Enables mobile browser viewport meta tag interpretation. Enabled by default under mobile-first philosophy. |
+| `--desktop`, `--no-mobile` | boolean | `false` | Explicitly disables mobile browser emulation (desktop mode). |
+| `--touch` | boolean | `false` | Enables touch event emulation and touch hit-testing. Automatically enabled when mobile emulation is active. |
 | `--user-agent` | `<string>` | Default browser UA | Custom `User-Agent` HTTP header and navigator string. |
 | `--color-scheme` | `light \| dark` | System default | Emulates `prefers-color-scheme` CSS media feature. |
 | `--reduced-motion` | `reduce \| no-preference` | System default | Emulates `prefers-reduced-motion` CSS media feature. |
@@ -122,7 +123,8 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 
 | Flag | Argument | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--matrix` | boolean | `false` | Sequentially inspects three standard breakpoints: Mobile (`375x812`), Tablet (`768x1024`), and Desktop (`1440x900`). Computes cross-breakpoint diffs and captures screenshots for each. |
+| `--matrix` | boolean | `false` | Sequentially inspects standard Tailwind breakpoints: Mobile (`375x667`), `sm` (`640x800`), `md` (`768x1024`), `lg` (`1024x768`), `xl` (`1280x800`), and `2xl` (`1536x960`). Computes cross-breakpoint diffs and captures screenshots for each. |
+| `--viewports` | `<list>` | `null` | Inspects a custom comma-separated list of viewports or Tailwind presets (e.g. `375x667,sm,lg,1920x1080`). Automatically activates matrix mode. |
 | `--diff` | `<id-1> <id-2>` | `null` | Offline structural comparison between two previous runs. |
 
 ### H. Output Slices & Formats
