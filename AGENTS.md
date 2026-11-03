@@ -93,7 +93,24 @@ Any AI agent modifying or working in this codebase **must** adhere strictly to t
 
 ```
 agentsEye/
-├── agentsEye.mjs              # Monolithic executable CLI and CDP runtime engine (245 KB, single-file portable)
+├── agentsEye.mjs              # Compiled standalone executable CLI and CDP runtime engine (zero runtime dependencies)
+├── src/                       # Layered TypeScript source codebase (modular DAG architecture)
+│   ├── types/                 # Layer 0: Options and Report data contracts
+│   ├── config/                # Layer 0: Shared constants and default tables
+│   ├── errors/                # Layer 0: InspectorError and UsageError
+│   ├── utils/                 # Layer 1: Pure helper utilities and file I/O
+│   ├── security/              # Layer 1: SSRF gates, path traversal guard, redaction, prompt injection
+│   ├── probes/                # Layer 2: Self-contained Chromium in-page probes (zero external deps for .toString())
+│   ├── cdp/                   # Layer 3: Native WebSocket CDP client, browser lifecycle, collectors
+│   ├── interactions/          # Layer 3: Interaction engine, exploration, safety gates
+│   ├── storage/               # Layer 4: Telemetry run management and persistence
+│   ├── reporting/             # Layer 4: Slices, minimal summary, diff engine, formatters
+│   ├── cli/                   # Layer 4: CLI argument parser and help generator
+│   ├── inspector/             # Layer 5: inspectPage orchestrator and main CLI runner
+│   └── index.ts               # Layer 5: Root module re-exporting 52 named symbols & CLI execution guard
+├── scripts/
+│   └── build.mjs              # Standalone esbuild bundler script compiling src/ to agentsEye.mjs
+├── tsconfig.json              # TypeScript configuration (strict, ES2023, bundler resolution)
 ├── SKILL.md                   # AI Agent skill specification for IDEs and coding agents (strictly <= 16 KB)
 ├── package.json               # Package manifest (bin: agentseye, zero dependencies, node >= 22)
 ├── LICENSE                    # MIT License
@@ -107,7 +124,7 @@ agentsEye/
 │   ├── layout-shift-guide.md  # Core Web Vitals (CLS vs CSS motion/animation diagnosis)
 │   └── log-driven-debugging.md# Structured logging and filtering pattern for dynamic state
 └── dev/
-    └── tests/                 # Full test suite using native node:test (121 tests across 11 suites)
+    └── tests/                 # Full test suite using native node:test (127 tests across 11 suites)
         ├── browser.test.mjs
         ├── clean.test.mjs
         ├── cli-and-queries.test.mjs
@@ -143,7 +160,16 @@ When maintaining or extending `agentsEye.mjs`, locate functionality by major log
 
 ## 5. Development, Testing & Verification Commands
 
-All test scripts utilize Node's built-in test runner (`node:test`). No build step or bundler is required.
+All test scripts utilize Node's built-in test runner (`node:test`). Source development uses TypeScript in `src/` and bundles to `agentsEye.mjs` via `esbuild`.
+
+### Type Check & Build
+```bash
+# Type check TypeScript sources without emitting files
+npm run typecheck
+
+# Bundle src/ into standalone executable agentsEye.mjs at repository root
+npm run build
+```
 
 ### Run All Tests
 ```bash
@@ -255,9 +281,13 @@ When static inspection cannot resolve dynamic state transitions or race conditio
 
 ## 7. Agent Code Editing Conventions
 
-1. **Keep Single-File Portability**: Unless explicit architectural reorganization is instructed, keep the core engine encapsulated within `agentsEye.mjs` to maintain frictionless distribution.
-2. **Defensive Error Handling**: All network sockets, browser processes, and file descriptors must have deterministic cleanup logic inside `finally` blocks.
-3. **Preserve Backward Compatibility**: When modifying CLI argument parsing or JSON schema output, ensure backward compatibility for consumers reading `minimalSummary` or existing slice formats (`schema-reference.md`).
-4. **Mandatory Test Verification**: After any edit to `agentsEye.mjs`, `SKILL.md`, or reference files:
+1. **Source of Truth in `src/`**: All development and refactoring is performed in strictly-typed TypeScript within `src/`. Always run `npm run typecheck` followed by `npm run build` to update the root `agentsEye.mjs` distributable.
+2. **Preserve Single-File Portability**: The build output `agentsEye.mjs` must remain 100% self-contained and zero-dependency, starting with `#!/usr/bin/env node` and depending solely on built-in Node.js libraries.
+3. **In-Page Probes Isolation**: The 4 browser-evaluated functions in `src/probes/` (`inPageProbe`, `inPageInteractionProbe`, `interactionSafety`, `inPagePerformanceObserver`) must remain 100% self-contained with no external runtime references, ensuring `.toString()` operates cleanly in Chromium.
+4. **Defensive Error Handling**: All network sockets, browser processes, and file descriptors must have deterministic cleanup logic inside `finally` blocks.
+5. **Preserve Backward Compatibility**: Maintain all 52 named exports in `src/index.ts` / `agentsEye.mjs` and preserve JSON schema compatibility for consumers reading `minimalSummary` or existing slice formats (`schema-reference.md`).
+6. **Mandatory Test Verification**: After any edit to `src/`, `SKILL.md`, or reference files:
+   - Run `npm run typecheck` to verify zero TypeScript errors.
+   - Run `npm run build` to compile the single-file executable.
    - Run `node --test dev/tests/docs.test.mjs` to ensure documentation invariants hold.
    - Run `node --test dev/tests/*.test.mjs` to guarantee 100% test pass rate across all 11 test suites.
