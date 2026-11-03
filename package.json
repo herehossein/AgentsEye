@@ -9,6 +9,16 @@
   "engines": {
     "node": ">=22"
   },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test dev/tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.3"
+  },
   "license": "MIT",
   "author": "herehossein",
   "repository": {

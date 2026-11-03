@@ -43,7 +43,7 @@ Any AI agent modifying or working in this codebase **must** adhere strictly to t
 ### 4. Exit Code Contract & Decision Semantics
 - **`0` (Success / Clean)**: Inspection completed with `report.ok === true`, or offline command (`show`, `diff`, `clean`, `--help`, `--version`) succeeded.  
   *Crucial Agent Rule*: Detected layout issues (overflow, contrast) or failed network requests are returned as structured JSON data; inspect `issues` and `network.failures` rather than relying solely on the process exit code.
-- **`1` (Runtime Failure)**: Target page inspection failure with `report.ok === false` (uncaught JS exceptions, probe failure), or `InspectorError` (navigation timeout, DNS failure, browser crash).
+- **`1` (Runtime Failure)**: Inspection process failure with `report.ok === false` or `InspectorError` (navigation timeout/failure, DNS lookup failure, browser launch failure, or probe crash). *Note*: Uncaught JavaScript exceptions inside the target web page (`errors.uncaught`) do NOT trigger exit code `1`; they are returned as structured data inside the JSON output with exit code `0` (`report.ok === true`).
 - **`2` (Usage & Preflight Error)**: `UsageError` (malformed flags, unknown focus slices, SSRF target rejection, path traversal, bare `clean` without arguments, or conflicting clean modes).
 - **Signals**: `129` (SIGHUP), `130` (SIGINT / SIGBREAK), `143` (SIGTERM). All trigger deterministic browser process tree and temp profile cleanup.
 

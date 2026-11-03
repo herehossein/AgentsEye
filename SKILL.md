@@ -8,7 +8,7 @@ description: >-
 
 Zero-dependency Chrome DevTools Protocol (CDP) runtime engine for autonomous AI coding agents. Functions as the runtime "eyes" and sensory feedback loop of an AI agent paired with a developer: inspecting local dev servers, discovering silent runtime crashes, diagnosing layout faults, and verifying bugfixes without burning model context.
 
-Works universally across any framework or stack that runs in the browser: **React, Next.js, Vue, Nuxt, Svelte, Angular, vanilla HTML/JS, React Native for Web, Astro, Solid, Flutter Web, and WebAssembly (Wasm)**.
+Works universally across all browser stacks: **React, Next.js, Vue, Nuxt, Svelte, Angular, vanilla HTML/JS, Astro, Solid, Flutter Web, Wasm**.
 
 ---
 
@@ -17,10 +17,10 @@ Works universally across any framework or stack that runs in the browser: **Reac
 ### When to Use (Triggers & Contexts)
 Activate `agents-eye` whenever encountering any of the following scenarios:
 
-- **Post-Code Verification & Quality Gate**: Verify frontend edits (CSS, JS, TS, HTML) in Chromium to confirm zero regressions (`summary.newErrors === 0` and `summary.newIssues === 0`).
-- **Runtime Crashes & Blank Pages**: Diagnose client crashes, blank screens, or hydration mismatches (React, Next.js, Nuxt, Remix) where build logs show no errors.
-- **Complex State, Timing & Race Conditions**: Static DOM cannot explain dynamic state/lifecycle failures; inject tagged logs, filter with `--console-filter`, diagnose, and clean up.
-- **Layout Instability & Web Vitals (CLS vs Motion)**: Page jumps or CLS spikes; pinpoint unreserved dimensions (`aspect-ratio`, `width/height`) or reflow CSS without disabling intentional animations.
+- **Post-Code Verification & Quality Gate**: Verify frontend edits in Chromium to confirm zero regressions (`summary.newErrors === 0` and `summary.newIssues === 0`).
+- **Runtime Crashes & Blank Pages**: Diagnose client crashes, blank screens, or hydration mismatches where build logs show no errors.
+- **State & Race Conditions**: Static DOM cannot explain dynamic failures; inject tagged logs, filter with `--console-filter`, diagnose, and clean up.
+- **Layout Instability (CLS vs Motion)**: Page jumps or CLS spikes; pinpoint unreserved dimensions (`aspect-ratio`, `width/height`) or reflow CSS without disabling animations.
 - **Network & API Diagnostics**: Features fail to fetch data; inspect outgoing requests, HTTP 4xx/5xx responses, slow endpoints, or missing headers.
 - **Invisible or Misbehaving UI Components**: Modals, drawers, or buttons reported invisible, unclickable, or misplaced; inspect computed styles, bounding box, and `hiddenReason`.
 - **Interactive State Exploration**: Verify dynamic UI alterations (clicking triggers to open modals, expanding accordions, checking tab switches).
@@ -79,7 +79,7 @@ Avoid unbudgeted `--full` to stdout. Use targeted slices (`--focus <slice>`):
 - **Automatic exploration (`--explore`)**: Discovers and clicks up to `--max-explore <n>` (default 8, max 50) safe disclosure toggles (`<summary>`, `role="tab"`, buttons with `aria-expanded`/`aria-haspopup`, menu/accordion/drawer labels in English/Persian) and records per-action diffs.
 
 ### 5. Interaction Safety Rules & Diagnosing Skipped Actions
-- **Destructive Keyword Blacklist**: Elements matching sensitive keywords in English or Persian (`delete`, `remove`, `clear`, `pay`, `order`, `checkout`, `logout`, `submit`, `save`, `confirm`, `reset`, `cancel`, `حذف`, `پرداخت`, `خرید`, `سفارش`, `خروج`, `ارسال`, `ذخیره`, `تایید`, `لغو`, etc.) are **skipped by default** (`status: 'skipped'`).
+- **Destructive Keyword Blacklist**: Elements matching sensitive keywords in English or Persian (`delete`, `remove`, `pay`, `order`, `checkout`, `logout`, `submit`, `حذف`, `پرداخت`, `خرید`, `سفارش`, `خروج`, etc.) are **skipped by default** (`status: 'skipped'`).
 - **Dev Server Override (`--allow-destructive`)**: Pass `--allow-destructive` on safe dev servers to allow clicking buttons labeled "Save", "Submit", or "Checkout".
 - **Hard Safety Blocks (Never Clicked)**: Even with `--allow-destructive`, `agentsEye` strictly refuses to click:
   - Navigation links (`<a href>`, `role="link"`)
@@ -108,6 +108,7 @@ Avoid unbudgeted `--full` to stdout. Use targeted slices (`--focus <slice>`):
   node agentsEye.mjs show <run-id> console --console-filter "/\[AUTH\]|hydration/i" --console-level error,warn
   ```
 - **Environment Emulation**:
+  - Viewports: Default is mobile-first (`375x667`, `mobile: true`). Inspect desktop layouts or breakpoints using Tailwind presets (`--viewport xl`, `sm`, `md`, `lg`, `2xl`), custom viewport lists (`--viewports sm,lg,xl`), or `--desktop` / `--no-mobile` flags.
   - Dark mode WCAG contrast check: `--color-scheme dark --focus issues`
   - RTL & Localization: `--locale fa-IR --timezone Asia/Tehran`
   - Accessibility & Animation: `--reduced-motion reduce`
