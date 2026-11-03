@@ -14,7 +14,11 @@ export function diffInteractionSnapshots(before: any, after: any): any {
   for (const [id, node] of next as any) {
     const old: any = previous.get(id);
     if (!old) continue;
-    if (['x', 'y', 'width', 'height'].some((key) => Math.abs((node.rect?.[key] || 0) - (old.rect?.[key] || 0)) > 0.5)) {
+    if (
+      ['x', 'y', 'width', 'height'].some(
+        (key) => Math.abs((node.rect?.[key] || 0) - (old.rect?.[key] || 0)) > 0.5,
+      )
+    ) {
       layoutChanged.push({ id, before: old.rect, after: node.rect });
     }
     const changes: Record<string, any> = {};
@@ -38,7 +42,8 @@ export function diffInteractionSnapshots(before: any, after: any): any {
       if (!['id', 'rect', 'tag'].includes(key)) stateKeys.add(key);
     }
     for (const key of stateKeys) {
-      if (old[key] !== node[key]) changes[key] = { before: old[key] ?? null, after: node[key] ?? null };
+      if (old[key] !== node[key])
+        changes[key] = { before: old[key] ?? null, after: node[key] ?? null };
     }
     if (Object.keys(changes).length) stateChanged.push({ id, changes });
   }
@@ -53,8 +58,12 @@ export function diffInteractionSnapshots(before: any, after: any): any {
   const beforeConsole = getConsoleList(before);
   const afterConsole = getConsoleList(after);
   const consoleEvents = afterConsole.slice(beforeConsole.length);
-  const consoleErrors = consoleEvents.filter((e: any) => ['error', 'assert'].includes(String(e.type || e.level || '').toLowerCase()));
-  const consoleWarnings = consoleEvents.filter((e: any) => ['warn', 'warning'].includes(String(e.type || e.level || '').toLowerCase()));
+  const consoleErrors = consoleEvents.filter((e: any) =>
+    ['error', 'assert'].includes(String(e.type || e.level || '').toLowerCase()),
+  );
+  const consoleWarnings = consoleEvents.filter((e: any) =>
+    ['warn', 'warning'].includes(String(e.type || e.level || '').toLowerCase()),
+  );
 
   const getErrorList = (snap: any) => {
     if (!snap) return [];
@@ -73,7 +82,8 @@ export function diffInteractionSnapshots(before: any, after: any): any {
     before.documentToken !== after.documentToken ||
     before.navigationToken !== after.navigationToken ||
     urlChanged;
-  const scrollChanged = before.scroll?.x !== after.scroll?.x || before.scroll?.y !== after.scroll?.y;
+  const scrollChanged =
+    before.scroll?.x !== after.scroll?.x || before.scroll?.y !== after.scroll?.y;
 
   const summary = {
     added: added.length,
@@ -131,7 +141,11 @@ export function interactionKeyDefinition(value: unknown): any {
   };
 }
 
-export async function performInteractions(cdp: CdpClient, options: any, beforeProbe: any = null): Promise<any> {
+export async function performInteractions(
+  cdp: CdpClient,
+  options: any,
+  beforeProbe: any = null,
+): Promise<any> {
   const requested = Array.isArray(options.actions) ? options.actions : [];
   const enabled = Boolean(options.explore || requested.length);
   const warning = options.explore
@@ -164,7 +178,7 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
         ...command,
         allowDestructive: Boolean(options.allowDestructive),
       })}, (${interactionSafety.toString()}))`,
-      evaluationOptions
+      evaluationOptions,
     );
   let baseline: any;
   try {
@@ -172,7 +186,9 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
     telemetry.beforeSnapshot = baseline;
     telemetry.afterSnapshot = baseline;
   } catch (error: any) {
-    telemetry.warnings.push(`Interaction snapshot unavailable; no inputs dispatched: ${error.message}`);
+    telemetry.warnings.push(
+      `Interaction snapshot unavailable; no inputs dispatched: ${error.message}`,
+    );
     return telemetry;
   }
   const sameDocument = (snapshot: any) =>
@@ -203,7 +219,12 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
         return;
       }
       if (action.type === 'click' || action.type === 'hover') {
-        let target = await probe({ op: 'target', selector: action.value, id: candidate?.id, automatic });
+        let target = await probe({
+          op: 'target',
+          selector: action.value,
+          id: candidate?.id,
+          automatic,
+        });
         record.target = target?.target || null;
         if (!sameDocument(target)) {
           stop = true;
@@ -215,7 +236,11 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
           return;
         }
         inputSent = true;
-        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...target.point, button: 'none' });
+        await cdp.send('Input.dispatchMouseEvent', {
+          type: 'mouseMoved',
+          ...target.point,
+          button: 'none',
+        });
         // Mouse movement itself can expose overlays or replace a target. Never
         // use cached coordinates or resolve a replacement by selector for a click.
         if (action.type === 'click') {
@@ -249,12 +274,16 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
           }
         }
       } else if (action.type === 'scroll') {
-        const match = /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(
-          String(action.value)
-        );
+        const match =
+          /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(
+            String(action.value),
+          );
         const deltaX = match ? Number(match[1]) : NaN;
         const deltaY = match ? Number(match[2]) : NaN;
-        if (![deltaX, deltaY].every(Number.isFinite) || Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 100_000) {
+        if (
+          ![deltaX, deltaY].every(Number.isFinite) ||
+          Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 100_000
+        ) {
           record.reason = 'Scroll requires finite X,Y deltas within 100000 pixels';
           return;
         }
@@ -269,7 +298,8 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
       } else if (action.type === 'key') {
         const definition = interactionKeyDefinition(action.value);
         if (!definition) {
-          record.reason = 'Unsupported key; only navigation keys, Enter, Space, Tab and Escape are accepted';
+          record.reason =
+            'Unsupported key; only navigation keys, Enter, Space, Tab and Escape are accepted';
           return;
         }
         const keySafety = await probe({ op: 'keySafety', key: action.value });
@@ -283,9 +313,12 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
           return;
         }
         inputSent = true;
-        const { text, unmodifiedText, ...release } = definition;
+        const { text: _text, unmodifiedText: _unmodifiedText, ...release } = definition;
         try {
-          await cdp.send('Input.dispatchKeyEvent', { type: definition.text ? 'keyDown' : 'rawKeyDown', ...definition });
+          await cdp.send('Input.dispatchKeyEvent', {
+            type: definition.text ? 'keyDown' : 'rawKeyDown',
+            ...definition,
+          });
         } finally {
           await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...release });
         }
@@ -307,7 +340,9 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
         telemetry.afterSnapshot = record.after;
         if (!sameDocument(record.after)) {
           stop = true;
-          telemetry.warnings.push('Interaction changed the document or URL; remaining inputs were stopped.');
+          telemetry.warnings.push(
+            'Interaction changed the document or URL; remaining inputs were stopped.',
+          );
         }
       } catch (error: any) {
         telemetry.warnings.push(`Post-interaction snapshot unavailable: ${error.message}`);
@@ -315,13 +350,17 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
       }
     }
   };
-  if (requested.length > 100) telemetry.warnings.push('Explicit actions capped at 100 per inspection.');
+  if (requested.length > 100)
+    telemetry.warnings.push('Explicit actions capped at 100 per inspection.');
   for (const action of requested.slice(0, 100)) {
     if (stop) break;
     await run(action);
   }
   if (options.explore && !stop) {
-    const limit = Math.max(0, Math.min(50, Number.isFinite(options.maxExplore) ? Math.floor(options.maxExplore) : 8));
+    const limit = Math.max(
+      0,
+      Math.min(50, Number.isFinite(options.maxExplore) ? Math.floor(options.maxExplore) : 8),
+    );
     telemetry.exploration.limit = limit;
     const visited = new Set<string>();
     for (let i = 0; i < limit && !stop; i += 1) {
@@ -339,7 +378,9 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
       }
       for (const skipped of scan.skipped || []) {
         if (
-          !telemetry.exploration.skipped.some((item: any) => item.target.id === skipped.target.id) &&
+          !telemetry.exploration.skipped.some(
+            (item: any) => item.target.id === skipped.target.id,
+          ) &&
           telemetry.exploration.skipped.length < 100
         ) {
           telemetry.exploration.skipped.push(skipped);
@@ -353,7 +394,9 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
       if (telemetry.actions.at(-1)?.status === 'performed') telemetry.exploration.performed += 1;
     }
   }
-  if (stop) telemetry.exploration.stoppedReason = 'Stopped after navigation, document replacement, or an uncertain interaction';
+  if (stop)
+    telemetry.exploration.stoppedReason =
+      'Stopped after navigation, document replacement, or an uncertain interaction';
   telemetry.diff = diffInteractionSnapshots(telemetry.beforeSnapshot, telemetry.afterSnapshot);
   if (inputSent && beforeProbe) {
     try {
@@ -361,7 +404,7 @@ export async function performInteractions(cdp: CdpClient, options: any, beforePr
         cdp,
         `(${inPageProbe.toString()})(${JSON.stringify(makeProbeConfig(options))})`,
         evaluationOptions,
-        { timeoutMs: Math.max(evaluationOptions.timeoutMs, 45_000) }
+        { timeoutMs: Math.max(evaluationOptions.timeoutMs, 45_000) },
       );
     } catch (error: any) {
       telemetry.warnings.push(`Final DOM probe unavailable: ${error.message}`);

@@ -2,7 +2,7 @@
 import { DEFAULT_STYLE_PROPS, DEFAULTS } from '../config/constants.js';
 import type { InspectorOptions, ProbeConfig } from '../types/options.js';
 
-export function makeProbeConfig(options) {
+export function makeProbeConfig(options: InspectorOptions): ProbeConfig {
   return {
     selector: options.selector,
     allMatches: options.allMatches,
@@ -28,7 +28,7 @@ export function makeProbeConfig(options) {
     maxImages: DEFAULTS.maxImages,
     maxStorage: DEFAULTS.maxStorage,
     maxStorageValueLength: DEFAULTS.maxStorageValueLength,
-    storageMode: (options.showStorage || options.focus === 'storage') ? 'values' : 'keys',
+    storageMode: options.showStorage || options.focus === 'storage' ? 'values' : 'keys',
     pageTextLimit: DEFAULTS.pageTextLimit,
     breakpoints: DEFAULTS.breakpoints,
     maxIssues: DEFAULTS.maxIssues,
@@ -63,7 +63,10 @@ export function inPageProbe(config) {
   let nextIndex = 0;
 
   const round = (n) => (Number.isFinite(n) ? Math.round(n * 100) / 100 : null);
-  const norm = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+  const norm = (value) =>
+    String(value ?? '')
+      .replace(/\s+/g, ' ')
+      .trim();
   const cut = (value, limit) => {
     const text = norm(value);
     if (limit <= 0) return '';
@@ -168,13 +171,20 @@ export function inPageProbe(config) {
     const scrollY = W.scrollY ?? 0;
     return {
       viewport: {
-        top: round(top), right: round(right), bottom: round(bottom), left: round(left),
-        width: round(width), height: round(height),
+        top: round(top),
+        right: round(right),
+        bottom: round(bottom),
+        left: round(left),
+        width: round(width),
+        height: round(height),
       },
       document: {
-        top: round(top + scrollY), right: round(right + scrollX),
-        bottom: round(bottom + scrollY), left: round(left + scrollX),
-        width: round(width), height: round(height),
+        top: round(top + scrollY),
+        right: round(right + scrollX),
+        bottom: round(bottom + scrollY),
+        left: round(left + scrollX),
+        width: round(width),
+        height: round(height),
       },
     };
   };
@@ -202,7 +212,8 @@ export function inPageProbe(config) {
     let visited = 0;
     while (stack.length && text.length < limit && visited++ < 256) {
       const node = stack.pop();
-      if (node.nodeType === 3) text += ` ${String(node.nodeValue || '').slice(0, limit - text.length)}`;
+      if (node.nodeType === 3)
+        text += ` ${String(node.nodeValue || '').slice(0, limit - text.length)}`;
       else if (!['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(node.tagName)) {
         const children = node.childNodes || [];
         for (let i = Math.min(children.length, 256) - 1; i >= 0; i -= 1) stack.push(children[i]);
@@ -264,27 +275,47 @@ export function inPageProbe(config) {
   };
 
   const defaultStyles = {
-    position: 'static', visibility: 'visible', opacity: '1',
-    'overflow-x': 'visible', 'overflow-y': 'visible', 'z-index': 'auto',
+    position: 'static',
+    visibility: 'visible',
+    opacity: '1',
+    'overflow-x': 'visible',
+    'overflow-y': 'visible',
+    'z-index': 'auto',
     'background-color': ['rgba(0, 0, 0, 0)', 'transparent'],
-    'min-width': ['0px', 'auto'], 'max-width': 'none', padding: '0px', margin: '0px',
-    'flex-direction': 'row', 'align-items': 'normal', 'justify-content': 'normal',
-    gap: 'normal', 'grid-template-columns': 'none', transform: 'none',
-    'pointer-events': 'auto', 'white-space': 'normal', 'word-break': 'normal',
+    'min-width': ['0px', 'auto'],
+    'max-width': 'none',
+    padding: '0px',
+    margin: '0px',
+    'flex-direction': 'row',
+    'align-items': 'normal',
+    'justify-content': 'normal',
+    gap: 'normal',
+    'grid-template-columns': 'none',
+    transform: 'none',
+    'pointer-events': 'auto',
+    'white-space': 'normal',
+    'word-break': 'normal',
     'text-overflow': 'clip',
   };
   const readStyles = (style, rendered) => {
     if (!style) return null;
     // Compact mode is enabled only for the default property selection by makeProbeConfig.
-    const props = rendered || !config.compactStyles
-      ? config.styleProps
-      : config.styleProps.length ? ['display', 'position', 'visibility', 'opacity'] : [];
+    const props =
+      rendered || !config.compactStyles
+        ? config.styleProps
+        : config.styleProps.length
+          ? ['display', 'position', 'visibility', 'opacity']
+          : [];
     const out = {};
     for (const prop of props) {
       const value = styleValue(style, prop);
       if (value == null) continue;
       const defaults = defaultStyles[prop];
-      if (config.compactStyles && (Array.isArray(defaults) ? defaults.includes(value) : defaults === value)) continue;
+      if (
+        config.compactStyles &&
+        (Array.isArray(defaults) ? defaults.includes(value) : defaults === value)
+      )
+        continue;
       out[prop] = value;
     }
     return out;
@@ -328,18 +359,33 @@ export function inPageProbe(config) {
   const isInteractive = (el) =>
     /^(BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY|OPTION|LABEL)$/.test(el.tagName) ||
     (el.tagName === 'A' && el.hasAttribute('href')) ||
-    ['button', 'link', 'menuitem', 'tab', 'checkbox', 'radio', 'switch', 'slider', 'textbox', 'combobox', 'searchbox'].includes(
-      (el.getAttribute('role') || '').toLowerCase(),
-    ) ||
+    [
+      'button',
+      'link',
+      'menuitem',
+      'tab',
+      'checkbox',
+      'radio',
+      'switch',
+      'slider',
+      'textbox',
+      'combobox',
+      'searchbox',
+    ].includes((el.getAttribute('role') || '').toLowerCase()) ||
     (el.hasAttribute('tabindex') && el.tabIndex >= 0) ||
-    el.hasAttribute('onclick') || el.isContentEditable;
+    el.hasAttribute('onclick') ||
+    el.isContentEditable;
 
   const composedParent = (el) => {
     if (el.assignedSlot) return el.assignedSlot;
     if (el.parentElement) return el.parentElement;
     const root = el.getRootNode?.();
     if (root?.host) return root.host;
-    try { return el.ownerDocument?.defaultView?.frameElement || null; } catch { return null; }
+    try {
+      return el.ownerDocument?.defaultView?.frameElement || null;
+    } catch {
+      return null;
+    }
   };
   const ancestorHidden = (el) => {
     if (hiddenCache.has(el)) return hiddenCache.get(el);
@@ -347,7 +393,10 @@ export function inPageProbe(config) {
     let current = el;
     let reason = null;
     while (current && chain.length < 500) {
-      if (hiddenCache.has(current)) { reason = hiddenCache.get(current); break; }
+      if (hiddenCache.has(current)) {
+        reason = hiddenCache.get(current);
+        break;
+      }
       chain.push(current);
       current = composedParent(current);
     }
@@ -355,9 +404,12 @@ export function inPageProbe(config) {
       const ancestor = chain[i];
       const style = styleOf(ancestor);
       if (!reason && styleValue(style, 'display') === 'none') reason = 'display:none';
-      if (!reason && Number.parseFloat(styleValue(style, 'opacity') || '1') <= 0) reason = 'opacity:0';
-      if (!reason && styleValue(style, 'content-visibility') === 'hidden') reason = 'content-visibility:hidden';
-      if (!reason && ancestor.getRootNode?.()?.nodeType === 11 && !ancestor.getRootNode().host) reason = 'detached-fragment';
+      if (!reason && Number.parseFloat(styleValue(style, 'opacity') || '1') <= 0)
+        reason = 'opacity:0';
+      if (!reason && styleValue(style, 'content-visibility') === 'hidden')
+        reason = 'content-visibility:hidden';
+      if (!reason && ancestor.getRootNode?.()?.nodeType === 11 && !ancestor.getRootNode().host)
+        reason = 'detached-fragment';
       hiddenCache.set(ancestor, reason);
     }
     return hiddenCache.get(el) || null;
@@ -373,15 +425,20 @@ export function inPageProbe(config) {
     const height = rect?.viewport.height ?? 0;
     const hasBox = width > 0 && height > 0;
     const inViewport =
-      rendered && hasBox &&
-      (rect?.viewport.bottom ?? 0) > 0 && (rect?.viewport.right ?? 0) > 0 &&
+      rendered &&
+      hasBox &&
+      (rect?.viewport.bottom ?? 0) > 0 &&
+      (rect?.viewport.right ?? 0) > 0 &&
       (rect?.viewport.top ?? 0) < (W.innerHeight || 0) &&
       (rect?.viewport.left ?? 0) < (W.innerWidth || 0);
-    let hiddenReason = blocked ? (hiddenCache.get(el) === blocked && (
-      styleValue(style, 'display') === 'none' ||
-      Number.parseFloat(styleValue(style, 'opacity') || '1') <= 0 ||
-      styleValue(style, 'content-visibility') === 'hidden'
-    ) ? blocked : `ancestor:${blocked}`) : null;
+    let hiddenReason = blocked
+      ? hiddenCache.get(el) === blocked &&
+        (styleValue(style, 'display') === 'none' ||
+          Number.parseFloat(styleValue(style, 'opacity') || '1') <= 0 ||
+          styleValue(style, 'content-visibility') === 'hidden')
+        ? blocked
+        : `ancestor:${blocked}`
+      : null;
     if (!rendered && !hiddenReason) hiddenReason = `visibility:${visibility}`;
     else if (rendered && !hasBox && display !== 'contents') hiddenReason = 'zero-size';
     return { rendered, hasBox, inViewport, hiddenReason };
@@ -406,8 +463,7 @@ export function inPageProbe(config) {
     const scrollableY = scrollHeight > clientHeight + 1;
     const scrollableX = scrollWidth > clientWidth + 1;
     const isScrollContainer =
-      (isScrollOverflow(overflowY) && scrollableY) ||
-      (isScrollOverflow(overflowX) && scrollableX);
+      (isScrollOverflow(overflowY) && scrollableY) || (isScrollOverflow(overflowX) && scrollableX);
     if (!isScrollContainer) return null;
     return {
       scrollTop: round(el.scrollTop),
@@ -433,7 +489,11 @@ export function inPageProbe(config) {
         current = root.host;
       } else {
         let frame;
-        try { frame = current.ownerDocument?.defaultView?.frameElement; } catch { break; }
+        try {
+          frame = current.ownerDocument?.defaultView?.frameElement;
+        } catch {
+          break;
+        }
         if (!frame) break;
         parts.unshift(`${cssPath(frame)}::frame`);
         current = frame;
@@ -466,7 +526,11 @@ export function inPageProbe(config) {
   const walkChildren = (parent, depth, inShadow) => {
     const children = [];
     for (const child of parent.children || []) {
-      if (stats.elementNodes >= nodeLimit) { stats.truncated = true; stats.droppedNodes += 1; break; }
+      if (stats.elementNodes >= nodeLimit) {
+        stats.truncated = true;
+        stats.droppedNodes += 1;
+        break;
+      }
       const walked = walk(child, depth, inShadow);
       if (walked) children.push(walked);
     }
@@ -511,7 +575,8 @@ export function inPageProbe(config) {
       stats.elementNodes += 1;
       if (ancestorHidden(el)) return null;
       const children = walkChildren(el, depth + 1, parentIsShadow);
-      if (config.includeShadowDom && el.shadowRoot) children.push(...walkChildren(el.shadowRoot, depth + 1, true));
+      if (config.includeShadowDom && el.shadowRoot)
+        children.push(...walkChildren(el.shadowRoot, depth + 1, true));
       return children.length ? { type: 'fragment', children } : null;
     }
 
@@ -640,11 +705,17 @@ export function inPageProbe(config) {
     const children = Array.from(el.children || []);
     if (config.includeShadowDom && el.shadowRoot) children.push(...el.shadowRoot.children);
     if (config.includeIframes && el.tagName === 'IFRAME') {
-      try { if (el.contentDocument?.documentElement) children.push(el.contentDocument.documentElement); } catch { /* cross-origin */ }
+      try {
+        if (el.contentDocument?.documentElement) children.push(el.contentDocument.documentElement);
+      } catch {
+        /* cross-origin */
+      }
     }
-    for (let index = children.length - 1; index >= 0; index -= 1) pendingElements.push(children[index]);
+    for (let index = children.length - 1; index >= 0; index -= 1)
+      pendingElements.push(children[index]);
   }
-  if (pendingElements.length) warnings.push('Summary traversal reached --max-nodes; counts are lower bounds');
+  if (pendingElements.length)
+    warnings.push('Summary traversal reached --max-nodes; counts are lower bounds');
   const deepQuery = (selector) => summaryElements.filter((el) => el.matches(selector));
 
   const queryRoots = () => {
@@ -735,13 +806,21 @@ export function inPageProbe(config) {
     const items = elements.slice(0, config.maxForms).map((el) => {
       const style = styleOf(el);
       const rect = rectOf(el);
-      const label = el.labels && el.labels.length ? cut(textOf(el.labels[0]), config.textLimit) : null;
+      const label =
+        el.labels && el.labels.length ? cut(textOf(el.labels[0]), config.textLimit) : null;
       return {
         ...scopeOf(el),
-        validation: { valid: el.validity?.valid ?? null, message: el.validationMessage || null, pattern: el.getAttribute('pattern'), min: el.getAttribute('min'), max: el.getAttribute('max') },
+        validation: {
+          valid: el.validity?.valid ?? null,
+          message: el.validationMessage || null,
+          pattern: el.getAttribute('pattern'),
+          min: el.getAttribute('min'),
+          max: el.getAttribute('max'),
+        },
         rendered: visibleState(el, style, rect).rendered,
         tag: el.tagName.toLowerCase(),
-        type: (el.getAttribute('type') || (el.tagName === 'INPUT' ? 'text' : '')).toLowerCase() || null,
+        type:
+          (el.getAttribute('type') || (el.tagName === 'INPUT' ? 'text' : '')).toLowerCase() || null,
         name: el.getAttribute('name') || null,
         id: el.id || null,
         placeholder: el.getAttribute('placeholder') || null,
@@ -791,9 +870,13 @@ export function inPageProbe(config) {
           el.getAttribute('aria-disabled') === 'true' ||
           el.getAttribute('disabled') != null,
         rendered,
-        smallTouchTarget: rendered && !el.disabled && el.getAttribute('aria-disabled') !== 'true' &&
+        smallTouchTarget:
+          rendered &&
+          !el.disabled &&
+          el.getAttribute('aria-disabled') !== 'true' &&
           !(el.tagName === 'A' && el.closest('p') && styleValue(style, 'display') === 'inline') &&
-          isInteractive(el) && (width < 44 || height < 44),
+          isInteractive(el) &&
+          (width < 44 || height < 44),
         fontSize: styleValue(style, 'font-size'),
         rect,
         cssPath: cssPath(el),
@@ -959,10 +1042,14 @@ export function inPageProbe(config) {
   const scrollEl = D.scrollingElement || docEl;
   const docStyle = styleOf(docEl);
   const bodyStyle = styleOf(body);
-  const htmlOverflowX = styleValue(docStyle, 'overflow-x') || styleValue(docStyle, 'overflow') || 'visible';
-  const htmlOverflowY = styleValue(docStyle, 'overflow-y') || styleValue(docStyle, 'overflow') || 'visible';
-  const bodyOverflowX = styleValue(bodyStyle, 'overflow-x') || styleValue(bodyStyle, 'overflow') || 'visible';
-  const bodyOverflowY = styleValue(bodyStyle, 'overflow-y') || styleValue(bodyStyle, 'overflow') || 'visible';
+  const htmlOverflowX =
+    styleValue(docStyle, 'overflow-x') || styleValue(docStyle, 'overflow') || 'visible';
+  const htmlOverflowY =
+    styleValue(docStyle, 'overflow-y') || styleValue(docStyle, 'overflow') || 'visible';
+  const bodyOverflowX =
+    styleValue(bodyStyle, 'overflow-x') || styleValue(bodyStyle, 'overflow') || 'visible';
+  const bodyOverflowY =
+    styleValue(bodyStyle, 'overflow-y') || styleValue(bodyStyle, 'overflow') || 'visible';
   const scrollLocked =
     htmlOverflowY === 'hidden' ||
     htmlOverflowX === 'hidden' ||
@@ -983,10 +1070,22 @@ export function inPageProbe(config) {
     if (rect.viewport.left < -1 || rect.viewport.right > viewportWidth + 1) {
       // A nested scrollport clips deliberately wide children, not document overflow.
       let clipped = false;
-      for (let parent = composedParent(el), depth = 0; parent && parent !== body && parent !== docEl && depth < 200; parent = composedParent(parent), depth += 1) {
-        if (/^(auto|scroll|hidden|clip|overlay)$/.test(styleValue(styleOf(parent), 'overflow-x') || '')) { clipped = true; break; }
+      for (
+        let parent = composedParent(el), depth = 0;
+        parent && parent !== body && parent !== docEl && depth < 200;
+        parent = composedParent(parent), depth += 1
+      ) {
+        if (
+          /^(auto|scroll|hidden|clip|overlay)$/.test(
+            styleValue(styleOf(parent), 'overflow-x') || '',
+          )
+        ) {
+          clipped = true;
+          break;
+        }
       }
-      if (!clipped && overflowElements.length < 20) overflowElements.push({ cssPath: cssPath(el), rect: rect.viewport });
+      if (!clipped && overflowElements.length < 20)
+        overflowElements.push({ cssPath: cssPath(el), rect: rect.viewport });
     }
   }
 
@@ -1021,8 +1120,11 @@ export function inPageProbe(config) {
       bodyClientWidth: body?.clientWidth ?? null,
       bodyScrollWidth: body?.scrollWidth ?? null,
       bodyScrollHeight: body?.scrollHeight ?? null,
-      horizontalOverflow: (docEl?.scrollWidth ?? 0) > viewportWidth + 1 || overflowElements.length > 0,
-      activeAnimations: (typeof D.getAnimations === 'function' ? D.getAnimations() : []).filter((a) => a.playState === 'running').length,
+      horizontalOverflow:
+        (docEl?.scrollWidth ?? 0) > viewportWidth + 1 || overflowElements.length > 0,
+      activeAnimations: (typeof D.getAnimations === 'function' ? D.getAnimations() : []).filter(
+        (a) => a.playState === 'running',
+      ).length,
       overflowElements,
       contentBottom,
       verticalOverflow: (docEl?.scrollHeight ?? 0) > (docEl?.clientHeight ?? 0) + 1,
@@ -1057,9 +1159,10 @@ export function inPageProbe(config) {
       bodyOverflowX,
       bodyOverflowY,
       locked: scrollLocked,
-      trapRisk: /^(hidden|clip)$/.test(htmlOverflowY) || /^(hidden|clip)$/.test(bodyOverflowY)
-        ? contentBottom > innerHeight + Math.max(32, innerHeight * 0.1)
-        : false,
+      trapRisk:
+        /^(hidden|clip)$/.test(htmlOverflowY) || /^(hidden|clip)$/.test(bodyOverflowY)
+          ? contentBottom > innerHeight + Math.max(32, innerHeight * 0.1)
+          : false,
     },
     activeElement: activeElement(),
     hasFocus: typeof D.hasFocus === 'function' ? D.hasFocus() : null,
@@ -1102,40 +1205,71 @@ export function inPageProbe(config) {
   // Contrast is a solid-color heuristic, not a complete WCAG audit. Skip images,
   // gradients and translucent/filtered ancestry rather than guessing a backdrop.
   const colorRgb = (value) => {
-    const match = /^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(value || '');
-    return match ? { rgb: match.slice(1, 4).map(Number), alpha: match[4] == null ? 1 : Number(match[4]) } : null;
+    const match = /^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(
+      value || '',
+    );
+    return match
+      ? { rgb: match.slice(1, 4).map(Number), alpha: match[4] == null ? 1 : Number(match[4]) }
+      : null;
   };
-  const luminance = (rgb) => rgb.map((value) => {
-    const channel = value / 255;
-    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  const luminance = (rgb) =>
+    rgb
+      .map((value) => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      })
+      .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
   let contrastSamples = 0;
   for (const el of summaryElements) {
     if (contrastSamples >= 12) break;
     const style = styleOf(el);
     const state = visibleState(el, style, rectOf(el));
-    if (!state.rendered || !state.hasBox || !Array.from(el.childNodes || []).some((node) => node.nodeType === 3 && node.nodeValue?.trim())) continue;
+    if (
+      !state.rendered ||
+      !state.hasBox ||
+      !Array.from(el.childNodes || []).some((node) => node.nodeType === 3 && node.nodeValue?.trim())
+    )
+      continue;
     const foreground = colorRgb(styleValue(style, 'color'));
     if (!foreground || foreground.alpha !== 1) continue;
-    let background = null, uncertain = false;
-    for (let parent = el, depth = 0; parent && depth < 200; parent = composedParent(parent), depth += 1) {
+    let background = null,
+      uncertain = false;
+    for (
+      let parent = el, depth = 0;
+      parent && depth < 200;
+      parent = composedParent(parent), depth += 1
+    ) {
       const ancestorStyle = styleOf(parent);
       const image = styleValue(ancestorStyle, 'background-image');
-      if ((image && image !== 'none') || Number(styleValue(ancestorStyle, 'opacity') || '1') !== 1 ||
-          (styleValue(ancestorStyle, 'filter') && styleValue(ancestorStyle, 'filter') !== 'none')) { uncertain = true; break; }
+      if (
+        (image && image !== 'none') ||
+        Number(styleValue(ancestorStyle, 'opacity') || '1') !== 1 ||
+        (styleValue(ancestorStyle, 'filter') && styleValue(ancestorStyle, 'filter') !== 'none')
+      ) {
+        uncertain = true;
+        break;
+      }
       const color = colorRgb(styleValue(ancestorStyle, 'background-color'));
       if (color?.alpha === 1 && !background) background = color;
-      else if (color && color.alpha > 0 && color.alpha < 1 && !background) { uncertain = true; break; }
+      else if (color && color.alpha > 0 && color.alpha < 1 && !background) {
+        uncertain = true;
+        break;
+      }
     }
     if (uncertain || !background) continue;
-    const a = luminance(foreground.rgb), b = luminance(background.rgb);
+    const a = luminance(foreground.rgb),
+      b = luminance(background.rgb);
     const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
     const size = Number.parseFloat(styleValue(style, 'font-size') || '0');
     const large = size >= 24 || (size >= 18.66 && Number(styleValue(style, 'font-weight')) >= 700);
     if (ratio < (large ? 3 : 4.5)) {
       contrastSamples += 1;
-      issues.push({ code: 'low-text-contrast', severity: 'warn', cssPath: cssPath(el),
-        message: `solid-color text contrast ${round(ratio)}:1 is below ${large ? 3 : 4.5}:1 (heuristic)` });
+      issues.push({
+        code: 'low-text-contrast',
+        severity: 'warn',
+        cssPath: cssPath(el),
+        message: `solid-color text contrast ${round(ratio)}:1 is below ${large ? 3 : 4.5}:1 (heuristic)`,
+      });
     }
   }
   if (page.metrics.horizontalOverflow) {
@@ -1194,7 +1328,9 @@ export function inPageProbe(config) {
     });
   }
   if (page.metrics.activeAnimations > 0) {
-    warnings.push(`Page has ${page.metrics.activeAnimations} running CSS/Web animations; minor layout shifts during intentional motion are expected.`);
+    warnings.push(
+      `Page has ${page.metrics.activeAnimations} running CSS/Web animations; minor layout shifts during intentional motion are expected.`,
+    );
   }
 
   const dom = {

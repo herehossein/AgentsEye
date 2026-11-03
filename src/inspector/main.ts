@@ -1,35 +1,15 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import {
-  TOOL_NAME,
-  TOOL_VERSION,
-  SCHEMA_VERSION,
-  MATRIX_VIEWPORTS,
-} from '../config/constants.js';
+import { TOOL_NAME, TOOL_VERSION, SCHEMA_VERSION, MATRIX_VIEWPORTS } from '../config/constants.js';
 import { parseArgs } from '../cli/parser.js';
 import { printHelp } from '../cli/help.js';
-import {
-  cleanRuns,
-  readRun,
-  createRun,
-  persistRun,
-} from '../storage/runs.js';
-import {
-  selectSections,
-  queryReport,
-  outputView,
-} from '../reporting/views.js';
+import { cleanRuns, readRun, createRun, persistRun } from '../storage/runs.js';
+import { selectSections, queryReport, outputView } from '../reporting/views.js';
 import { diffReports } from '../reporting/diff.js';
 import { serializeOutput } from '../reporting/formatters.js';
-import {
-  validateResolvedTargetUrl,
-  validateCdpEndpoint,
-} from '../security/url-guard.js';
-import {
-  resolveSafePath,
-  assertFileDoesNotExist,
-} from '../security/path-guard.js';
+import { validateResolvedTargetUrl, validateCdpEndpoint } from '../security/url-guard.js';
+import { resolveSafePath, assertFileDoesNotExist } from '../security/path-guard.js';
 import { redactString } from '../security/redaction.js';
 import { logInfo, logWarn, writeFileSecure } from '../utils/helpers.js';
 import { attachToCdp, launchBrowser } from '../cdp/browser.js';
@@ -113,7 +93,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     // Resolve before launching: malformed/metadata targets must never open a browser.
     await validateResolvedTargetUrl(options.url, { timeoutMs: options.timeoutMs });
     if (options.cdp) validateCdpEndpoint(options.cdp, options.allowRemoteCdp);
-    if (options.redact === 'none') logWarn(options, 'redaction is disabled; saved reports may contain secrets');
+    if (options.redact === 'none')
+      logWarn(options, 'redaction is disabled; saved reports may contain secrets');
     if (options.noSandbox) logWarn(options, '--no-sandbox disables Chromium process isolation');
     if (options.ignoreCertificateErrors) logWarn(options, 'TLS certificate errors will be ignored');
     if (options.explore || options.actions.length) {
@@ -143,7 +124,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       browserInfo = await launchBrowser(options, (message: string) => logInfo(options, message));
       cdp = browserInfo.cdp;
     }
-    const viewports = options.matrix ? options.customViewports ?? MATRIX_VIEWPORTS : [options.viewport];
+    const viewports = options.matrix
+      ? (options.customViewports ?? MATRIX_VIEWPORTS)
+      : [options.viewport];
     const snapshots: any[] = [];
     for (const [index, viewport] of viewports.entries()) {
       const runOptions = {
@@ -180,7 +163,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       await writeFileSecure(destination, await fsp.readFile(report.screenshots[0].path));
       report.screenshots.push({ ...report.screenshots[0], role: 'output', path: destination });
     }
-    report.durationMs = snapshots.reduce((total: number, snapshot: any) => total + snapshot.durationMs, 0);
+    report.durationMs = snapshots.reduce(
+      (total: number, snapshot: any) => total + snapshot.durationMs,
+      0,
+    );
     await persistRun(report, activeRun);
     logInfo(options, `Saved run ${activeRun.id}: ${activeRun.report}`);
     if (outPath) {
@@ -208,7 +194,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       await persistRun(payload, activeRun).catch(() => {});
     }
     process.stdout.write(`${JSON.stringify(payload, null, options?.pretty ? 2 : 0)}\n`);
-    process.stderr.write(`${TOOL_NAME}: ${redactString(error.message, options?.redact ?? 'sensitive')}\n`);
+    process.stderr.write(
+      `${TOOL_NAME}: ${redactString(error.message, options?.redact ?? 'sensitive')}\n`,
+    );
     process.exitCode = error.exitCode || 1;
   } finally {
     if (options?.ephemeral && activeRun?.directory) {

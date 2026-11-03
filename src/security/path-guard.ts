@@ -13,7 +13,11 @@ export interface ResolveSafePathOptions {
   allowOutsideCwd?: boolean;
 }
 
-export function resolveSafePath(value: unknown, options: ResolveSafePathOptions = {}, label: string = 'Path'): string {
+export function resolveSafePath(
+  value: unknown,
+  options: ResolveSafePathOptions = {},
+  label: string = 'Path',
+): string {
   if (typeof value !== 'string' || !value.trim()) {
     throw new UsageError(`${label} must be a non-empty string`);
   }
@@ -31,7 +35,7 @@ export function resolveSafePath(value: unknown, options: ResolveSafePathOptions 
     if (!isWithin(cwd, absolute) && !isWithin(tempRuns, absolute)) {
       throw new UsageError(
         `${label} must resolve inside the current working directory (${cwd}). ` +
-          'Pass --allow-outside-cwd to override.'
+          'Pass --allow-outside-cwd to override.',
       );
     }
     let current = fs.existsSync(absolute) ? absolute : path.dirname(absolute);
@@ -42,7 +46,9 @@ export function resolveSafePath(value: unknown, options: ResolveSafePathOptions 
           const realCwd = fs.existsSync(cwd) ? fs.realpathSync(cwd) : cwd;
           const realTemp = fs.existsSync(tempRuns) ? fs.realpathSync(tempRuns) : tempRuns;
           if (!isWithin(realCwd, realParent) && !isWithin(realTemp, realParent)) {
-            throw new UsageError(`${label} resolves outside working directory via symbolic link: ${absolute}`);
+            throw new UsageError(
+              `${label} resolves outside working directory via symbolic link: ${absolute}`,
+            );
           }
         } catch (e) {
           if (e instanceof UsageError) throw e;

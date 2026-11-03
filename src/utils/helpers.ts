@@ -2,7 +2,8 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { TOOL_NAME } from '../config/constants.js';
 
-export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 export function logInfo(options: { quiet?: boolean }, message: string): void {
   if (!options.quiet) process.stderr.write(`[${TOOL_NAME}] ${message}\n`);
@@ -12,7 +13,8 @@ export function logWarn(options: { quiet?: boolean }, message: string): void {
   if (!options.quiet) process.stderr.write(`[${TOOL_NAME}] warning: ${message}\n`);
 }
 
-export const shortText = (value: unknown, limit: number = 160): string => String(value ?? '').slice(0, limit);
+export const shortText = (value: unknown, limit: number = 160): string =>
+  String(value ?? '').slice(0, limit);
 
 export function safeJsonStringify(obj: unknown, space: number = 0, maxDepth: number = 100): string {
   const ancestors: unknown[] = [];
@@ -30,11 +32,13 @@ export function safeJsonStringify(obj: unknown, space: number = 0, maxDepth: num
       ancestors.push(value);
       return value;
     },
-    space
+    space,
   );
 }
 
-export function parsePngSize(buffer: Buffer | Uint8Array | null | undefined): { width: number; height: number } | null {
+export function parsePngSize(
+  buffer: Buffer | Uint8Array | null | undefined,
+): { width: number; height: number } | null {
   if (!buffer || buffer.length < 24) return null;
   const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
   const signature = buf.subarray(0, 8).toString('hex');
@@ -45,7 +49,10 @@ export function parsePngSize(buffer: Buffer | Uint8Array | null | undefined): { 
   };
 }
 
-export async function writeFileSecure(filePath: string, data: string | NodeJS.ArrayBufferView): Promise<void> {
+export async function writeFileSecure(
+  filePath: string,
+  data: string | NodeJS.ArrayBufferView,
+): Promise<void> {
   await fsp.mkdir(path.dirname(filePath), { recursive: true });
   const handle = await fsp.open(filePath, 'wx', 0o600);
   try {

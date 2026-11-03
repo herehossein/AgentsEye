@@ -2,7 +2,15 @@ export const TOOL_NAME = 'agentsEye';
 export const TOOL_VERSION = '1.0.0';
 export const SCHEMA_VERSION = '1.0';
 
-export const FOCUS_SLICES = ['issues', 'forms', 'dom', 'network', 'perf', 'console', 'storage'] as const;
+export const FOCUS_SLICES = [
+  'issues',
+  'forms',
+  'dom',
+  'network',
+  'perf',
+  'console',
+  'storage',
+] as const;
 
 export const TAILWIND_VIEWPORTS = Object.freeze({
   mobile: Object.freeze({ width: 375, height: 667, dpr: 1, mobile: true }),
@@ -154,7 +162,8 @@ export const URL_KEYS = new Set([
   'unreachableUrl',
 ]);
 
-export const SENSITIVE_KEY_RE = /(?:^|[^a-z0-9])(?:pass(?:word|wd)?|secret|token|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?|session(?:[_-]?id)?|cookie|csrf|xsrf|private[_-]?key|client[_-]?secret|bearer|signature|sig)(?:$|[^a-z0-9])/i;
+export const SENSITIVE_KEY_RE =
+  /(?:^|[^a-z0-9])(?:pass(?:word|wd)?|secret|token|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?|session(?:[_-]?id)?|cookie|csrf|xsrf|private[_-]?key|client[_-]?secret|bearer|signature|sig)(?:$|[^a-z0-9])/i;
 
 export const METADATA_HOSTS = new Set([
   '169.254.169.254',
@@ -194,15 +203,30 @@ export const DANGEROUS_BROWSER_FLAGS = [
 
 export const LLM_CONTROL_TOKENS: Array<[RegExp, (m: string, role?: string) => string]> = [
   // ChatML tokens
-  [/<\|(?:im_start|im_end|system|user|assistant|endoftext|fim_prefix|fim_middle|fim_suffix)\|>/gi, (m: string) => `[ESCAPED_TOKEN:${m.slice(1, -1)}]`],
+  [
+    /<\|(?:im_start|im_end|system|user|assistant|endoftext|fim_prefix|fim_middle|fim_suffix)\|>/gi,
+    (m: string) => `[ESCAPED_TOKEN:${m.slice(1, -1)}]`,
+  ],
   // LLaMA / Mistral tokens
-  [/\[\/?(?:INST|SYS|SYSTEM_PROMPT)\]/gi, (m: string) => `[ESCAPED_TOKEN:${m.replace(/[\[\]]/g, '')}]`],
+  [
+    /\[\/?(?:INST|SYS|SYSTEM_PROMPT)\]/gi,
+    (m: string) => `[ESCAPED_TOKEN:${m.replace(/[\[\]]/g, '')}]`,
+  ],
   [/<<\/?SYS>>/gi, (m: string) => `[ESCAPED_TOKEN:${m.replace(/[<>]/g, '')}]`],
   // Turn markers (Claude, Alpaca, Chat turn spoofing)
-  [/(?:^|\r?\n)\s*(Human|Assistant|System)\s*:/gi, (_m: string, role?: string) => `\n[ESCAPED_ROLE:${role}]:`],
-  [/(?:^|\r?\n)\s*###\s*(Instruction|Response|System)\s*:/gi, (_m: string, role?: string) => `\n### [ESCAPED_ROLE:${role}]:`],
+  [
+    /(?:^|\r?\n)\s*(Human|Assistant|System)\s*:/gi,
+    (_m: string, role?: string) => `\n[ESCAPED_ROLE:${role}]:`,
+  ],
+  [
+    /(?:^|\r?\n)\s*###\s*(Instruction|Response|System)\s*:/gi,
+    (_m: string, role?: string) => `\n### [ESCAPED_ROLE:${role}]:`,
+  ],
   // Agent protocol XML tags (prevent breakout from tool result envelopes)
-  [/<\/?(?:tool_call|tool_result|function_call|system_prompt|antthinking)>/gi, (m: string) => `[ESCAPED_TAG:${m.replace(/[<>/]/g, '')}]`],
+  [
+    /<\/?(?:tool_call|tool_result|function_call|system_prompt|antthinking)>/gi,
+    (m: string) => `[ESCAPED_TAG:${m.replace(/[<>/]/g, '')}]`,
+  ],
 ];
 
 export interface PromptInjectionPattern {
@@ -217,43 +241,50 @@ export const PROMPT_INJECTION_PATTERNS: PromptInjectionPattern[] = [
   {
     id: 'instruction_override',
     severity: 'critical',
-    regex: /\b(?:ignore|disregard|forget|bypass|override|drop)\s+(?:(?:all|previous|prior|above|existing|system)\s+)+(?:instructions?|directions?|prompts?|rules?|constraints?|commands?)\b|دستورات\s+(?:(?:قبلی|سیستم)\s*)+\s+را\s+(?:فراموش|نادیده)/i,
+    regex:
+      /\b(?:ignore|disregard|forget|bypass|override|drop)\s+(?:(?:all|previous|prior|above|existing|system)\s+)+(?:instructions?|directions?|prompts?|rules?|constraints?|commands?)\b|دستورات\s+(?:(?:قبلی|سیستم)\s*)+\s+را\s+(?:فراموش|نادیده)/i,
     description: 'Instruction override directive attempting to reset agent system instructions.',
   },
   {
     id: 'new_system_instructions',
     severity: 'critical',
-    regex: /\b(?:new|updated|revised)\s+(?:system\s+)?(?:instructions?|prompt|directives?|rules?)\s*[:=]|از\s+این\s+به\s+بعد\s+شما(?:\s|$)/i,
+    regex:
+      /\b(?:new|updated|revised)\s+(?:system\s+)?(?:instructions?|prompt|directives?|rules?)\s*[:=]|از\s+این\s+به\s+بعد\s+شما(?:\s|$)/i,
     description: 'Directive attempting to declare new system prompt or rules.',
   },
   {
     id: 'system_mode_switch',
     severity: 'high',
-    regex: /\b(?:you\s+are\s+now\s+in|switch\s+to|enter)\s+(?:maintenance|developer|debug|god|unrestricted|sudo|admin|dan)\s+mode\b|حالت\s+(?:توسعه[‌\s]?دهنده|مدیر)/i,
+    regex:
+      /\b(?:you\s+are\s+now\s+in|switch\s+to|enter)\s+(?:maintenance|developer|debug|god|unrestricted|sudo|admin|dan)\s+mode\b|حالت\s+(?:توسعه[‌\s]?دهنده|مدیر)/i,
     description: 'Attempt to force model into unrestricted/maintenance debug mode.',
   },
   // 2. Shell Command & Exfiltration Lures
   {
     id: 'credential_exfil_lure',
     severity: 'critical',
-    regex: /\b(?:read|cat|type|exfiltrate|send|upload|post|leak)\s+(?:~[\/\w.-]*\/|\/etc\/|[a-z]:\\|\.)?(?:id_rsa|id_ed25519|\.env|\.aws|\.gitconfig|shadow|passwd|master\.key)\b|(?:فایل\s+\.env|کلیدهای\s+ssh)\s+را\s+(?:بخوان|ارسال)/i,
+    regex:
+      /\b(?:read|cat|type|exfiltrate|send|upload|post|leak)\s+(?:~[\/\w.-]*\/|\/etc\/|[a-z]:\\|\.)?(?:id_rsa|id_ed25519|\.env|\.aws|\.gitconfig|shadow|passwd|master\.key)\b|(?:فایل\s+\.env|کلیدهای\s+ssh)\s+را\s+(?:بخوان|ارسال)/i,
     description: 'Directive enticing agent to read local keys or environment variables.',
   },
   {
     id: 'shell_execution_lure',
     severity: 'critical',
-    regex: /\b(?:(?:execute|run|eval)\s+(?:terminal|bash|shell|powershell|cmd|sh|command)\s*[:=]?\s*[`"']?(?:curl|wget|rm\s+-rf|npm\s+i|chmod|cat|python|nc|bash)|(?:curl|wget)\s+https?:\/\/\S+\s*\|\s*(?:bash|sh))\b/i,
+    regex:
+      /\b(?:(?:execute|run|eval)\s+(?:terminal|bash|shell|powershell|cmd|sh|command)\s*[:=]?\s*[`"']?(?:curl|wget|rm\s+-rf|npm\s+i|chmod|cat|python|nc|bash)|(?:curl|wget)\s+https?:\/\/\S+\s*\|\s*(?:bash|sh))\b/i,
     description: 'Direct shell command execution lure embedded in web content.',
   },
   {
     id: 'instruction_concealment',
     severity: 'high',
-    regex: /\b(?:do\s+not|never)\s+(?:tell|inform|alert|report\s+to)\s+(?:the\s+)?(?:user|developer|operator|human)\b/i,
+    regex:
+      /\b(?:do\s+not|never)\s+(?:tell|inform|alert|report\s+to)\s+(?:the\s+)?(?:user|developer|operator|human)\b/i,
     description: 'Directive commanding the agent to conceal actions from the user.',
   },
 ];
 
-export const INVISIBLE_CHARS_REGEX = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+export const INVISIBLE_CHARS_REGEX =
+  /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
 
 export const REDACTION_PATTERNS: Array<[RegExp, string]> = [
   [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, '[REDACTED:JWT]'],

@@ -1,6 +1,10 @@
 import { UsageError, InspectorError } from '../errors/errors.js';
 import { shortText, safeJsonStringify, sleep } from '../utils/helpers.js';
-import { validateTargetUrl, isPrivateHost, validateResolvedTargetUrl } from '../security/url-guard.js';
+import {
+  validateTargetUrl,
+  isPrivateHost,
+  validateResolvedTargetUrl,
+} from '../security/url-guard.js';
 import { redactString, serializeRemoteObject } from '../security/redaction.js';
 import { CdpClient, evaluate } from './client.js';
 
@@ -35,7 +39,8 @@ export interface CaptureState {
 
 export function attachCaptureHandlers(cdp: CdpClient, options: any): CaptureState {
   const disposers: Array<() => void> = [];
-  const listen = (method: string, handler: (params: any) => void) => disposers.push(cdp.on(method, handler));
+  const listen = (method: string, handler: (params: any) => void) =>
+    disposers.push(cdp.on(method, handler));
   const state: CaptureState = {
     network: {
       enabled: options.network,
@@ -116,7 +121,9 @@ export function attachCaptureHandlers(cdp: CdpClient, options: any): CaptureStat
       frameId: params.frameId,
       url: params.request?.url,
       method: params.request?.method,
-      postData: params.request?.postData ? shortText(redactString(params.request.postData, options.redact), 500) : null,
+      postData: params.request?.postData
+        ? shortText(redactString(params.request.postData, options.redact), 500)
+        : null,
       resourceType: params.type,
       initiatorType: params.initiator?.type ?? null,
       startedAt: params.timestamp,
@@ -139,9 +146,13 @@ export function attachCaptureHandlers(cdp: CdpClient, options: any): CaptureStat
     }
     if (
       params.type === 'Document' &&
-      (params.frameId === state.mainFrameId || (!state.mainFrameId && params.response?.url === options.url))
+      (params.frameId === state.mainFrameId ||
+        (!state.mainFrameId && params.response?.url === options.url))
     ) {
-      state.mainDocumentResponse = { status: params.response?.status ?? null, mimeType: params.response?.mimeType ?? null };
+      state.mainDocumentResponse = {
+        status: params.response?.status ?? null,
+        mimeType: params.response?.mimeType ?? null,
+      };
     }
     if (!active?.streaming) state.lastNetworkActivity = Date.now();
   });
@@ -180,8 +191,12 @@ export function attachCaptureHandlers(cdp: CdpClient, options: any): CaptureStat
         state.console.truncated = true;
         return;
       }
-      const args = (params.args || []).map((arg: any) => serializeRemoteObject(arg, options.redact));
-      const text = args.map((a: any) => (typeof a === 'string' ? a : safeJsonStringify(a))).join(' ');
+      const args = (params.args || []).map((arg: any) =>
+        serializeRemoteObject(arg, options.redact),
+      );
+      const text = args
+        .map((a: any) => (typeof a === 'string' ? a : safeJsonStringify(a)))
+        .join(' ');
       state.console.entries.push({
         type,
         text,
@@ -200,7 +215,11 @@ export function attachCaptureHandlers(cdp: CdpClient, options: any): CaptureStat
       if (state.errors.uncaught.length >= options.maxConsole) return;
       const details = params.exceptionDetails || {};
       state.errors.uncaught.push({
-        text: details.exception?.description || details.text || details.exception?.value || 'Uncaught exception',
+        text:
+          details.exception?.description ||
+          details.text ||
+          details.exception?.value ||
+          'Uncaught exception',
         url: details.url || null,
         lineNumber: details.lineNumber ?? null,
         columnNumber: details.columnNumber ?? null,
@@ -226,7 +245,11 @@ export function attachCaptureHandlers(cdp: CdpClient, options: any): CaptureStat
   }
   listen('Page.javascriptDialogOpening', (params: any) => {
     if (state.dialogs.length < options.maxConsole) {
-      state.dialogs.push({ type: params.type || null, message: params.message || '', url: params.url || null });
+      state.dialogs.push({
+        type: params.type || null,
+        message: params.message || '',
+        url: params.url || null,
+      });
     }
     cdp.send('Page.handleJavaScriptDialog', { accept: false }).catch(() => {});
   });
@@ -244,7 +267,11 @@ export function attachCaptureHandlers(cdp: CdpClient, options: any): CaptureStat
 
 export const requestGuards = new WeakMap<any, () => Promise<void>>();
 
-export async function installRequestGuard(cdp: CdpClient, options: any, warnings: string[]): Promise<() => Promise<void>> {
+export async function installRequestGuard(
+  cdp: CdpClient,
+  options: any,
+  warnings: string[],
+): Promise<() => Promise<void>> {
   await requestGuards.get(cdp)?.();
   const customHeaders = options.headers ?? [];
   const blocks = options.block ?? [];
@@ -296,11 +323,14 @@ export async function installRequestGuard(cdp: CdpClient, options: any, warnings
         .filter(([name]) => !customNames.has(name.toLowerCase()))
         .map(([name, value]) => ({ name, value: String(value) }));
       if (url.origin === origin) {
-        for (const header of customHeaders) headers.push({ name: header.name, value: header.value });
+        for (const header of customHeaders)
+          headers.push({ name: header.name, value: header.value });
       }
       await cdp.send('Fetch.continueRequest', { requestId, headers });
     } catch {
-      warnings.push('Request interception failed; request denied rather than forwarding custom headers.');
+      warnings.push(
+        'Request interception failed; request denied rather than forwarding custom headers.',
+      );
       await failRequest(requestId);
     }
   };
@@ -336,10 +366,12 @@ export async function installRequestGuard(cdp: CdpClient, options: any, warnings
     await cdp.send('Fetch.enable', { patterns });
     requestGuards.set(cdp, dispose);
     if (!customHeaders.length && !blocks.length) {
-      warnings.push('Request interception guard is active for document navigations to block SSRF and cloud metadata exfiltration.');
+      warnings.push(
+        'Request interception guard is active for document navigations to block SSRF and cloud metadata exfiltration.',
+      );
     } else {
       warnings.push(
-        'Opt-in request interception validates paused request DNS and scopes custom headers by exact origin; it does not pin DNS or guarantee DNS rebinding protection.'
+        'Opt-in request interception validates paused request DNS and scopes custom headers by exact origin; it does not pin DNS or guarantee DNS rebinding protection.',
       );
     }
     return dispose;
@@ -347,12 +379,16 @@ export async function installRequestGuard(cdp: CdpClient, options: any, warnings
     await dispose();
     throw new InspectorError(
       'Request interception guard could not be established safely; navigation refused.',
-      'INTERCEPTION_SETUP_FAILED'
+      'INTERCEPTION_SETUP_FAILED',
     );
   }
 }
 
-export async function preparePage(cdp: CdpClient, options: any, warnings: string[]): Promise<() => Promise<void>> {
+export async function preparePage(
+  cdp: CdpClient,
+  options: any,
+  warnings: string[],
+): Promise<() => Promise<void>> {
   await validateResolvedTargetUrl(options.url, { timeoutMs: options.timeoutMs });
   await cdp.send('Page.enable');
   try {
@@ -450,7 +486,10 @@ export async function preparePage(cdp: CdpClient, options: any, warnings: string
   return installRequestGuard(cdp, options, warnings);
 }
 
-export async function waitForLoad(state: CaptureState, options: { timeoutMs: number }): Promise<void> {
+export async function waitForLoad(
+  state: CaptureState,
+  options: { timeoutMs: number },
+): Promise<void> {
   const deadline = Date.now() + options.timeoutMs;
   while (!state.loadFired && Date.now() < deadline) {
     await sleep(50);
@@ -458,12 +497,16 @@ export async function waitForLoad(state: CaptureState, options: { timeoutMs: num
   if (!state.loadFired) {
     throw new InspectorError(
       `Navigation did not reach the load event within ${options.timeoutMs}ms`,
-      'NAVIGATION_TIMEOUT'
+      'NAVIGATION_TIMEOUT',
     );
   }
 }
 
-export async function waitForSelector(cdp: CdpClient, selector: string | undefined, options: { timeoutMs: number }): Promise<boolean> {
+export async function waitForSelector(
+  cdp: CdpClient,
+  selector: string | undefined,
+  options: { timeoutMs: number },
+): Promise<boolean> {
   if (!selector) return true;
   const deadline = Date.now() + options.timeoutMs;
   const expression = `Boolean(document.querySelector(${JSON.stringify(selector)}))`;
@@ -481,7 +524,10 @@ export async function waitForSelector(cdp: CdpClient, selector: string | undefin
   return false;
 }
 
-export async function waitForNetworkIdle(state: CaptureState, options: { networkIdle?: boolean; timeoutMs: number; idleMs: number }): Promise<boolean> {
+export async function waitForNetworkIdle(
+  state: CaptureState,
+  options: { networkIdle?: boolean; timeoutMs: number; idleMs: number },
+): Promise<boolean> {
   if (!options.networkIdle) return true;
   const deadline = Date.now() + options.timeoutMs;
   while (Date.now() < deadline) {

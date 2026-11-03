@@ -4,11 +4,16 @@ import { DEFAULTS, METADATA_HOSTS, DANGEROUS_BROWSER_FLAGS } from '../config/con
 import { UsageError, InspectorError } from '../errors/errors.js';
 
 export function normalizeHost(hostname: unknown): string {
-  let host = String(hostname ?? '').trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.+$/, '');
+  let host = String(hostname ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.+$/, '');
   // WHATWG URL canonicalizes legacy numeric IPv4 forms (hex, octal, integer).
   try {
     host = new URL(`http://${host.includes(':') ? `[${host}]` : host}/`).hostname
-      .replace(/^\[|\]$/g, '').replace(/\.+$/, '');
+      .replace(/^\[|\]$/g, '')
+      .replace(/\.+$/, '');
   } catch {
     // Invalid addresses are rejected by URL parsing or DNS resolution later.
   }
@@ -20,13 +25,18 @@ export function ipv6Words(host: string): number[] | null {
   let expanded = host;
   if (expanded.includes('.')) {
     const split = expanded.lastIndexOf(':');
-    const octets = expanded.slice(split + 1).split('.').map(Number);
+    const octets = expanded
+      .slice(split + 1)
+      .split('.')
+      .map(Number);
     expanded = `${expanded.slice(0, split)}:${((octets[0] << 8) | octets[1]).toString(16)}:${((octets[2] << 8) | octets[3]).toString(16)}`;
   }
   const halves = expanded.split('::');
   const left = halves[0] ? halves[0].split(':').map((part) => Number.parseInt(part, 16)) : [];
   const right = halves[1] ? halves[1].split(':').map((part) => Number.parseInt(part, 16)) : [];
-  return halves.length === 2 ? [...left, ...Array(8 - left.length - right.length).fill(0), ...right] : left;
+  return halves.length === 2
+    ? [...left, ...Array(8 - left.length - right.length).fill(0), ...right]
+    : left;
 }
 
 export function mappedIpv4(host: string): string | null {
@@ -51,16 +61,21 @@ export function isMetadataHost(hostname: unknown): boolean {
   const host = normalizeHost(hostname);
   const ipv4 = mappedIpv4(host) || host;
   if (METADATA_HOSTS.has(host) || METADATA_HOSTS.has(ipv4)) return true;
-  if (host.endsWith('.metadata.google.internal') || host.endsWith('.metadata.azure.com') || host.endsWith('.metadata.goog')) return true;
+  if (
+    host.endsWith('.metadata.google.internal') ||
+    host.endsWith('.metadata.azure.com') ||
+    host.endsWith('.metadata.goog')
+  )
+    return true;
   // Link-local IPv4 is reserved for metadata/security-sensitive local services.
   if (net.isIP(ipv4) === 4 && ipv4.startsWith('169.254.')) return true;
   const words = ipv6Words(host);
   return Boolean(
     words &&
-      words[0] === 0xfd00 &&
-      words[1] === 0xec2 &&
-      words.slice(2, 7).every((word) => word === 0) &&
-      words[7] === 0x254
+    words[0] === 0xfd00 &&
+    words[1] === 0xec2 &&
+    words.slice(2, 7).every((word) => word === 0) &&
+    words[7] === 0x254,
   );
 }
 
@@ -142,7 +157,7 @@ export async function validateResolvedHostname(
     timeoutMs = DEFAULTS.timeoutMs,
     loopbackOnly = false,
     allowPrivate = true,
-  }: ValidateResolvedHostnameOptions = {}
+  }: ValidateResolvedHostnameOptions = {},
 ): Promise<void> {
   const host = normalizeHost(hostname);
   if (isMetadataHost(host)) throw new UsageError('Cloud metadata endpoints are blocked');
@@ -158,17 +173,27 @@ export async function validateResolvedHostname(
       addresses = await Promise.race([
         Promise.resolve().then(() => lookup(host, { all: true, verbatim: true })),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new InspectorError('DNS validation timed out', 'DNS_TIMEOUT')), timeoutMs);
+          timer = setTimeout(
+            () => reject(new InspectorError('DNS validation timed out', 'DNS_TIMEOUT')),
+            timeoutMs,
+          );
         }),
       ]);
     } catch (error: any) {
       if (error instanceof InspectorError) throw error;
-      throw new InspectorError(`DNS validation failed (${error?.code || 'lookup error'})`, 'DNS_LOOKUP_FAILED');
+      throw new InspectorError(
+        `DNS validation failed (${error?.code || 'lookup error'})`,
+        'DNS_LOOKUP_FAILED',
+      );
     } finally {
       if (timer) clearTimeout(timer);
     }
   }
-  if (!Array.isArray(addresses) || addresses.length === 0 || addresses.some((entry) => !net.isIP(entry.address))) {
+  if (
+    !Array.isArray(addresses) ||
+    addresses.length === 0 ||
+    addresses.some((entry) => !net.isIP(entry.address))
+  ) {
     throw new InspectorError('DNS validation returned no valid addresses', 'DNS_LOOKUP_FAILED');
   }
   if (addresses.some((entry) => isMetadataHost(entry.address))) {
@@ -182,7 +207,10 @@ export async function validateResolvedHostname(
   }
 }
 
-export async function validateResolvedTargetUrl(raw: unknown, options: ValidateResolvedHostnameOptions = {}): Promise<URL> {
+export async function validateResolvedTargetUrl(
+  raw: unknown,
+  options: ValidateResolvedHostnameOptions = {},
+): Promise<URL> {
   const url = validateTargetUrl(raw);
   await validateResolvedHostname(url.hostname, options);
   return url;
@@ -202,7 +230,9 @@ export function validateCdpEndpoint(raw: unknown, allowRemote?: boolean): URL {
     throw new UsageError('--cdp URLs containing credentials are not allowed');
   }
   if (!allowRemote && !isLoopbackHost(parsed.hostname)) {
-    throw new UsageError('--cdp is restricted to loopback endpoints. Pass --allow-remote-cdp to override (unsafe).');
+    throw new UsageError(
+      '--cdp is restricted to loopback endpoints. Pass --allow-remote-cdp to override (unsafe).',
+    );
   }
   if (isMetadataHost(parsed.hostname)) {
     throw new UsageError('Cloud metadata endpoints are blocked');

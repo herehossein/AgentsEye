@@ -8,7 +8,12 @@ import { lookup as dnsLookup } from 'node:dns/promises';
 import { TOOL_NAME, BROWSER_ENV_KEYS, DEFAULTS } from '../config/constants.js';
 import { UsageError, InspectorError } from '../errors/errors.js';
 import { sleep } from '../utils/helpers.js';
-import { normalizeHost, validateCdpEndpoint, validateResolvedHostname, validateResolvedTargetUrl } from '../security/url-guard.js';
+import {
+  normalizeHost,
+  validateCdpEndpoint,
+  validateResolvedHostname,
+  validateResolvedTargetUrl,
+} from '../security/url-guard.js';
 import { loadWebSocketCtor, connectCdp, CdpClient } from './client.js';
 
 export function browserCandidates(): string[] {
@@ -26,12 +31,16 @@ export function browserCandidates(): string[] {
       candidates.push(path.join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'));
       candidates.push(path.join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
       candidates.push(path.join(root, 'Chromium', 'Application', 'chrome.exe'));
-      candidates.push(path.join(root, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'));
+      candidates.push(
+        path.join(root, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+      );
     }
     if (localAppData) {
       candidates.push(path.join(localAppData, 'Google', 'Chrome', 'Application', 'chrome.exe'));
       candidates.push(path.join(localAppData, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
-      candidates.push(path.join(localAppData, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'));
+      candidates.push(
+        path.join(localAppData, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+      );
     }
   } else if (process.platform === 'darwin') {
     candidates.push(
@@ -39,7 +48,7 @@ export function browserCandidates(): string[] {
       '/Applications/Chromium.app/Contents/MacOS/Chromium',
       '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
       '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-      '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary'
+      '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
     );
   } else {
     candidates.push(
@@ -49,7 +58,7 @@ export function browserCandidates(): string[] {
       'chromium-browser',
       'microsoft-edge',
       'microsoft-edge-stable',
-      'brave-browser'
+      'brave-browser',
     );
   }
   return candidates;
@@ -109,7 +118,7 @@ export function findBrowser(explicit?: string): string {
   }
   throw new InspectorError(
     'No Chromium-based browser found. Install Chrome/Edge/Chromium or pass --browser <path>.',
-    'BROWSER_NOT_FOUND'
+    'BROWSER_NOT_FOUND',
   );
 }
 
@@ -127,7 +136,10 @@ export async function getFreePort(): Promise<number> {
   return port;
 }
 
-export async function httpJson(url: string, { method = 'GET', timeoutMs = 5_000 } = {}): Promise<any> {
+export async function httpJson(
+  url: string,
+  { method = 'GET', timeoutMs = 5_000 } = {},
+): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -140,7 +152,7 @@ export async function httpJson(url: string, { method = 'GET', timeoutMs = 5_000 
     const text = await response.text();
     if (!response.ok) {
       throw new InspectorError(
-        `HTTP ${response.status} ${response.statusText} from ${url}: ${text.slice(0, 200)}`
+        `HTTP ${response.status} ${response.statusText} from ${url}: ${text.slice(0, 200)}`,
       );
     }
     try {
@@ -178,10 +190,14 @@ export async function attachToCdp(
     lookup = dnsLookup as any,
     connect = connectCdp,
     getJson = httpJson,
-  }: AttachToCdpOptions = {}
+  }: AttachToCdpOptions = {},
 ): Promise<AttachedCdpResult> {
   const endpoint = validateCdpEndpoint(raw, allowRemoteCdp);
-  await validateResolvedHostname(endpoint.hostname, { lookup, timeoutMs, loopbackOnly: !allowRemoteCdp });
+  await validateResolvedHostname(endpoint.hostname, {
+    lookup,
+    timeoutMs,
+    loopbackOnly: !allowRemoteCdp,
+  });
   let version = null;
   let wsEndpoint: URL;
   if (endpoint.protocol === 'ws:' || endpoint.protocol === 'wss:') {
@@ -193,7 +209,10 @@ export async function attachToCdp(
     const versionUrl = new URL('/json/version', endpoint);
     version = await getJson(versionUrl.toString(), { timeoutMs });
     if (!version?.webSocketDebuggerUrl) {
-      throw new InspectorError('CDP browser endpoint is unavailable', 'CDP_BROWSER_ENDPOINT_REQUIRED');
+      throw new InspectorError(
+        'CDP browser endpoint is unavailable',
+        'CDP_BROWSER_ENDPOINT_REQUIRED',
+      );
     }
     wsEndpoint = validateCdpEndpoint(version.webSocketDebuggerUrl, allowRemoteCdp);
     const sameTransport = wsEndpoint.protocol === (endpoint.protocol === 'https:' ? 'wss:' : 'ws:');
@@ -204,7 +223,10 @@ export async function attachToCdp(
         (endpoint.port || (endpoint.protocol === 'https:' ? '443' : '80')) ||
       !/^\/devtools\/browser\/[^/]+\/?$/.test(wsEndpoint.pathname)
     ) {
-      throw new InspectorError('CDP discovery returned an unexpected browser endpoint', 'CDP_ENDPOINT_MISMATCH');
+      throw new InspectorError(
+        'CDP discovery returned an unexpected browser endpoint',
+        'CDP_ENDPOINT_MISMATCH',
+      );
     }
   }
   const browserCdp = await connect(wsEndpoint.toString(), { commandTimeoutMs: timeoutMs });
@@ -219,8 +241,12 @@ export async function attachToCdp(
       subscriptions.clear();
       const cleanupOptions = { timeoutMs: Math.min(timeoutMs, 3_000) };
       try {
-        if (targetId) await browserCdp.send('Target.closeTarget', { targetId }, cleanupOptions).catch(() => {});
-        if (browserContextId) await browserCdp.send('Target.disposeBrowserContext', { browserContextId }, cleanupOptions).catch(() => {});
+        if (targetId)
+          await browserCdp.send('Target.closeTarget', { targetId }, cleanupOptions).catch(() => {});
+        if (browserContextId)
+          await browserCdp
+            .send('Target.disposeBrowserContext', { browserContextId }, cleanupOptions)
+            .catch(() => {});
       } finally {
         browserCdp.close();
       }
@@ -228,29 +254,43 @@ export async function attachToCdp(
     return cleanupPromise;
   };
   try {
-    ({ browserContextId } = await browserCdp.send('Target.createBrowserContext', { disposeOnDetach: true }));
-    if (!browserContextId) throw new InspectorError('Could not create isolated browser context', 'CDP_ISOLATION_FAILED');
+    ({ browserContextId } = await browserCdp.send('Target.createBrowserContext', {
+      disposeOnDetach: true,
+    }));
+    if (!browserContextId)
+      throw new InspectorError('Could not create isolated browser context', 'CDP_ISOLATION_FAILED');
     // Security: Block all downloads in this browser context
-    await browserCdp.send('Browser.setDownloadBehavior', {
-      behavior: 'deny',
-      browserContextId,
-    }).catch(() => {});
+    await browserCdp
+      .send('Browser.setDownloadBehavior', {
+        behavior: 'deny',
+        browserContextId,
+      })
+      .catch(() => {});
     // Security: Reset/deny all permissions in this browser context
-    await browserCdp.send('Browser.grantPermissions', {
-      permissions: [],
+    await browserCdp
+      .send('Browser.grantPermissions', {
+        permissions: [],
+        browserContextId,
+      })
+      .catch(() => {});
+    ({ targetId } = await browserCdp.send('Target.createTarget', {
+      url: 'about:blank',
       browserContextId,
-    }).catch(() => {});
-    ({ targetId } = await browserCdp.send('Target.createTarget', { url: 'about:blank', browserContextId }));
-    if (!targetId) throw new InspectorError('Could not create isolated target', 'CDP_ISOLATION_FAILED');
+    }));
+    if (!targetId)
+      throw new InspectorError('Could not create isolated target', 'CDP_ISOLATION_FAILED');
     // Security: Intercept and auto-close unmanaged child windows / popups
     const offTargetCreated = browserCdp.on('Target.targetCreated', async ({ targetInfo }: any) => {
       if (targetInfo.targetId !== targetId && targetInfo.browserContextId === browserContextId) {
-        await browserCdp.send('Target.closeTarget', { targetId: targetInfo.targetId }).catch(() => {});
+        await browserCdp
+          .send('Target.closeTarget', { targetId: targetInfo.targetId })
+          .catch(() => {});
       }
     });
     subscriptions.add(offTargetCreated as any);
     ({ sessionId } = await browserCdp.send('Target.attachToTarget', { targetId, flatten: true }));
-    if (!sessionId) throw new InspectorError('Could not attach isolated target', 'CDP_ISOLATION_FAILED');
+    if (!sessionId)
+      throw new InspectorError('Could not attach isolated target', 'CDP_ISOLATION_FAILED');
     const cdp: CdpClient = {
       send: (method: string, params: Record<string, unknown> = {}, commandOptions: any = {}) =>
         browserCdp.send(method, params, { ...commandOptions, sessionId }),
@@ -288,7 +328,10 @@ export interface LaunchedBrowserResult {
   getStderr: () => string;
 }
 
-export async function launchBrowser(options: any, log: (msg: string) => void = () => {}): Promise<LaunchedBrowserResult> {
+export async function launchBrowser(
+  options: any,
+  log: (msg: string) => void = () => {},
+): Promise<LaunchedBrowserResult> {
   // Keep this check before process/profile allocation for direct API callers.
   await validateResolvedTargetUrl(options.url, { timeoutMs: options.timeoutMs });
   await loadWebSocketCtor();
@@ -368,7 +411,7 @@ export async function launchBrowser(options: any, log: (msg: string) => void = (
       if (spawnError || child.exitCode !== null || child.signalCode !== null) {
         throw new InspectorError(
           `Browser exited during startup (${spawnError?.code || child.signalCode || child.exitCode}).\n${stderr.slice(-2_000)}`,
-          'BROWSER_START_FAILED'
+          'BROWSER_START_FAILED',
         );
       }
       try {
@@ -383,7 +426,7 @@ export async function launchBrowser(options: any, log: (msg: string) => void = (
     if (!version) {
       throw new InspectorError(
         `Browser did not expose DevTools within ${startTimeout}ms.\n${stderr.slice(-2_000)}`,
-        'BROWSER_START_TIMEOUT'
+        'BROWSER_START_TIMEOUT',
       );
     }
     attached = await attachToCdp(`http://127.0.0.1:${port}`, { timeoutMs: startTimeout });

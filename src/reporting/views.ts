@@ -65,7 +65,10 @@ export function normalizeSectionList(val: unknown): Set<string> | null {
     return list.length ? new Set(list) : null;
   }
   if (typeof val === 'string') {
-    const list = val.split(',').map((s) => s.trim()).filter(Boolean);
+    const list = val
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     return list.length ? new Set(list) : null;
   }
   return null;
@@ -106,9 +109,12 @@ export function compactDiagnostic(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') return shortText(value, 240);
   if (value == null || typeof value !== 'object') return value;
   if (depth > 3) return '[details in saved report]';
-  if (Array.isArray(value)) return value.slice(0, 3).map((item) => compactDiagnostic(item, depth + 1));
+  if (Array.isArray(value))
+    return value.slice(0, 3).map((item) => compactDiagnostic(item, depth + 1));
   return Object.fromEntries(
-    Object.entries(value).slice(0, 10).map(([key, item]) => [key, compactDiagnostic(item, depth + 1)])
+    Object.entries(value)
+      .slice(0, 10)
+      .map(([key, item]) => [key, compactDiagnostic(item, depth + 1)]),
   );
 }
 
@@ -116,7 +122,12 @@ export function compactDom(dom: any, maxNodes = 100): any {
   let emitted = 0;
   let truncated = false;
   const walk = (node: any): any => {
-    if (!node || node.rendered === false || node.ariaHidden || ['script', 'style', 'noscript', 'template'].includes(node.tag))
+    if (
+      !node ||
+      node.rendered === false ||
+      node.ariaHidden ||
+      ['script', 'style', 'noscript', 'template'].includes(node.tag)
+    )
       return null;
     if (emitted >= maxNodes) {
       truncated = true;
@@ -135,7 +146,11 @@ export function compactDom(dom: any, maxNodes = 100): any {
     };
     const children = (Array.isArray(node.children) ? node.children : []).map(walk).filter(Boolean);
     if (node.shadowRoot) {
-      children.push(...(Array.isArray(node.shadowRoot.children) ? node.shadowRoot.children : []).map(walk).filter(Boolean));
+      children.push(
+        ...(Array.isArray(node.shadowRoot.children) ? node.shadowRoot.children : [])
+          .map(walk)
+          .filter(Boolean),
+      );
     }
     if (node.frameContent) {
       const child = walk(node.frameContent);
@@ -159,13 +174,17 @@ export function minimalSummary(report: any): any {
   for (const issue of issues) issueCounts[issue.code] = (issueCounts[issue.code] ?? 0) + 1;
   const uncaught = report.errors?.uncaught ?? [];
   const logErrors = report.errors?.logErrors ?? [];
-  const consoleErrors = (report.console?.entries ?? []).filter((entry: any) => ['error', 'assert'].includes(entry.type));
+  const consoleErrors = (report.console?.entries ?? []).filter((entry: any) =>
+    ['error', 'assert'].includes(entry.type),
+  );
   const landmarks: Record<string, any> = {};
   for (const [name, value] of Object.entries(report.landmarks ?? {})) {
     if ((value as any).count) {
       landmarks[name] = {
         count: (value as any).count,
-        items: ((value as any).items ?? []).slice(0, 2).map((item: any) => shortText(item.selector ?? item.cssPath, 100)),
+        items: ((value as any).items ?? [])
+          .slice(0, 2)
+          .map((item: any) => shortText(item.selector ?? item.cssPath, 100)),
       };
     }
   }
@@ -220,14 +239,20 @@ export function minimalSummary(report: any): any {
       message: shortText(issue.message, 140),
     })),
     network: report.network?.summary ?? null,
-    console: { counts: report.console?.counts ?? {}, errors: compactDiagnostic(consoleErrors.slice(0, 2)) },
+    console: {
+      counts: report.console?.counts ?? {},
+      errors: compactDiagnostic(consoleErrors.slice(0, 2)),
+    },
     errors: {
       uncaughtCount: uncaught.length,
       logErrorCount: logErrors.length,
       uncaught: compactDiagnostic(uncaught.slice(0, 2)),
       logErrors: compactDiagnostic(logErrors.slice(0, 2)),
     },
-    dialogs: { count: (report.dialogs ?? []).length, items: compactDiagnostic(report.dialogs ?? []) },
+    dialogs: {
+      count: (report.dialogs ?? []).length,
+      items: compactDiagnostic(report.dialogs ?? []),
+    },
     landmarks,
     headings,
     headingsOutline: headings ? headings.outline : undefined,
@@ -235,7 +260,10 @@ export function minimalSummary(report: any): any {
     truncated: report.meta?.truncation,
   };
   if (report.dom?.selector) summary.dom = report.dom;
-  if (report.cssVars && (report.cssVars.count > 0 || Object.keys(report.cssVars.vars || {}).length > 0)) {
+  if (
+    report.cssVars &&
+    (report.cssVars.count > 0 || Object.keys(report.cssVars.vars || {}).length > 0)
+  ) {
     summary.cssVars = report.cssVars;
   }
   if (report.matrix) {
@@ -250,7 +278,9 @@ export function minimalSummary(report: any): any {
   }
   if (report.interactions) {
     summary.interactions = {
-      performed: (report.interactions.actions ?? []).filter((action: any) => action.status === 'performed').length,
+      performed: (report.interactions.actions ?? []).filter(
+        (action: any) => action.status === 'performed',
+      ).length,
       explored: report.interactions.exploration?.performed ?? 0,
       diff: report.interactions.diff?.summary ?? null,
     };
@@ -263,7 +293,7 @@ export function minimalSummary(report: any): any {
     summary.errors.uncaught = compactDiagnostic(uncaught.slice(0, 1));
     summary.errors.logErrors = [];
     summary.landmarks = Object.fromEntries(
-      Object.entries(landmarks).map(([name, item]) => [name, { count: (item as any).count }])
+      Object.entries(landmarks).map(([name, item]) => [name, { count: (item as any).count }]),
     );
     if (summary.headings) {
       summary.headings.items = summary.headings.items.slice(0, 5);
@@ -296,7 +326,9 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
         scrollLock: report.page?.scrollLock,
         console: {
           counts: report.console?.counts,
-          entries: report.console?.entries?.filter((entry: any) => ['error', 'assert'].includes(entry.type)),
+          entries: report.console?.entries?.filter((entry: any) =>
+            ['error', 'assert'].includes(entry.type),
+          ),
         },
         shifts: report.performance?.page?.webVitals?.cls ?? null,
       };
@@ -315,9 +347,9 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
       const levelFilter = options.consoleLevel ?? report.meta?.options?.consoleLevel ?? null;
       const textFilter = options.consoleFilter ?? report.meta?.options?.consoleFilter ?? null;
       if (levelFilter && levelFilter !== 'all') {
-        const rawLevels = (Array.isArray(levelFilter) ? levelFilter : String(levelFilter).split(',')).map((l: string) =>
-          l.trim().toLowerCase()
-        );
+        const rawLevels = (
+          Array.isArray(levelFilter) ? levelFilter : String(levelFilter).split(',')
+        ).map((l: string) => l.trim().toLowerCase());
         const levels = new Set(rawLevels);
         if (levels.has('warn')) levels.add('warning');
         if (levels.has('warning')) levels.add('warn');
@@ -337,7 +369,9 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
           matcher = new RegExp(filterStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
         }
         entries = entries.filter((e: any) => {
-          const serialized = (e.args || []).map((a: any) => (typeof a === 'string' ? a : safeJsonStringify(a))).join(' ');
+          const serialized = (e.args || [])
+            .map((a: any) => (typeof a === 'string' ? a : safeJsonStringify(a)))
+            .join(' ');
           return matcher!.test(serialized) || (e.text && matcher!.test(e.text));
         });
       }
@@ -371,7 +405,10 @@ export function queryReport(report: any, query: unknown, options: any = {}): any
   if (FOCUS_SLICES.includes(query as any)) return focusReport(report, query as string, options);
   const parts = String(query).split('.');
   if (
-    parts.some((part) => !/^[a-zA-Z0-9_-]+$/.test(part) || ['__proto__', 'constructor', 'prototype'].includes(part))
+    parts.some(
+      (part) =>
+        !/^[a-zA-Z0-9_-]+$/.test(part) || ['__proto__', 'constructor', 'prototype'].includes(part),
+    )
   ) {
     throw new UsageError('Queries are safe dot-separated property paths, e.g. network.failures');
   }
@@ -382,7 +419,14 @@ export function queryReport(report: any, query: unknown, options: any = {}): any
     }
     value = value[part];
   }
-  return { ok: report.ok, run: report.run, query, data: value, errors: report.errors, dialogs: report.dialogs };
+  return {
+    ok: report.ok,
+    run: report.run,
+    query,
+    data: value,
+    errors: report.errors,
+    dialogs: report.dialogs,
+  };
 }
 
 export function outputView(report: any, options: any = {}): any {
@@ -393,10 +437,10 @@ export function outputView(report: any, options: any = {}): any {
     (opts.focus
       ? 'focus'
       : opts.full || opts.include || opts.exclude
-      ? 'full'
-      : opts.query
-      ? 'query'
-      : null);
+        ? 'full'
+        : opts.query
+          ? 'query'
+          : null);
 
   try {
     if (view === 'focus' || opts.focus) {

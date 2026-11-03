@@ -41,7 +41,13 @@ export async function createRun(options: any = {}): Promise<RunLocation> {
   const id = `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomBytes(6).toString('hex')}`;
   const directory = path.join(realRoot, id);
   await fsp.mkdir(directory, { mode: 0o700 });
-  return { id, directory, report: path.join(directory, 'report.json'), dom: path.join(directory, 'dom.json'), isTemp };
+  return {
+    id,
+    directory,
+    report: path.join(directory, 'report.json'),
+    dom: path.join(directory, 'dom.json'),
+    isTemp,
+  };
 }
 
 export async function cleanRuns(options: any = {}): Promise<any> {
@@ -144,11 +150,17 @@ export async function readRun(id: unknown, options: any = {}): Promise<any> {
   const candidateRoots: string[] = [];
   const primaryRoot = await fsp.realpath(runsRoot(options)).catch(() => null);
   if (primaryRoot) candidateRoots.push(primaryRoot);
-  const tempRoot = await fsp.realpath(path.join(os.tmpdir(), `.${TOOL_NAME}`, 'runs')).catch(() => null);
+  const tempRoot = await fsp
+    .realpath(path.join(os.tmpdir(), `.${TOOL_NAME}`, 'runs'))
+    .catch(() => null);
   if (tempRoot && !candidateRoots.includes(tempRoot)) candidateRoots.push(tempRoot);
-  const localRoot = await fsp.realpath(path.join(process.cwd(), `.${TOOL_NAME}`, 'runs')).catch(() => null);
+  const localRoot = await fsp
+    .realpath(path.join(process.cwd(), `.${TOOL_NAME}`, 'runs'))
+    .catch(() => null);
   if (localRoot && !candidateRoots.includes(localRoot)) candidateRoots.push(localRoot);
-  const legacyRoot = await fsp.realpath(path.join(process.cwd(), '.runtime-inspector', 'runs')).catch(() => null);
+  const legacyRoot = await fsp
+    .realpath(path.join(process.cwd(), '.runtime-inspector', 'runs'))
+    .catch(() => null);
   if (legacyRoot && !candidateRoots.includes(legacyRoot)) candidateRoots.push(legacyRoot);
 
   if (!candidateRoots.length) {
@@ -169,7 +181,8 @@ export async function readRun(id: unknown, options: any = {}): Promise<any> {
     throw new UsageError(`Saved run not found: ${validId}`);
   }
   const stat = await fsp.stat(realFile);
-  if (!stat.isFile() || stat.size > 128 * 1024 * 1024) throw new UsageError('Saved report is not a supported JSON file');
+  if (!stat.isFile() || stat.size > 128 * 1024 * 1024)
+    throw new UsageError('Saved report is not a supported JSON file');
   let report: any;
   try {
     report = JSON.parse(await fsp.readFile(realFile, 'utf8'));

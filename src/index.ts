@@ -1,17 +1,9 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import {
-  DEFAULTS,
-  MATRIX_VIEWPORTS,
-  TAILWIND_VIEWPORTS,
-  TOOL_NAME,
-} from './config/constants.js';
+import { DEFAULTS, MATRIX_VIEWPORTS, TAILWIND_VIEWPORTS, TOOL_NAME } from './config/constants.js';
 
-import {
-  parseArgs,
-  parseViewport,
-} from './cli/parser.js';
+import { parseArgs, parseViewport } from './cli/parser.js';
 
 import {
   compactDom,
@@ -22,18 +14,11 @@ import {
   selectSections,
 } from './reporting/views.js';
 
-import {
-  formatText,
-  serializeOutput,
-} from './reporting/formatters.js';
+import { formatText, serializeOutput } from './reporting/formatters.js';
 
 import { diffReports } from './reporting/diff.js';
 
-import {
-  redactReport,
-  redactString,
-  redactUrl,
-} from './security/redaction.js';
+import { redactReport, redactString, redactUrl } from './security/redaction.js';
 
 import {
   auditAndSanitizeReport,
@@ -52,28 +37,13 @@ import {
   validateTargetUrl,
 } from './security/url-guard.js';
 
-import {
-  resolveSafePath,
-  validateRunId,
-} from './security/path-guard.js';
+import { resolveSafePath, validateRunId } from './security/path-guard.js';
 
-import {
-  cleanRuns,
-  createRun,
-  persistRun,
-  readRun,
-} from './storage/runs.js';
+import { cleanRuns, createRun, persistRun, readRun } from './storage/runs.js';
 
-import {
-  evaluate,
-  connectCdp,
-} from './cdp/client.js';
+import { evaluate, connectCdp } from './cdp/client.js';
 
-import {
-  attachToCdp,
-  findBrowser,
-  launchBrowser,
-} from './cdp/browser.js';
+import { attachToCdp, findBrowser, launchBrowser } from './cdp/browser.js';
 
 import {
   attachCaptureHandlers,
@@ -82,24 +52,15 @@ import {
   waitForNetworkIdle,
 } from './cdp/capture.js';
 
-import {
-  collectPerformance,
-  installPerformanceObservers,
-} from './cdp/collectors.js';
+import { collectPerformance, installPerformanceObservers } from './cdp/collectors.js';
 
-import {
-  inPageProbe,
-  makeProbeConfig,
-} from './probes/dom-probe.js';
+import { inPageProbe, makeProbeConfig } from './probes/dom-probe.js';
 
 import { interactionSafety } from './probes/interaction-probe.js';
 
 import { inPagePerformanceObserver } from './probes/perf-observer-probe.js';
 
-import {
-  diffInteractionSnapshots,
-  performInteractions,
-} from './interactions/runner.js';
+import { diffInteractionSnapshots, performInteractions } from './interactions/runner.js';
 
 import { inspectPage } from './inspector/inspect-page.js';
 

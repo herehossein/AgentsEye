@@ -12,12 +12,19 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
     "test": "npm run build && node --test dev/tests/*.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
     "esbuild": "^0.25.0",
-    "typescript": "^5.7.3"
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.72.1"
   },
   "license": "MIT",
   "author": "herehossein",

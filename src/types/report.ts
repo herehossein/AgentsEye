@@ -222,7 +222,13 @@ export interface FullReport {
   landmarks: Record<string, { count: number; items: Array<{ selector: string }> }>;
   headings: {
     count: number;
-    items: Array<{ level: number; text: string; id?: string; cssPath: string; rect: unknown | null }>;
+    items: Array<{
+      level: number;
+      text: string;
+      id?: string;
+      cssPath: string;
+      rect: unknown | null;
+    }>;
     truncated: boolean;
   };
   forms: {
@@ -255,7 +261,13 @@ export interface FullReport {
     slowest: Array<{ url: string; durationMs: number; transferSize: number }>;
   } | null;
   console: {
-    entries: Array<{ type: string; text: string; timestamp: number; url?: string; lineNumber?: number }>;
+    entries: Array<{
+      type: string;
+      text: string;
+      timestamp: number;
+      url?: string;
+      lineNumber?: number;
+    }>;
     counts: Record<string, number>;
     truncated: boolean;
   } | null;

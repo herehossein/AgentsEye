@@ -143,6 +143,6 @@ Security notes:
   - --cdp creates an isolated incognito target and rejects page WebSockets.
   - Every run saves redacted artifacts below .agentsEye/runs/. Screenshots
     are page pixels and are not redacted. Cross-origin frames are not expanded.
-`
+`,
   );
 }

@@ -2,7 +2,11 @@ import { DEFAULTS } from '../config/constants.js';
 import { InspectorError } from '../errors/errors.js';
 
 export interface CdpClient {
-  send: (method: string, params?: Record<string, unknown>, options?: { timeoutMs?: number; sessionId?: string }) => Promise<any>;
+  send: (
+    method: string,
+    params?: Record<string, unknown>,
+    options?: { timeoutMs?: number; sessionId?: string },
+  ) => Promise<any>;
   on: (method: string, handler: (params: any, sessionId?: string) => void) => () => boolean;
   close: () => void;
   socket: any;
@@ -12,11 +16,15 @@ export async function loadWebSocketCtor(): Promise<any> {
   if (typeof (globalThis as any).WebSocket === 'function') return (globalThis as any).WebSocket;
   throw new InspectorError(
     'Native WebSocket support is unavailable. Use Node.js 22+ with global WebSocket enabled.',
-    'WEBSOCKET_UNAVAILABLE'
+    'WEBSOCKET_UNAVAILABLE',
   );
 }
 
-export function addSocketListener(socket: any, type: string, handler: (event: any) => void): () => void {
+export function addSocketListener(
+  socket: any,
+  type: string,
+  handler: (event: any) => void,
+): () => void {
   if (typeof socket.addEventListener !== 'function') {
     throw new InspectorError('A native EventTarget WebSocket is required', 'WEBSOCKET_UNSUPPORTED');
   }
@@ -25,12 +33,14 @@ export function addSocketListener(socket: any, type: string, handler: (event: an
 }
 
 export function extractSocketData(eventOrData: any): string | null {
-  const data = eventOrData && typeof eventOrData === 'object' && 'data' in eventOrData
-    ? eventOrData.data
-    : eventOrData;
+  const data =
+    eventOrData && typeof eventOrData === 'object' && 'data' in eventOrData
+      ? eventOrData.data
+      : eventOrData;
   if (typeof data === 'string') return data;
   if (data instanceof ArrayBuffer) return Buffer.from(data).toString('utf8');
-  if (ArrayBuffer.isView(data)) return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString('utf8');
+  if (ArrayBuffer.isView(data))
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString('utf8');
   if (data && typeof data === 'object' && typeof (data as any).text === 'function') {
     // Blob-like object: callers cannot await inside the sync event handler;
     // Node's WebSocket delivers strings for text frames in practice.
@@ -39,7 +49,10 @@ export function extractSocketData(eventOrData: any): string | null {
   return data == null ? null : String(data);
 }
 
-export async function connectCdp(wsUrl: string, { commandTimeoutMs = DEFAULTS.timeoutMs } = {}): Promise<CdpClient> {
+export async function connectCdp(
+  wsUrl: string,
+  { commandTimeoutMs = DEFAULTS.timeoutMs } = {},
+): Promise<CdpClient> {
   const WebSocketCtor = await loadWebSocketCtor();
   const socket = new WebSocketCtor(wsUrl);
 
@@ -60,24 +73,35 @@ export async function connectCdp(wsUrl: string, { commandTimeoutMs = DEFAULTS.ti
         reject(error);
       } else resolve();
     };
-    const timer = setTimeout(() => {
-      finish(new InspectorError('CDP connection timed out', 'CDP_CONNECT_TIMEOUT'));
-    }, Math.min(commandTimeoutMs, 15_000));
+    const timer = setTimeout(
+      () => {
+        finish(new InspectorError('CDP connection timed out', 'CDP_CONNECT_TIMEOUT'));
+      },
+      Math.min(commandTimeoutMs, 15_000),
+    );
     removers.push(addSocketListener(socket, 'open', () => finish()));
     removers.push(
       addSocketListener(socket, 'error', () => {
         finish(new InspectorError('CDP connection failed', 'CDP_CONNECT_FAILED'));
-      })
+      }),
     );
     removers.push(
       addSocketListener(socket, 'close', () => {
         finish(new InspectorError('CDP connection closed before opening', 'CDP_CONNECT_FAILED'));
-      })
+      }),
     );
   });
 
   let nextId = 1;
-  const pending = new Map<number, { resolve: (res: any) => void; reject: (err: any) => void; timer: NodeJS.Timeout; method: string }>();
+  const pending = new Map<
+    number,
+    {
+      resolve: (res: any) => void;
+      reject: (err: any) => void;
+      timer: NodeJS.Timeout;
+      method: string;
+    }
+  >();
   const listeners = new Map<string, Set<(params: any, sessionId?: string) => void>>();
   let closed = false;
 
@@ -109,7 +133,7 @@ export async function connectCdp(wsUrl: string, { commandTimeoutMs = DEFAULTS.ti
       if (message.error) {
         const error = new InspectorError(
           `CDP ${entry.method}: ${message.error.message} (code ${message.error.code})`,
-          'CDP_COMMAND_FAILED'
+          'CDP_COMMAND_FAILED',
         ) as any;
         error.cdpCode = message.error.code;
         error.cdpData = message.error.data;
@@ -139,7 +163,11 @@ export async function connectCdp(wsUrl: string, { commandTimeoutMs = DEFAULTS.ti
     // 'close' will reject pending commands.
   });
 
-  const send = (method: string, params: Record<string, unknown> = {}, { timeoutMs = commandTimeoutMs, sessionId }: { timeoutMs?: number; sessionId?: string } = {}) =>
+  const send = (
+    method: string,
+    params: Record<string, unknown> = {},
+    { timeoutMs = commandTimeoutMs, sessionId }: { timeoutMs?: number; sessionId?: string } = {},
+  ) =>
     new Promise<any>((resolve, reject) => {
       if (closed || socket.readyState !== 1) {
         reject(new InspectorError(`CDP is not connected (${method})`, 'CDP_CLOSED'));
@@ -148,7 +176,12 @@ export async function connectCdp(wsUrl: string, { commandTimeoutMs = DEFAULTS.ti
       const id = nextId++;
       const timer = setTimeout(() => {
         pending.delete(id);
-        reject(new InspectorError(`CDP command timed out after ${timeoutMs}ms: ${method}`, 'CDP_TIMEOUT'));
+        reject(
+          new InspectorError(
+            `CDP command timed out after ${timeoutMs}ms: ${method}`,
+            'CDP_TIMEOUT',
+          ),
+        );
       }, timeoutMs);
       pending.set(id, { resolve, reject, timer, method });
       const payload: any = { id, method, params };
@@ -158,7 +191,9 @@ export async function connectCdp(wsUrl: string, { commandTimeoutMs = DEFAULTS.ti
       } catch (error: any) {
         clearTimeout(timer);
         pending.delete(id);
-        reject(new InspectorError(`Failed to send CDP ${method}: ${error.message}`, 'CDP_SEND_FAILED'));
+        reject(
+          new InspectorError(`Failed to send CDP ${method}: ${error.message}`, 'CDP_SEND_FAILED'),
+        );
       }
     });
 
@@ -180,7 +215,12 @@ export async function connectCdp(wsUrl: string, { commandTimeoutMs = DEFAULTS.ti
   return { send, on, close, socket };
 }
 
-export async function evaluate(cdp: CdpClient, expression: string, options: { timeoutMs: number }, { timeoutMs = options.timeoutMs } = {}): Promise<any> {
+export async function evaluate(
+  cdp: CdpClient,
+  expression: string,
+  options: { timeoutMs: number },
+  { timeoutMs = options.timeoutMs } = {},
+): Promise<any> {
   const result = await cdp.send(
     'Runtime.evaluate',
     {
@@ -190,7 +230,7 @@ export async function evaluate(cdp: CdpClient, expression: string, options: { ti
       userGesture: false,
       includeCommandLineAPI: false,
     },
-    { timeoutMs }
+    { timeoutMs },
   );
   if (result.exceptionDetails) {
     const details = result.exceptionDetails;
@@ -199,7 +239,10 @@ export async function evaluate(cdp: CdpClient, expression: string, options: { ti
       details.text ||
       details.exception?.value ||
       'Runtime.evaluate failed';
-    throw new InspectorError(`Page evaluation failed: ${String(message).slice(0, 500)}`, 'EVALUATION_FAILED');
+    throw new InspectorError(
+      `Page evaluation failed: ${String(message).slice(0, 500)}`,
+      'EVALUATION_FAILED',
+    );
   }
   return result.result?.value;
 }

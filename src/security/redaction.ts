@@ -30,13 +30,10 @@ export function redactString(input: unknown, mode: string = 'sensitive'): string
     value = value.replace(pattern, replacement);
   }
   value = value.replace(/\b(?:\d[ -]*?){13,19}\b/g, (match) =>
-    luhnValid(match) ? '[REDACTED:CARD]' : match
+    luhnValid(match) ? '[REDACTED:CARD]' : match,
   );
   if (mode === 'all') {
-    value = value.replace(
-      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
-      '[REDACTED:EMAIL]'
-    );
+    value = value.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[REDACTED:EMAIL]');
     value = value.replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, '[REDACTED:PHONE]');
   }
   return value;
@@ -64,7 +61,11 @@ export function redactUrl(raw: unknown, mode: string = 'sensitive'): unknown {
   return redactString(url.toString(), mode);
 }
 
-export function redactValueForKey(key: unknown, value: unknown, mode: string = 'sensitive'): unknown {
+export function redactValueForKey(
+  key: unknown,
+  value: unknown,
+  mode: string = 'sensitive',
+): unknown {
   if (value == null) return value;
   if (mode !== 'none' && SENSITIVE_KEY_RE.test(String(key))) {
     return '[REDACTED]';
@@ -93,7 +94,7 @@ export function serializeRemoteObject(remote: any, mode: string): unknown {
       preview[property.name] = redactValueForKey(
         property.name,
         property.value ?? property.type,
-        mode
+        mode,
       );
     }
     return {
@@ -115,7 +116,8 @@ export function redactAny(value: unknown, mode: string, depth: number): unknown 
   if (typeof value === 'number' || typeof value === 'boolean') return value;
   if (typeof value === 'function') return '[Function]';
   if (typeof value === 'symbol') return String(value);
-  if (Array.isArray(value)) return value.slice(0, 20).map((item) => redactAny(item, mode, depth + 1));
+  if (Array.isArray(value))
+    return value.slice(0, 20).map((item) => redactAny(item, mode, depth + 1));
   if (typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(value as Record<string, unknown>).slice(0, 20)) {
@@ -145,7 +147,10 @@ export function redactStorageSection(section: any, mode: string): any {
         });
       }
       for (const [key, value] of Object.entries(storeObj)) {
-        if (!['available', 'count', 'entries', 'truncated', 'error'].includes(key) && typeof value === 'string') {
+        if (
+          !['available', 'count', 'entries', 'truncated', 'error'].includes(key) &&
+          typeof value === 'string'
+        ) {
           if (value !== '[REDACTED]') {
             storeObj[key] = redactValueForKey(key, value, mode);
           }

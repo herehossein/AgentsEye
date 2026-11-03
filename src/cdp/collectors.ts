@@ -58,7 +58,7 @@ export async function collectA11y(cdp: CdpClient, options: any, warnings: string
     // can expose sensitive form values as accessibility names.
     const ignoredRoles = new Set(['StaticText', 'InlineTextBox', 'LineBreak']);
     const visibleNodes = nodes.filter(
-      (node: any) => !node.ignored && !ignoredRoles.has(node.role?.value)
+      (node: any) => !node.ignored && !ignoredRoles.has(node.role?.value),
     );
     const filtered = visibleNodes.slice(0, options.maxA11y);
     return {
@@ -72,7 +72,10 @@ export async function collectA11y(cdp: CdpClient, options: any, warnings: string
         properties: Object.fromEntries(
           (node.properties || [])
             .filter((property: any) => importantProperties.has(property.name))
-            .map((property: any) => [property.name, property.value?.value ?? property.value?.type ?? null])
+            .map((property: any) => [
+              property.name,
+              property.value?.value ?? property.value?.type ?? null,
+            ]),
         ),
       })),
     };
@@ -107,19 +110,28 @@ export async function collectFrameTree(cdp: CdpClient, warnings: string[]): Prom
   }
 }
 
-export async function installPerformanceObservers(cdp: CdpClient, warnings: string[] = []): Promise<string | null> {
+export async function installPerformanceObservers(
+  cdp: CdpClient,
+  warnings: string[] = [],
+): Promise<string | null> {
   try {
     const result = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `(${inPagePerformanceObserver.toString()})()`,
     });
     return result.identifier ?? null;
   } catch (error: any) {
-    warnings.push(`Performance observers could not be installed before navigation: ${error.message}`);
+    warnings.push(
+      `Performance observers could not be installed before navigation: ${error.message}`,
+    );
     return null;
   }
 }
 
-export async function collectPerformance(cdp: CdpClient, _page: any, warnings: string[]): Promise<any> {
+export async function collectPerformance(
+  cdp: CdpClient,
+  _page: any,
+  warnings: string[],
+): Promise<any> {
   const fromPage: any = {
     timeOrigin: null,
     navigation: null,
@@ -174,13 +186,16 @@ export async function collectPerformance(cdp: CdpClient, _page: any, warnings: s
           } : null,
         };
       })()`,
-      { timeoutMs: 10_000 }
+      { timeoutMs: 10_000 },
     );
     Object.assign(fromPage, evaluated || {});
     if (!fromPage.observers.installed) {
-      warnings.push('Performance observers were not installed before navigation; unobserved web vitals are null.');
+      warnings.push(
+        'Performance observers were not installed before navigation; unobserved web vitals are null.',
+      );
     }
-    for (const error of fromPage.observers.errors || []) warnings.push(`Performance observer: ${error}`);
+    for (const error of fromPage.observers.errors || [])
+      warnings.push(`Performance observer: ${error}`);
   } catch (error: any) {
     warnings.push(`Page performance entries unavailable: ${error.message}`);
   }
@@ -206,7 +221,7 @@ export async function collectPerformance(cdp: CdpClient, _page: any, warnings: s
     cdpMetrics = Object.fromEntries(
       (metrics.metrics || [])
         .filter((metric: any) => wanted.has(metric.name))
-        .map((metric: any) => [metric.name, metric.value])
+        .map((metric: any) => [metric.name, metric.value]),
     );
   } catch (error: any) {
     warnings.push(`CDP performance metrics unavailable: ${error.message}`);
@@ -215,7 +230,11 @@ export async function collectPerformance(cdp: CdpClient, _page: any, warnings: s
   return { page: fromPage, cdp: cdpMetrics };
 }
 
-export async function takeScreenshot(cdp: CdpClient, options: any, warnings: string[]): Promise<any[]> {
+export async function takeScreenshot(
+  cdp: CdpClient,
+  options: any,
+  warnings: string[],
+): Promise<any[]> {
   if (!options.screenshot) return [];
   const format = options.screenshotFormat;
   const quality =
@@ -237,7 +256,7 @@ export async function takeScreenshot(cdp: CdpClient, options: any, warnings: str
         const height = Math.min(content.height, maxDimension);
         if (content.width > maxDimension || content.height > maxDimension) {
           warnings.push(
-            `Full-page screenshot clipped to ${maxDimension}px (content ${Math.round(content.width)}x${Math.round(content.height)})`
+            `Full-page screenshot clipped to ${maxDimension}px (content ${Math.round(content.width)}x${Math.round(content.height)})`,
           );
         }
         params.clip = { x: 0, y: 0, width, height, scale: 1 };

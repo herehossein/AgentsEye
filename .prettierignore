@@ -1,0 +1,5 @@
+node_modules/
+.agentsEye/
+agentsEye.mjs
+package-lock.json
+docs/

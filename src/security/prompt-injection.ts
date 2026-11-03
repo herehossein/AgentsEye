@@ -27,12 +27,17 @@ export interface PromptInjectionFinding {
   matchedSnippet: string;
 }
 
-export function scanPromptInjection(input: unknown, fieldPath: string = ''): PromptInjectionFinding[] {
+export function scanPromptInjection(
+  input: unknown,
+  fieldPath: string = '',
+): PromptInjectionFinding[] {
   if (!input || typeof input !== 'string') return [];
   const normalized = normalizeForPromptScan(input);
   const findings: PromptInjectionFinding[] = [];
   for (const pattern of PROMPT_INJECTION_PATTERNS) {
-    const flags = pattern.regex.flags.includes('g') ? pattern.regex.flags : pattern.regex.flags + 'g';
+    const flags = pattern.regex.flags.includes('g')
+      ? pattern.regex.flags
+      : pattern.regex.flags + 'g';
     const globalRegex = new RegExp(pattern.regex.source, flags);
     const matches = normalized.matchAll(globalRegex);
     for (const match of matches) {
@@ -52,7 +57,7 @@ export function sanitizePromptInjection(
   input: unknown,
   mode: string = 'neutralize',
   fieldPath: string = '',
-  collector: PromptInjectionFinding[] | null = null
+  collector: PromptInjectionFinding[] | null = null,
 ): unknown {
   if (!input || typeof input !== 'string') return input;
   if (mode === 'none') return input;
@@ -73,7 +78,9 @@ export function sanitizePromptInjection(
   if (findings.length > 0) {
     text = text.normalize('NFKC').replace(INVISIBLE_CHARS_REGEX, '');
     for (const pattern of PROMPT_INJECTION_PATTERNS) {
-      const flags = pattern.regex.flags.includes('g') ? pattern.regex.flags : pattern.regex.flags + 'g';
+      const flags = pattern.regex.flags.includes('g')
+        ? pattern.regex.flags
+        : pattern.regex.flags + 'g';
       const globalRegex = new RegExp(pattern.regex.source, flags);
       text = text.replace(globalRegex, '[SANITIZED:INDIRECT_PROMPT_INJECTION]');
     }
@@ -127,7 +134,7 @@ export function auditAndSanitizeReport(report: any, mode: string = 'neutralize')
   if (findings.length > 0) {
     sanitizedReport.warnings = sanitizedReport.warnings || [];
     sanitizedReport.warnings.unshift(
-      `[SECURITY ALERT] ${findings.length} Indirect Prompt Injection pattern(s) detected and neutralized in untrusted page content.`
+      `[SECURITY ALERT] ${findings.length} Indirect Prompt Injection pattern(s) detected and neutralized in untrusted page content.`,
     );
   }
 

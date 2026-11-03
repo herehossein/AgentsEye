@@ -8,7 +8,15 @@ import { pathToFileURL } from "node:url";
 var TOOL_NAME = "agentsEye";
 var TOOL_VERSION = "1.0.0";
 var SCHEMA_VERSION = "1.0";
-var FOCUS_SLICES = ["issues", "forms", "dom", "network", "perf", "console", "storage"];
+var FOCUS_SLICES = [
+  "issues",
+  "forms",
+  "dom",
+  "network",
+  "perf",
+  "console",
+  "storage"
+];
 var TAILWIND_VIEWPORTS = Object.freeze({
   mobile: Object.freeze({ width: 375, height: 667, dpr: 1, mobile: true }),
   sm: Object.freeze({ width: 640, height: 800, dpr: 1, mobile: false }),
@@ -188,17 +196,32 @@ var DANGEROUS_BROWSER_FLAGS = [
 ];
 var LLM_CONTROL_TOKENS = [
   // ChatML tokens
-  [/<\|(?:im_start|im_end|system|user|assistant|endoftext|fim_prefix|fim_middle|fim_suffix)\|>/gi, (m) => `[ESCAPED_TOKEN:${m.slice(1, -1)}]`],
+  [
+    /<\|(?:im_start|im_end|system|user|assistant|endoftext|fim_prefix|fim_middle|fim_suffix)\|>/gi,
+    (m) => `[ESCAPED_TOKEN:${m.slice(1, -1)}]`
+  ],
   // LLaMA / Mistral tokens
-  [/\[\/?(?:INST|SYS|SYSTEM_PROMPT)\]/gi, (m) => `[ESCAPED_TOKEN:${m.replace(/[\[\]]/g, "")}]`],
+  [
+    /\[\/?(?:INST|SYS|SYSTEM_PROMPT)\]/gi,
+    (m) => `[ESCAPED_TOKEN:${m.replace(/[\[\]]/g, "")}]`
+  ],
   [/<<\/?SYS>>/gi, (m) => `[ESCAPED_TOKEN:${m.replace(/[<>]/g, "")}]`],
   // Turn markers (Claude, Alpaca, Chat turn spoofing)
-  [/(?:^|\r?\n)\s*(Human|Assistant|System)\s*:/gi, (_m, role) => `
-[ESCAPED_ROLE:${role}]:`],
-  [/(?:^|\r?\n)\s*###\s*(Instruction|Response|System)\s*:/gi, (_m, role) => `
-### [ESCAPED_ROLE:${role}]:`],
+  [
+    /(?:^|\r?\n)\s*(Human|Assistant|System)\s*:/gi,
+    (_m, role) => `
+[ESCAPED_ROLE:${role}]:`
+  ],
+  [
+    /(?:^|\r?\n)\s*###\s*(Instruction|Response|System)\s*:/gi,
+    (_m, role) => `
+### [ESCAPED_ROLE:${role}]:`
+  ],
   // Agent protocol XML tags (prevent breakout from tool result envelopes)
-  [/<\/?(?:tool_call|tool_result|function_call|system_prompt|antthinking)>/gi, (m) => `[ESCAPED_TAG:${m.replace(/[<>/]/g, "")}]`]
+  [
+    /<\/?(?:tool_call|tool_result|function_call|system_prompt|antthinking)>/gi,
+    (m) => `[ESCAPED_TAG:${m.replace(/[<>/]/g, "")}]`
+  ]
 ];
 var PROMPT_INJECTION_PATTERNS = [
   // 1. Instruction Resets & Overrides
@@ -314,7 +337,8 @@ function isMetadataHost(hostname) {
   const host = normalizeHost(hostname);
   const ipv4 = mappedIpv4(host) || host;
   if (METADATA_HOSTS.has(host) || METADATA_HOSTS.has(ipv4)) return true;
-  if (host.endsWith(".metadata.google.internal") || host.endsWith(".metadata.azure.com") || host.endsWith(".metadata.goog")) return true;
+  if (host.endsWith(".metadata.google.internal") || host.endsWith(".metadata.azure.com") || host.endsWith(".metadata.goog"))
+    return true;
   if (net.isIP(ipv4) === 4 && ipv4.startsWith("169.254.")) return true;
   const words = ipv6Words(host);
   return Boolean(
@@ -383,12 +407,18 @@ async function validateResolvedHostname(hostname, {
       addresses = await Promise.race([
         Promise.resolve().then(() => lookup(host, { all: true, verbatim: true })),
         new Promise((_, reject) => {
-          timer = setTimeout(() => reject(new InspectorError("DNS validation timed out", "DNS_TIMEOUT")), timeoutMs);
+          timer = setTimeout(
+            () => reject(new InspectorError("DNS validation timed out", "DNS_TIMEOUT")),
+            timeoutMs
+          );
         })
       ]);
     } catch (error) {
       if (error instanceof InspectorError) throw error;
-      throw new InspectorError(`DNS validation failed (${error?.code || "lookup error"})`, "DNS_LOOKUP_FAILED");
+      throw new InspectorError(
+        `DNS validation failed (${error?.code || "lookup error"})`,
+        "DNS_LOOKUP_FAILED"
+      );
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -425,7 +455,9 @@ function validateCdpEndpoint(raw, allowRemote) {
     throw new UsageError("--cdp URLs containing credentials are not allowed");
   }
   if (!allowRemote && !isLoopbackHost(parsed.hostname)) {
-    throw new UsageError("--cdp is restricted to loopback endpoints. Pass --allow-remote-cdp to override (unsafe).");
+    throw new UsageError(
+      "--cdp is restricted to loopback endpoints. Pass --allow-remote-cdp to override (unsafe)."
+    );
   }
   if (isMetadataHost(parsed.hostname)) {
     throw new UsageError("Cloud metadata endpoints are blocked");
@@ -475,7 +507,9 @@ function resolveSafePath(value, options = {}, label = "Path") {
           const realCwd = fs.existsSync(cwd) ? fs.realpathSync(cwd) : cwd;
           const realTemp = fs.existsSync(tempRuns) ? fs.realpathSync(tempRuns) : tempRuns;
           if (!isWithin(realCwd, realParent) && !isWithin(realTemp, realParent)) {
-            throw new UsageError(`${label} resolves outside working directory via symbolic link: ${absolute}`);
+            throw new UsageError(
+              `${label} resolves outside working directory via symbolic link: ${absolute}`
+            );
           }
         } catch (e) {
           if (e instanceof UsageError) throw e;
@@ -522,7 +556,9 @@ function parseViewport(value) {
   }
   const match = /^(\d+)x(\d+)$/i.exec(trimmed);
   if (!match) {
-    throw new UsageError("--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl)");
+    throw new UsageError(
+      "--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl)"
+    );
   }
   const width = parseInteger(match[1], "--viewport width", { min: 1, max: 2e4 });
   const height = parseInteger(match[2], "--viewport height", { min: 1, max: 2e4 });
@@ -765,7 +801,9 @@ function parseArgs(argv) {
         const raw = take();
         const parts = parseList(raw);
         if (parts.length === 0) {
-          throw new UsageError("--viewports expects a comma-separated list of viewports or presets");
+          throw new UsageError(
+            "--viewports expects a comma-separated list of viewports or presets"
+          );
         }
         options.customViewports = parts.map((part) => {
           const parsed = parseViewport(part);
@@ -789,7 +827,10 @@ function parseArgs(argv) {
         options.colorScheme = parseEnum(take(), "--color-scheme", ["light", "dark"]);
         break;
       case "reduced-motion":
-        options.reducedMotion = parseEnum(take(), "--reduced-motion", ["reduce", "no-preference"]);
+        options.reducedMotion = parseEnum(take(), "--reduced-motion", [
+          "reduce",
+          "no-preference"
+        ]);
         break;
       case "timezone":
         options.timezone = take();
@@ -873,7 +914,9 @@ function parseArgs(argv) {
         if (!list.length) throw new UsageError("--console-level expects comma-separated levels");
         for (const item of list) {
           if (!validLevels.includes(item)) {
-            throw new UsageError(`Invalid --console-level "${item}". Valid: error, warn, info, log, debug, all`);
+            throw new UsageError(
+              `Invalid --console-level "${item}". Valid: error, warn, info, log, debug, all`
+            );
           }
         }
         options.consoleLevel = list.includes("all") ? null : list;
@@ -881,7 +924,8 @@ function parseArgs(argv) {
       }
       case "console-filter": {
         const raw = take();
-        if (!raw.trim()) throw new UsageError("--console-filter expects a non-empty string or regex");
+        if (!raw.trim())
+          throw new UsageError("--console-filter expects a non-empty string or regex");
         if (/^\/(.+)\/([a-z]*)$/i.test(raw)) {
           const m = /^\/(.+)\/([a-z]*)$/i.exec(raw);
           try {
@@ -903,7 +947,11 @@ function parseArgs(argv) {
         options.redact = parseEnum(take(), "--redact", ["none", "sensitive", "all"]);
         break;
       case "sanitize-injections":
-        options.sanitizeInjections = parseEnum(take(), "--sanitize-injections", ["neutralize", "warn", "none"]);
+        options.sanitizeInjections = parseEnum(take(), "--sanitize-injections", [
+          "neutralize",
+          "warn",
+          "none"
+        ]);
         break;
       case "no-sanitize-injections":
         options.sanitizeInjections = "none";
@@ -930,10 +978,17 @@ function parseArgs(argv) {
         options.fullPage = true;
         break;
       case "screenshot-format":
-        options.screenshotFormat = parseEnum(take(), "--screenshot-format", ["png", "jpeg", "webp"]);
+        options.screenshotFormat = parseEnum(take(), "--screenshot-format", [
+          "png",
+          "jpeg",
+          "webp"
+        ]);
         break;
       case "screenshot-quality":
-        options.screenshotQuality = parseInteger(take(), "--screenshot-quality", { min: 0, max: 100 });
+        options.screenshotQuality = parseInteger(take(), "--screenshot-quality", {
+          min: 0,
+          max: 100
+        });
         break;
       case "hide-scrollbars":
         options.hideScrollbars = true;
@@ -1003,7 +1058,9 @@ function parseArgs(argv) {
   if (options.help || options.version) return options;
   for (const section of [...options.include ?? [], ...options.exclude ?? []]) {
     if (!KNOWN_SECTIONS.has(section)) {
-      throw new UsageError(`Unknown section "${section}". Known: ${Array.from(KNOWN_SECTIONS).join(", ")}`);
+      throw new UsageError(
+        `Unknown section "${section}". Known: ${Array.from(KNOWN_SECTIONS).join(", ")}`
+      );
     }
   }
   if (positionals[0] === "clean") {
@@ -1016,7 +1073,9 @@ function parseArgs(argv) {
     const hasAll = options.cleanAll === true;
     const countModes = (hasRunIds ? 1 : 0) + (hasOlderThan ? 1 : 0) + (hasAll ? 1 : 0);
     if (countModes === 0) {
-      throw new UsageError("Usage: clean <run-id> [<run-id> ...] | clean --older-than <duration> | clean --all");
+      throw new UsageError(
+        "Usage: clean <run-id> [<run-id> ...] | clean --older-than <duration> | clean --all"
+      );
     }
     if (countModes > 1) {
       throw new UsageError("clean accepts either run IDs, --older-than, or --all (not multiple)");
@@ -1041,7 +1100,8 @@ function parseArgs(argv) {
   } else if (options.command === "diff") {
     if (positionals.length) throw new UsageError("--diff does not accept a target URL");
   } else {
-    if (positionals.length !== 1) throw new UsageError("One target URL is required. Run --help for usage.");
+    if (positionals.length !== 1)
+      throw new UsageError("One target URL is required. Run --help for usage.");
     options.url = positionals[0];
   }
   for (const id of options.runIds) validateRunId(id);
@@ -1057,7 +1117,8 @@ function parseArgs(argv) {
   if (options.allowDestructive && !options.explore && !options.actions.length) {
     throw new UsageError("--allow-destructive requires --explore or an explicit interaction");
   }
-  if (options.actions.length > 50) throw new UsageError("At most 50 explicit interactions are allowed");
+  if (options.actions.length > 50)
+    throw new UsageError("At most 50 explicit interactions are allowed");
   for (const action of options.actions) {
     if (!action.value.trim()) throw new UsageError(`--${action.type} expects a non-empty value`);
     if (action.type === "scroll" && !/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(action.value)) {
@@ -1150,10 +1211,7 @@ function redactString(input, mode = "sensitive") {
     (match) => luhnValid(match) ? "[REDACTED:CARD]" : match
   );
   if (mode === "all") {
-    value = value.replace(
-      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
-      "[REDACTED:EMAIL]"
-    );
+    value = value.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[REDACTED:EMAIL]");
     value = value.replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, "[REDACTED:PHONE]");
   }
   return value;
@@ -1228,7 +1286,8 @@ function redactAny(value, mode, depth) {
   if (typeof value === "number" || typeof value === "boolean") return value;
   if (typeof value === "function") return "[Function]";
   if (typeof value === "symbol") return String(value);
-  if (Array.isArray(value)) return value.slice(0, 20).map((item) => redactAny(item, mode, depth + 1));
+  if (Array.isArray(value))
+    return value.slice(0, 20).map((item) => redactAny(item, mode, depth + 1));
   if (typeof value === "object") {
     const out = {};
     for (const key of Object.keys(value).slice(0, 20)) {
@@ -1329,7 +1388,8 @@ function diffReports(before, after) {
         counts[tag] = index + 1;
         walk(child, key, index);
       }
-      for (const [index, child] of (node.shadowRoot?.children ?? []).entries()) walk(child, `${key}::shadow`, index);
+      for (const [index, child] of (node.shadowRoot?.children ?? []).entries())
+        walk(child, `${key}::shadow`, index);
       if (node.frameContent) walk(node.frameContent, `${key}::frame`, 0);
     };
     const trees = report.dom?.trees ?? report.dom?.tree;
@@ -1360,15 +1420,26 @@ function diffReports(before, after) {
       if (layout.length < 50) layout.push({ key, selector: node.selector, before: a, after: b });
     }
     const changed = {};
-    for (const prop of /* @__PURE__ */ new Set([...Object.keys(previous.styles ?? {}), ...Object.keys(node.styles ?? {})])) {
+    for (const prop of /* @__PURE__ */ new Set([
+      ...Object.keys(previous.styles ?? {}),
+      ...Object.keys(node.styles ?? {})
+    ])) {
       if (previous.styles?.[prop] !== node.styles?.[prop]) {
-        changed[prop] = { before: previous.styles?.[prop] ?? null, after: node.styles?.[prop] ?? null };
+        changed[prop] = {
+          before: previous.styles?.[prop] ?? null,
+          after: node.styles?.[prop] ?? null
+        };
       }
     }
     if (Object.keys(changed).length || previous.rendered !== node.rendered) {
       styleCount += 1;
       if (styles.length < 50) {
-        styles.push({ key, selector: node.selector, changes: changed, rendered: { before: previous.rendered, after: node.rendered } });
+        styles.push({
+          key,
+          selector: node.selector,
+          changes: changed,
+          rendered: { before: previous.rendered, after: node.rendered }
+        });
       }
     }
   }
@@ -1381,14 +1452,18 @@ function diffReports(before, after) {
   const diagnostics = (report) => [
     ...report.errors?.uncaught ?? [],
     ...report.errors?.logErrors ?? [],
-    ...(report.console?.entries ?? []).filter((entry) => ["error", "assert"].includes(entry.type))
+    ...(report.console?.entries ?? []).filter(
+      (entry) => ["error", "assert"].includes(entry.type)
+    )
   ];
   const errorKey = (entry) => JSON.stringify([entry.text ?? entry.message ?? entry.args, entry.url, entry.lineNumber]);
   const previousErrors = new Set(diagnostics(before).map(errorKey));
   const newErrors = diagnostics(after).filter((entry) => !previousErrors.has(errorKey(entry)));
   const issueKey = (issue) => `${issue.code}:${issue.cssPath ?? ""}`;
   const previousIssues = new Set((before.issues ?? []).map(issueKey));
-  const newIssues = (after.issues ?? []).filter((issue) => !previousIssues.has(issueKey(issue)));
+  const newIssues = (after.issues ?? []).filter(
+    (issue) => !previousIssues.has(issueKey(issue))
+  );
   return {
     ok: true,
     schemaVersion: SCHEMA_VERSION,
@@ -1408,7 +1483,14 @@ function diffReports(before, after) {
     styles,
     newErrors: newErrors.slice(0, 50),
     newIssues: newIssues.slice(0, 50),
-    truncated: [addedCount, removedCount, layoutCount, styleCount, newErrors.length, newIssues.length].some((count) => count > 50),
+    truncated: [
+      addedCount,
+      removedCount,
+      layoutCount,
+      styleCount,
+      newErrors.length,
+      newIssues.length
+    ].some((count) => count > 50),
     note: "Heuristic structural matching; bounding-box/style differences require review, not every change is a regression."
   };
 }
@@ -1510,7 +1592,8 @@ function compactDiagnostic(value, depth = 0) {
   if (typeof value === "string") return shortText(value, 240);
   if (value == null || typeof value !== "object") return value;
   if (depth > 3) return "[details in saved report]";
-  if (Array.isArray(value)) return value.slice(0, 3).map((item) => compactDiagnostic(item, depth + 1));
+  if (Array.isArray(value))
+    return value.slice(0, 3).map((item) => compactDiagnostic(item, depth + 1));
   return Object.fromEntries(
     Object.entries(value).slice(0, 10).map(([key, item]) => [key, compactDiagnostic(item, depth + 1)])
   );
@@ -1538,7 +1621,9 @@ function compactDom(dom, maxNodes = 100) {
     };
     const children = (Array.isArray(node.children) ? node.children : []).map(walk).filter(Boolean);
     if (node.shadowRoot) {
-      children.push(...(Array.isArray(node.shadowRoot.children) ? node.shadowRoot.children : []).map(walk).filter(Boolean));
+      children.push(
+        ...(Array.isArray(node.shadowRoot.children) ? node.shadowRoot.children : []).map(walk).filter(Boolean)
+      );
     }
     if (node.frameContent) {
       const child = walk(node.frameContent);
@@ -1561,7 +1646,9 @@ function minimalSummary(report) {
   for (const issue of issues) issueCounts[issue.code] = (issueCounts[issue.code] ?? 0) + 1;
   const uncaught = report.errors?.uncaught ?? [];
   const logErrors = report.errors?.logErrors ?? [];
-  const consoleErrors = (report.console?.entries ?? []).filter((entry) => ["error", "assert"].includes(entry.type));
+  const consoleErrors = (report.console?.entries ?? []).filter(
+    (entry) => ["error", "assert"].includes(entry.type)
+  );
   const landmarks = {};
   for (const [name, value] of Object.entries(report.landmarks ?? {})) {
     if (value.count) {
@@ -1619,14 +1706,20 @@ function minimalSummary(report) {
       message: shortText(issue.message, 140)
     })),
     network: report.network?.summary ?? null,
-    console: { counts: report.console?.counts ?? {}, errors: compactDiagnostic(consoleErrors.slice(0, 2)) },
+    console: {
+      counts: report.console?.counts ?? {},
+      errors: compactDiagnostic(consoleErrors.slice(0, 2))
+    },
     errors: {
       uncaughtCount: uncaught.length,
       logErrorCount: logErrors.length,
       uncaught: compactDiagnostic(uncaught.slice(0, 2)),
       logErrors: compactDiagnostic(logErrors.slice(0, 2))
     },
-    dialogs: { count: (report.dialogs ?? []).length, items: compactDiagnostic(report.dialogs ?? []) },
+    dialogs: {
+      count: (report.dialogs ?? []).length,
+      items: compactDiagnostic(report.dialogs ?? [])
+    },
     landmarks,
     headings,
     headingsOutline: headings ? headings.outline : void 0,
@@ -1649,7 +1742,9 @@ function minimalSummary(report) {
   }
   if (report.interactions) {
     summary.interactions = {
-      performed: (report.interactions.actions ?? []).filter((action) => action.status === "performed").length,
+      performed: (report.interactions.actions ?? []).filter(
+        (action) => action.status === "performed"
+      ).length,
       explored: report.interactions.exploration?.performed ?? 0,
       diff: report.interactions.diff?.summary ?? null
     };
@@ -1692,7 +1787,9 @@ function focusReport(report, slice, options = {}) {
         scrollLock: report.page?.scrollLock,
         console: {
           counts: report.console?.counts,
-          entries: report.console?.entries?.filter((entry) => ["error", "assert"].includes(entry.type))
+          entries: report.console?.entries?.filter(
+            (entry) => ["error", "assert"].includes(entry.type)
+          )
         },
         shifts: report.performance?.page?.webVitals?.cls ?? null
       };
@@ -1711,9 +1808,7 @@ function focusReport(report, slice, options = {}) {
       const levelFilter = options.consoleLevel ?? report.meta?.options?.consoleLevel ?? null;
       const textFilter = options.consoleFilter ?? report.meta?.options?.consoleFilter ?? null;
       if (levelFilter && levelFilter !== "all") {
-        const rawLevels = (Array.isArray(levelFilter) ? levelFilter : String(levelFilter).split(",")).map(
-          (l) => l.trim().toLowerCase()
-        );
+        const rawLevels = (Array.isArray(levelFilter) ? levelFilter : String(levelFilter).split(",")).map((l) => l.trim().toLowerCase());
         const levels = new Set(rawLevels);
         if (levels.has("warn")) levels.add("warning");
         if (levels.has("warning")) levels.add("warn");
@@ -1766,7 +1861,9 @@ function queryReport(report, query, options = {}) {
   if (!query) return minimalSummary(report);
   if (FOCUS_SLICES.includes(query)) return focusReport(report, query, options);
   const parts = String(query).split(".");
-  if (parts.some((part) => !/^[a-zA-Z0-9_-]+$/.test(part) || ["__proto__", "constructor", "prototype"].includes(part))) {
+  if (parts.some(
+    (part) => !/^[a-zA-Z0-9_-]+$/.test(part) || ["__proto__", "constructor", "prototype"].includes(part)
+  )) {
     throw new UsageError("Queries are safe dot-separated property paths, e.g. network.failures");
   }
   let value = report;
@@ -1776,7 +1873,14 @@ function queryReport(report, query, options = {}) {
     }
     value = value[part];
   }
-  return { ok: report.ok, run: report.run, query, data: value, errors: report.errors, dialogs: report.dialogs };
+  return {
+    ok: report.ok,
+    run: report.run,
+    query,
+    data: value,
+    errors: report.errors,
+    dialogs: report.dialogs
+  };
 }
 function outputView(report, options = {}) {
   const opts = typeof options === "string" ? { view: options } : options || {};
@@ -1822,30 +1926,36 @@ function formatDiffText(report) {
   );
   if (report.newIssues?.length) {
     push("New Issues:");
-    for (const issue of report.newIssues) push(`  [${issue.severity || "issue"}] ${issue.code}: ${issue.message}`);
+    for (const issue of report.newIssues)
+      push(`  [${issue.severity || "issue"}] ${issue.code}: ${issue.message}`);
   }
   if (report.newErrors?.length) {
     push("New Errors:");
-    for (const err of report.newErrors) push(`  ${err.text || err.message || safeJsonStringify(err)}`);
+    for (const err of report.newErrors)
+      push(`  ${err.text || err.message || safeJsonStringify(err)}`);
   }
   if (report.added?.length) {
     push("Added elements:");
-    for (const el of report.added.slice(0, 20)) push(`  + ${el.tag || "node"}${el.id ? ` #${el.id}` : ""}`);
+    for (const el of report.added.slice(0, 20))
+      push(`  + ${el.tag || "node"}${el.id ? ` #${el.id}` : ""}`);
     if (report.added.length > 20) push(`  \u2026 ${report.added.length - 20} more`);
   }
   if (report.removed?.length) {
     push("Removed elements:");
-    for (const el of report.removed.slice(0, 20)) push(`  - ${el.tag || "node"}${el.id ? ` #${el.id}` : ""}`);
+    for (const el of report.removed.slice(0, 20))
+      push(`  - ${el.tag || "node"}${el.id ? ` #${el.id}` : ""}`);
     if (report.removed.length > 20) push(`  \u2026 ${report.removed.length - 20} more`);
   }
   if (report.layout?.length) {
     push("Layout changes:");
-    for (const l of report.layout.slice(0, 20)) push(`  ~ ${l.tag || "node"}${l.id ? ` #${l.id}` : ""}`);
+    for (const l of report.layout.slice(0, 20))
+      push(`  ~ ${l.tag || "node"}${l.id ? ` #${l.id}` : ""}`);
     if (report.layout.length > 20) push(`  \u2026 ${report.layout.length - 20} more`);
   }
   if (report.styles?.length) {
     push("Style changes:");
-    for (const st of report.styles.slice(0, 20)) push(`  ~ ${st.tag || "node"}${st.id ? ` #${st.id}` : ""}`);
+    for (const st of report.styles.slice(0, 20))
+      push(`  ~ ${st.tag || "node"}${st.id ? ` #${st.id}` : ""}`);
     if (report.styles.length > 20) push(`  \u2026 ${report.styles.length - 20} more`);
   }
   if (report.note) push(`Note: ${report.note}`);
@@ -1870,7 +1980,8 @@ ${formatQueryValue(item, indent + "  ", nextAncestors)}`;
   const entries = Object.entries(val);
   if (!entries.length) return `${indent}{}`;
   return entries.map(([k, v]) => {
-    if (v === null || typeof v !== "object") return `${indent}${k}: ${typeof v === "bigint" ? v.toString() : v}`;
+    if (v === null || typeof v !== "object")
+      return `${indent}${k}: ${typeof v === "bigint" ? v.toString() : v}`;
     return `${indent}${k}:
 ${formatQueryValue(v, indent + "  ", nextAncestors)}`;
   }).join("\n");
@@ -1929,7 +2040,9 @@ function formatSummaryText(report) {
     push("Issues: none detected");
   }
   if (report.errors) {
-    push(`Errors: uncaught=${report.errors.uncaughtCount ?? 0} logErrors=${report.errors.logErrorCount ?? 0}`);
+    push(
+      `Errors: uncaught=${report.errors.uncaughtCount ?? 0} logErrors=${report.errors.logErrorCount ?? 0}`
+    );
     for (const err of report.errors.uncaught || []) {
       push(`  uncaught: ${err.text || err.message || safeJsonStringify(err)}`);
     }
@@ -1995,19 +2108,25 @@ function formatFocusSliceText(report) {
       push(
         `Layout: overflow=${report.layout.horizontalOverflow ? "yes" : "no"} scrollWidth=${report.layout.documentScrollWidth ?? "?"}`
       );
-    if (report.scrollLock) push(`ScrollLock: trapRisk=${report.scrollLock.trapRisk ? "yes" : "no"}`);
+    if (report.scrollLock)
+      push(`ScrollLock: trapRisk=${report.scrollLock.trapRisk ? "yes" : "no"}`);
     if (report.console?.entries?.length) {
       push("Console Errors:");
-      for (const entry of report.console.entries) push(`  ${entry.type}: ${safeJsonStringify(entry.args)}`);
+      for (const entry of report.console.entries)
+        push(`  ${entry.type}: ${safeJsonStringify(entry.args)}`);
     }
   } else if (report.forms !== void 0) {
     const forms = report.forms || {};
     push(`Forms: count=${forms.items?.length ?? forms.count ?? 0}`);
     if (forms.items?.length) {
       for (const form of forms.items) {
-        push(`  Form: action="${form.action || ""}" method="${form.method || "get"}" inputs=${form.inputs?.length ?? 0}`);
+        push(
+          `  Form: action="${form.action || ""}" method="${form.method || "get"}" inputs=${form.inputs?.length ?? 0}`
+        );
         for (const input of (form.inputs || []).slice(0, 10)) {
-          push(`    Input: type="${input.type || "text"}" name="${input.name || ""}" required=${input.required ? "yes" : "no"}`);
+          push(
+            `    Input: type="${input.type || "text"}" name="${input.name || ""}" required=${input.required ? "yes" : "no"}`
+          );
         }
       }
     }
@@ -2041,7 +2160,8 @@ function formatFocusSliceText(report) {
     push(`Network: total=${s.total ?? 0} failed=${s.failed ?? 0}`);
     if (net3.failures?.length) {
       push("Failures:");
-      for (const f of net3.failures) push(`  failed: ${f.method || "?"} ${f.url} ${f.errorText || ""}`);
+      for (const f of net3.failures)
+        push(`  failed: ${f.method || "?"} ${f.url} ${f.errorText || ""}`);
     }
   } else if (report.performance !== void 0) {
     const perf = report.performance || {};
@@ -2052,10 +2172,13 @@ function formatFocusSliceText(report) {
     if (vitals.inp != null) push(`  INP: ${vitals.inp}ms`);
     if (vitals.fcp != null) push(`  FCP: ${vitals.fcp}ms`);
     if (vitals.ttfb != null) push(`  TTFB: ${vitals.ttfb}ms`);
-    if (perf.page?.navigation?.duration != null) push(`  Navigation duration: ${perf.page.navigation.duration}ms`);
+    if (perf.page?.navigation?.duration != null)
+      push(`  Navigation duration: ${perf.page.navigation.duration}ms`);
   } else if (report.console !== void 0 && report.issues === void 0) {
     const c = report.console || {};
-    push(`Console entries: ${c.matched ?? c.entries?.length ?? 0} (total: ${c.total ?? c.entries?.length ?? 0})`);
+    push(
+      `Console entries: ${c.matched ?? c.entries?.length ?? 0} (total: ${c.total ?? c.entries?.length ?? 0})`
+    );
     if (c.level) push(`  Level: ${Array.isArray(c.level) ? c.level.join(",") : c.level}`);
     if (c.filter) push(`  Filter: "${c.filter}"`);
     const counts = Object.entries(c.counts || {}).filter(([, v]) => v > 0).map(([k, v]) => `${k}:${v}`).join(" ");
@@ -2130,7 +2253,9 @@ function formatText(report, options = {}) {
   if (report.headings?.items?.length) {
     push("Headings:");
     for (const heading of report.headings.items.slice(0, 30)) {
-      push(`  h${heading.level} ${heading.text || "(empty)"}${heading.id ? ` #${heading.id}` : ""}`);
+      push(
+        `  h${heading.level} ${heading.text || "(empty)"}${heading.id ? ` #${heading.id}` : ""}`
+      );
     }
     if (report.headings.truncated) push("  \u2026 truncated");
   }
@@ -2169,7 +2294,9 @@ function formatText(report, options = {}) {
   if (report.storage) {
     const local = report.storage.localStorage || {};
     const session = report.storage.sessionStorage || {};
-    push(`Storage: localStorage ${local.count ?? 0} keys, sessionStorage ${session.count ?? 0} keys`);
+    push(
+      `Storage: localStorage ${local.count ?? 0} keys, sessionStorage ${session.count ?? 0} keys`
+    );
   }
   if (report.cookies) {
     push(`Cookies: ${report.cookies.count ?? 0}`);
@@ -2370,7 +2497,13 @@ async function createRun(options = {}) {
   const id = `${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-")}-${randomBytes(6).toString("hex")}`;
   const directory = path3.join(realRoot, id);
   await fsp2.mkdir(directory, { mode: 448 });
-  return { id, directory, report: path3.join(directory, "report.json"), dom: path3.join(directory, "dom.json"), isTemp };
+  return {
+    id,
+    directory,
+    report: path3.join(directory, "report.json"),
+    dom: path3.join(directory, "dom.json"),
+    isTemp
+  };
 }
 async function cleanRuns(options = {}) {
   let candidateRoots;
@@ -2498,7 +2631,8 @@ async function readRun(id, options = {}) {
     throw new UsageError(`Saved run not found: ${validId}`);
   }
   const stat = await fsp2.stat(realFile);
-  if (!stat.isFile() || stat.size > 128 * 1024 * 1024) throw new UsageError("Saved report is not a supported JSON file");
+  if (!stat.isFile() || stat.size > 128 * 1024 * 1024)
+    throw new UsageError("Saved report is not a supported JSON file");
   let report;
   try {
     report = JSON.parse(await fsp2.readFile(realFile, "utf8"));
@@ -2535,7 +2669,8 @@ function extractSocketData(eventOrData) {
   const data = eventOrData && typeof eventOrData === "object" && "data" in eventOrData ? eventOrData.data : eventOrData;
   if (typeof data === "string") return data;
   if (data instanceof ArrayBuffer) return Buffer.from(data).toString("utf8");
-  if (ArrayBuffer.isView(data)) return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("utf8");
+  if (ArrayBuffer.isView(data))
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("utf8");
   if (data && typeof data === "object" && typeof data.text === "function") {
     return null;
   }
@@ -2560,9 +2695,12 @@ async function connectCdp(wsUrl, { commandTimeoutMs = DEFAULTS.timeoutMs } = {})
         reject(error);
       } else resolve();
     };
-    const timer = setTimeout(() => {
-      finish(new InspectorError("CDP connection timed out", "CDP_CONNECT_TIMEOUT"));
-    }, Math.min(commandTimeoutMs, 15e3));
+    const timer = setTimeout(
+      () => {
+        finish(new InspectorError("CDP connection timed out", "CDP_CONNECT_TIMEOUT"));
+      },
+      Math.min(commandTimeoutMs, 15e3)
+    );
     removers.push(addSocketListener(socket, "open", () => finish()));
     removers.push(
       addSocketListener(socket, "error", () => {
@@ -2639,7 +2777,12 @@ async function connectCdp(wsUrl, { commandTimeoutMs = DEFAULTS.timeoutMs } = {})
     const id = nextId++;
     const timer = setTimeout(() => {
       pending.delete(id);
-      reject(new InspectorError(`CDP command timed out after ${timeoutMs}ms: ${method}`, "CDP_TIMEOUT"));
+      reject(
+        new InspectorError(
+          `CDP command timed out after ${timeoutMs}ms: ${method}`,
+          "CDP_TIMEOUT"
+        )
+      );
     }, timeoutMs);
     pending.set(id, { resolve, reject, timer, method });
     const payload = { id, method, params };
@@ -2649,7 +2792,9 @@ async function connectCdp(wsUrl, { commandTimeoutMs = DEFAULTS.timeoutMs } = {})
     } catch (error) {
       clearTimeout(timer);
       pending.delete(id);
-      reject(new InspectorError(`Failed to send CDP ${method}: ${error.message}`, "CDP_SEND_FAILED"));
+      reject(
+        new InspectorError(`Failed to send CDP ${method}: ${error.message}`, "CDP_SEND_FAILED")
+      );
     }
   });
   const on = (method, handler) => {
@@ -2681,7 +2826,10 @@ async function evaluate(cdp, expression, options, { timeoutMs = options.timeoutM
   if (result.exceptionDetails) {
     const details = result.exceptionDetails;
     const message = details.exception?.description || details.text || details.exception?.value || "Runtime.evaluate failed";
-    throw new InspectorError(`Page evaluation failed: ${String(message).slice(0, 500)}`, "EVALUATION_FAILED");
+    throw new InspectorError(
+      `Page evaluation failed: ${String(message).slice(0, 500)}`,
+      "EVALUATION_FAILED"
+    );
   }
   return result.result?.value;
 }
@@ -2708,12 +2856,16 @@ function browserCandidates() {
       candidates.push(path4.join(root, "Google", "Chrome", "Application", "chrome.exe"));
       candidates.push(path4.join(root, "Microsoft", "Edge", "Application", "msedge.exe"));
       candidates.push(path4.join(root, "Chromium", "Application", "chrome.exe"));
-      candidates.push(path4.join(root, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"));
+      candidates.push(
+        path4.join(root, "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
+      );
     }
     if (localAppData) {
       candidates.push(path4.join(localAppData, "Google", "Chrome", "Application", "chrome.exe"));
       candidates.push(path4.join(localAppData, "Microsoft", "Edge", "Application", "msedge.exe"));
-      candidates.push(path4.join(localAppData, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"));
+      candidates.push(
+        path4.join(localAppData, "BraveSoftware", "Brave-Browser", "Application", "brave.exe")
+      );
     }
   } else if (process.platform === "darwin") {
     candidates.push(
@@ -2837,7 +2989,11 @@ async function attachToCdp(raw, {
   getJson = httpJson
 } = {}) {
   const endpoint = validateCdpEndpoint(raw, allowRemoteCdp);
-  await validateResolvedHostname(endpoint.hostname, { lookup, timeoutMs, loopbackOnly: !allowRemoteCdp });
+  await validateResolvedHostname(endpoint.hostname, {
+    lookup,
+    timeoutMs,
+    loopbackOnly: !allowRemoteCdp
+  });
   let version = null;
   let wsEndpoint;
   if (endpoint.protocol === "ws:" || endpoint.protocol === "wss:") {
@@ -2849,12 +3005,18 @@ async function attachToCdp(raw, {
     const versionUrl = new URL("/json/version", endpoint);
     version = await getJson(versionUrl.toString(), { timeoutMs });
     if (!version?.webSocketDebuggerUrl) {
-      throw new InspectorError("CDP browser endpoint is unavailable", "CDP_BROWSER_ENDPOINT_REQUIRED");
+      throw new InspectorError(
+        "CDP browser endpoint is unavailable",
+        "CDP_BROWSER_ENDPOINT_REQUIRED"
+      );
     }
     wsEndpoint = validateCdpEndpoint(version.webSocketDebuggerUrl, allowRemoteCdp);
     const sameTransport = wsEndpoint.protocol === (endpoint.protocol === "https:" ? "wss:" : "ws:");
     if (!sameTransport || normalizeHost(wsEndpoint.hostname) !== normalizeHost(endpoint.hostname) || (wsEndpoint.port || (sameTransport && endpoint.protocol === "https:" ? "443" : "80")) !== (endpoint.port || (endpoint.protocol === "https:" ? "443" : "80")) || !/^\/devtools\/browser\/[^/]+\/?$/.test(wsEndpoint.pathname)) {
-      throw new InspectorError("CDP discovery returned an unexpected browser endpoint", "CDP_ENDPOINT_MISMATCH");
+      throw new InspectorError(
+        "CDP discovery returned an unexpected browser endpoint",
+        "CDP_ENDPOINT_MISMATCH"
+      );
     }
   }
   const browserCdp = await connect(wsEndpoint.toString(), { commandTimeoutMs: timeoutMs });
@@ -2869,10 +3031,12 @@ async function attachToCdp(raw, {
       subscriptions.clear();
       const cleanupOptions = { timeoutMs: Math.min(timeoutMs, 3e3) };
       try {
-        if (targetId) await browserCdp.send("Target.closeTarget", { targetId }, cleanupOptions).catch(() => {
-        });
-        if (browserContextId) await browserCdp.send("Target.disposeBrowserContext", { browserContextId }, cleanupOptions).catch(() => {
-        });
+        if (targetId)
+          await browserCdp.send("Target.closeTarget", { targetId }, cleanupOptions).catch(() => {
+          });
+        if (browserContextId)
+          await browserCdp.send("Target.disposeBrowserContext", { browserContextId }, cleanupOptions).catch(() => {
+          });
       } finally {
         browserCdp.close();
       }
@@ -2880,8 +3044,11 @@ async function attachToCdp(raw, {
     return cleanupPromise;
   };
   try {
-    ({ browserContextId } = await browserCdp.send("Target.createBrowserContext", { disposeOnDetach: true }));
-    if (!browserContextId) throw new InspectorError("Could not create isolated browser context", "CDP_ISOLATION_FAILED");
+    ({ browserContextId } = await browserCdp.send("Target.createBrowserContext", {
+      disposeOnDetach: true
+    }));
+    if (!browserContextId)
+      throw new InspectorError("Could not create isolated browser context", "CDP_ISOLATION_FAILED");
     await browserCdp.send("Browser.setDownloadBehavior", {
       behavior: "deny",
       browserContextId
@@ -2892,8 +3059,12 @@ async function attachToCdp(raw, {
       browserContextId
     }).catch(() => {
     });
-    ({ targetId } = await browserCdp.send("Target.createTarget", { url: "about:blank", browserContextId }));
-    if (!targetId) throw new InspectorError("Could not create isolated target", "CDP_ISOLATION_FAILED");
+    ({ targetId } = await browserCdp.send("Target.createTarget", {
+      url: "about:blank",
+      browserContextId
+    }));
+    if (!targetId)
+      throw new InspectorError("Could not create isolated target", "CDP_ISOLATION_FAILED");
     const offTargetCreated = browserCdp.on("Target.targetCreated", async ({ targetInfo }) => {
       if (targetInfo.targetId !== targetId && targetInfo.browserContextId === browserContextId) {
         await browserCdp.send("Target.closeTarget", { targetId: targetInfo.targetId }).catch(() => {
@@ -2902,7 +3073,8 @@ async function attachToCdp(raw, {
     });
     subscriptions.add(offTargetCreated);
     ({ sessionId } = await browserCdp.send("Target.attachToTarget", { targetId, flatten: true }));
-    if (!sessionId) throw new InspectorError("Could not attach isolated target", "CDP_ISOLATION_FAILED");
+    if (!sessionId)
+      throw new InspectorError("Could not attach isolated target", "CDP_ISOLATION_FAILED");
     const cdp = {
       send: (method, params = {}, commandOptions = {}) => browserCdp.send(method, params, { ...commandOptions, sessionId }),
       on: (method, handler) => {
@@ -3202,7 +3374,10 @@ function attachCaptureHandlers(cdp, options) {
       if (entry) entry.streaming = true;
     }
     if (params.type === "Document" && (params.frameId === state.mainFrameId || !state.mainFrameId && params.response?.url === options.url)) {
-      state.mainDocumentResponse = { status: params.response?.status ?? null, mimeType: params.response?.mimeType ?? null };
+      state.mainDocumentResponse = {
+        status: params.response?.status ?? null,
+        mimeType: params.response?.mimeType ?? null
+      };
     }
     if (!active?.streaming) state.lastNetworkActivity = Date.now();
   });
@@ -3240,7 +3415,9 @@ function attachCaptureHandlers(cdp, options) {
         state.console.truncated = true;
         return;
       }
-      const args = (params.args || []).map((arg) => serializeRemoteObject(arg, options.redact));
+      const args = (params.args || []).map(
+        (arg) => serializeRemoteObject(arg, options.redact)
+      );
       const text = args.map((a) => typeof a === "string" ? a : safeJsonStringify(a)).join(" ");
       state.console.entries.push({
         type,
@@ -3286,7 +3463,11 @@ function attachCaptureHandlers(cdp, options) {
   }
   listen("Page.javascriptDialogOpening", (params) => {
     if (state.dialogs.length < options.maxConsole) {
-      state.dialogs.push({ type: params.type || null, message: params.message || "", url: params.url || null });
+      state.dialogs.push({
+        type: params.type || null,
+        message: params.message || "",
+        url: params.url || null
+      });
     }
     cdp.send("Page.handleJavaScriptDialog", { accept: false }).catch(() => {
     });
@@ -3350,11 +3531,14 @@ async function installRequestGuard(cdp, options, warnings) {
       }
       const headers = Object.entries(params.request?.headers ?? {}).filter(([name]) => !customNames.has(name.toLowerCase())).map(([name, value]) => ({ name, value: String(value) }));
       if (url.origin === origin) {
-        for (const header of customHeaders) headers.push({ name: header.name, value: header.value });
+        for (const header of customHeaders)
+          headers.push({ name: header.name, value: header.value });
       }
       await cdp.send("Fetch.continueRequest", { requestId, headers });
     } catch {
-      warnings.push("Request interception failed; request denied rather than forwarding custom headers.");
+      warnings.push(
+        "Request interception failed; request denied rather than forwarding custom headers."
+      );
       await failRequest(requestId);
     }
   };
@@ -3386,7 +3570,9 @@ async function installRequestGuard(cdp, options, warnings) {
     await cdp.send("Fetch.enable", { patterns });
     requestGuards.set(cdp, dispose);
     if (!customHeaders.length && !blocks.length) {
-      warnings.push("Request interception guard is active for document navigations to block SSRF and cloud metadata exfiltration.");
+      warnings.push(
+        "Request interception guard is active for document navigations to block SSRF and cloud metadata exfiltration."
+      );
     } else {
       warnings.push(
         "Opt-in request interception validates paused request DNS and scopes custom headers by exact origin; it does not pin DNS or guarantee DNS rebinding protection."
@@ -3570,7 +3756,10 @@ function inPagePerformanceObserver() {
   const updateInp = (entry) => {
     if (!entry.interactionId || !finite(entry.duration) || entry.duration < 0) return;
     if (interactionIds.size < 1e4) interactionIds.add(entry.interactionId);
-    interactions.set(entry.interactionId, Math.max(interactions.get(entry.interactionId) || 0, entry.duration));
+    interactions.set(
+      entry.interactionId,
+      Math.max(interactions.get(entry.interactionId) || 0, entry.duration)
+    );
     if (interactions.size > 200) {
       const smallest = [...interactions].sort((a, b) => a[1] - b[1])[0];
       interactions.delete(smallest[0]);
@@ -3657,9 +3846,14 @@ function inPagePerformanceObserver() {
   for (const type of Object.keys(handlers)) {
     supported[type] = false;
     try {
-      if (typeof PerformanceObserver !== "function" || !PerformanceObserver.supportedEntryTypes?.includes(type)) continue;
+      if (typeof PerformanceObserver !== "function" || !PerformanceObserver.supportedEntryTypes?.includes(type))
+        continue;
       const observer = new PerformanceObserver((list) => handlers[type](list.getEntries()));
-      observer.observe({ type, buffered: true, ...type === "event" ? { durationThreshold: 16 } : {} });
+      observer.observe({
+        type,
+        buffered: true,
+        ...type === "event" ? { durationThreshold: 16 } : {}
+      });
       supported[type] = true;
       observers.push({ observer, type });
     } catch (error) {
@@ -3674,17 +3868,25 @@ function inPagePerformanceObserver() {
   };
   document.addEventListener("pointerdown", finalizeLcp, { capture: true, once: true });
   document.addEventListener("keydown", finalizeLcp, { capture: true, once: true });
-  document.addEventListener("visibilitychange", () => {
-    hidden = document.visibilityState === "hidden";
-    if (hidden) {
-      firstHiddenTime = Math.min(firstHiddenTime, performance.now());
+  document.addEventListener(
+    "visibilitychange",
+    () => {
+      hidden = document.visibilityState === "hidden";
+      if (hidden) {
+        firstHiddenTime = Math.min(firstHiddenTime, performance.now());
+        finalizeLcp();
+      }
+    },
+    { capture: true }
+  );
+  globalThis.addEventListener(
+    "pagehide",
+    () => {
+      hidden = true;
       finalizeLcp();
-    }
-  }, { capture: true });
-  globalThis.addEventListener("pagehide", () => {
-    hidden = true;
-    finalizeLcp();
-  }, { capture: true });
+    },
+    { capture: true }
+  );
 }
 
 // src/cdp/collectors.ts
@@ -3744,7 +3946,10 @@ async function collectA11y(cdp, options, warnings) {
         accessibleName: node.name?.value ?? null,
         description: node.description?.value ?? null,
         properties: Object.fromEntries(
-          (node.properties || []).filter((property) => importantProperties.has(property.name)).map((property) => [property.name, property.value?.value ?? property.value?.type ?? null])
+          (node.properties || []).filter((property) => importantProperties.has(property.name)).map((property) => [
+            property.name,
+            property.value?.value ?? property.value?.type ?? null
+          ])
         )
       }))
     };
@@ -3784,7 +3989,9 @@ async function installPerformanceObservers(cdp, warnings = []) {
     });
     return result.identifier ?? null;
   } catch (error) {
-    warnings.push(`Performance observers could not be installed before navigation: ${error.message}`);
+    warnings.push(
+      `Performance observers could not be installed before navigation: ${error.message}`
+    );
     return null;
   }
 }
@@ -3847,9 +4054,12 @@ async function collectPerformance(cdp, _page, warnings) {
     );
     Object.assign(fromPage, evaluated || {});
     if (!fromPage.observers.installed) {
-      warnings.push("Performance observers were not installed before navigation; unobserved web vitals are null.");
+      warnings.push(
+        "Performance observers were not installed before navigation; unobserved web vitals are null."
+      );
     }
-    for (const error of fromPage.observers.errors || []) warnings.push(`Performance observer: ${error}`);
+    for (const error of fromPage.observers.errors || [])
+      warnings.push(`Performance observer: ${error}`);
   } catch (error) {
     warnings.push(`Page performance entries unavailable: ${error.message}`);
   }
@@ -4135,7 +4345,8 @@ function inPageProbe(config) {
     let visited = 0;
     while (stack.length && text.length < limit && visited++ < 256) {
       const node = stack.pop();
-      if (node.nodeType === 3) text += ` ${String(node.nodeValue || "").slice(0, limit - text.length)}`;
+      if (node.nodeType === 3)
+        text += ` ${String(node.nodeValue || "").slice(0, limit - text.length)}`;
       else if (!["SCRIPT", "STYLE", "NOSCRIPT"].includes(node.tagName)) {
         const children = node.childNodes || [];
         for (let i = Math.min(children.length, 256) - 1; i >= 0; i -= 1) stack.push(children[i]);
@@ -4219,7 +4430,8 @@ function inPageProbe(config) {
       const value = styleValue(style, prop);
       if (value == null) continue;
       const defaults = defaultStyles[prop];
-      if (config.compactStyles && (Array.isArray(defaults) ? defaults.includes(value) : defaults === value)) continue;
+      if (config.compactStyles && (Array.isArray(defaults) ? defaults.includes(value) : defaults === value))
+        continue;
       out[prop] = value;
     }
     return out;
@@ -4249,9 +4461,19 @@ function inPageProbe(config) {
       attributesTruncated: (el.attributes || []).length > count
     };
   };
-  const isInteractive = (el) => /^(BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY|OPTION|LABEL)$/.test(el.tagName) || el.tagName === "A" && el.hasAttribute("href") || ["button", "link", "menuitem", "tab", "checkbox", "radio", "switch", "slider", "textbox", "combobox", "searchbox"].includes(
-    (el.getAttribute("role") || "").toLowerCase()
-  ) || el.hasAttribute("tabindex") && el.tabIndex >= 0 || el.hasAttribute("onclick") || el.isContentEditable;
+  const isInteractive = (el) => /^(BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY|OPTION|LABEL)$/.test(el.tagName) || el.tagName === "A" && el.hasAttribute("href") || [
+    "button",
+    "link",
+    "menuitem",
+    "tab",
+    "checkbox",
+    "radio",
+    "switch",
+    "slider",
+    "textbox",
+    "combobox",
+    "searchbox"
+  ].includes((el.getAttribute("role") || "").toLowerCase()) || el.hasAttribute("tabindex") && el.tabIndex >= 0 || el.hasAttribute("onclick") || el.isContentEditable;
   const composedParent = (el) => {
     if (el.assignedSlot) return el.assignedSlot;
     if (el.parentElement) return el.parentElement;
@@ -4280,9 +4502,12 @@ function inPageProbe(config) {
       const ancestor = chain[i];
       const style = styleOf(ancestor);
       if (!reason && styleValue(style, "display") === "none") reason = "display:none";
-      if (!reason && Number.parseFloat(styleValue(style, "opacity") || "1") <= 0) reason = "opacity:0";
-      if (!reason && styleValue(style, "content-visibility") === "hidden") reason = "content-visibility:hidden";
-      if (!reason && ancestor.getRootNode?.()?.nodeType === 11 && !ancestor.getRootNode().host) reason = "detached-fragment";
+      if (!reason && Number.parseFloat(styleValue(style, "opacity") || "1") <= 0)
+        reason = "opacity:0";
+      if (!reason && styleValue(style, "content-visibility") === "hidden")
+        reason = "content-visibility:hidden";
+      if (!reason && ancestor.getRootNode?.()?.nodeType === 11 && !ancestor.getRootNode().host)
+        reason = "detached-fragment";
       hiddenCache.set(ancestor, reason);
     }
     return hiddenCache.get(el) || null;
@@ -4422,7 +4647,8 @@ function inPageProbe(config) {
       stats.elementNodes += 1;
       if (ancestorHidden(el)) return null;
       const children = walkChildren(el, depth + 1, parentIsShadow);
-      if (config.includeShadowDom && el.shadowRoot) children.push(...walkChildren(el.shadowRoot, depth + 1, true));
+      if (config.includeShadowDom && el.shadowRoot)
+        children.push(...walkChildren(el.shadowRoot, depth + 1, true));
       return children.length ? { type: "fragment", children } : null;
     }
     const index = nextIndex++;
@@ -4541,9 +4767,11 @@ function inPageProbe(config) {
       } catch {
       }
     }
-    for (let index = children.length - 1; index >= 0; index -= 1) pendingElements.push(children[index]);
+    for (let index = children.length - 1; index >= 0; index -= 1)
+      pendingElements.push(children[index]);
   }
-  if (pendingElements.length) warnings.push("Summary traversal reached --max-nodes; counts are lower bounds");
+  if (pendingElements.length)
+    warnings.push("Summary traversal reached --max-nodes; counts are lower bounds");
   const deepQuery = (selector) => summaryElements.filter((el) => el.matches(selector));
   const queryRoots = () => {
     if (!config.selector) {
@@ -4632,7 +4860,13 @@ function inPageProbe(config) {
       const label = el.labels && el.labels.length ? cut(textOf(el.labels[0]), config.textLimit) : null;
       return {
         ...scopeOf(el),
-        validation: { valid: el.validity?.valid ?? null, message: el.validationMessage || null, pattern: el.getAttribute("pattern"), min: el.getAttribute("min"), max: el.getAttribute("max") },
+        validation: {
+          valid: el.validity?.valid ?? null,
+          message: el.validationMessage || null,
+          pattern: el.getAttribute("pattern"),
+          min: el.getAttribute("min"),
+          max: el.getAttribute("max")
+        },
         rendered: visibleState(el, style, rect).rendered,
         tag: el.tagName.toLowerCase(),
         type: (el.getAttribute("type") || (el.tagName === "INPUT" ? "text" : "")).toLowerCase() || null,
@@ -4855,12 +5089,15 @@ function inPageProbe(config) {
     if (rect.viewport.left < -1 || rect.viewport.right > viewportWidth + 1) {
       let clipped = false;
       for (let parent = composedParent(el), depth = 0; parent && parent !== body && parent !== docEl && depth < 200; parent = composedParent(parent), depth += 1) {
-        if (/^(auto|scroll|hidden|clip|overlay)$/.test(styleValue(styleOf(parent), "overflow-x") || "")) {
+        if (/^(auto|scroll|hidden|clip|overlay)$/.test(
+          styleValue(styleOf(parent), "overflow-x") || ""
+        )) {
           clipped = true;
           break;
         }
       }
-      if (!clipped && overflowElements.length < 20) overflowElements.push({ cssPath: cssPath(el), rect: rect.viewport });
+      if (!clipped && overflowElements.length < 20)
+        overflowElements.push({ cssPath: cssPath(el), rect: rect.viewport });
     }
   }
   const page = {
@@ -4893,7 +5130,9 @@ function inPageProbe(config) {
       bodyScrollWidth: body?.scrollWidth ?? null,
       bodyScrollHeight: body?.scrollHeight ?? null,
       horizontalOverflow: (docEl?.scrollWidth ?? 0) > viewportWidth + 1 || overflowElements.length > 0,
-      activeAnimations: (typeof D.getAnimations === "function" ? D.getAnimations() : []).filter((a) => a.playState === "running").length,
+      activeAnimations: (typeof D.getAnimations === "function" ? D.getAnimations() : []).filter(
+        (a) => a.playState === "running"
+      ).length,
       overflowElements,
       contentBottom,
       verticalOverflow: (docEl?.scrollHeight ?? 0) > (docEl?.clientHeight ?? 0) + 1,
@@ -4960,7 +5199,9 @@ function inPageProbe(config) {
   };
   const issues = [];
   const colorRgb = (value) => {
-    const match = /^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(value || "");
+    const match = /^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(
+      value || ""
+    );
     return match ? { rgb: match.slice(1, 4).map(Number), alpha: match[4] == null ? 1 : Number(match[4]) } : null;
   };
   const luminance = (rgb) => rgb.map((value) => {
@@ -4972,7 +5213,8 @@ function inPageProbe(config) {
     if (contrastSamples >= 12) break;
     const style = styleOf(el);
     const state = visibleState(el, style, rectOf(el));
-    if (!state.rendered || !state.hasBox || !Array.from(el.childNodes || []).some((node) => node.nodeType === 3 && node.nodeValue?.trim())) continue;
+    if (!state.rendered || !state.hasBox || !Array.from(el.childNodes || []).some((node) => node.nodeType === 3 && node.nodeValue?.trim()))
+      continue;
     const foreground = colorRgb(styleValue(style, "color"));
     if (!foreground || foreground.alpha !== 1) continue;
     let background = null, uncertain = false;
@@ -5059,7 +5301,9 @@ function inPageProbe(config) {
     });
   }
   if (page.metrics.activeAnimations > 0) {
-    warnings.push(`Page has ${page.metrics.activeAnimations} running CSS/Web animations; minor layout shifts during intentional motion are expected.`);
+    warnings.push(
+      `Page has ${page.metrics.activeAnimations} running CSS/Web animations; minor layout shifts during intentional motion are expected.`
+    );
   }
   const dom = {
     selector: config.selector || null,
@@ -5100,7 +5344,9 @@ function interactionSafety(target, allowDestructive = false, automatic = false) 
   if (target.file) return "File controls are never clicked";
   if (target.editable) return "Editable and value-changing form controls are not explored";
   const label = String(target.safetyText || target.name || "").normalize("NFKC").replace(/[‌‍_-]/g, " ");
-  if (!allowDestructive && /\b(?:delete|remove|clear|drop|purge|destroy|wipe|format|pay|payment|purchase|buy|order|checkout|logout|sign\s*out|log\s*out|submit|send|save|confirm|reset|discard|unsubscribe|cancel\s*(?:subscription|membership|plan|account))\b|حذف|پاک|پرداخت|خرید|سفارش|خروج|ارسال|ذخیره|تایید|تأیید|لغو|نابود|پاکسازی/i.test(label)) {
+  if (!allowDestructive && /\b(?:delete|remove|clear|drop|purge|destroy|wipe|format|pay|payment|purchase|buy|order|checkout|logout|sign\s*out|log\s*out|submit|send|save|confirm|reset|discard|unsubscribe|cancel\s*(?:subscription|membership|plan|account))\b|حذف|پاک|پرداخت|خرید|سفارش|خروج|ارسال|ذخیره|تایید|تأیید|لغو|نابود|پاکسازی/i.test(
+    label
+  )) {
     return "Potentially destructive action blocked by text safety policy";
   }
   if (automatic && !target.toggle) return "Not a recognized UI toggle";
@@ -5168,16 +5414,28 @@ function inPageInteractionProbe(command, safety) {
     const popup = el.getAttribute("aria-haspopup");
     const button = tag === "button" || role === "button" || tag === "input" && type === "button";
     const summary = tag === "summary" && parent(el)?.tagName === "DETAILS";
-    const toggle = summary || role === "tab" || button && (expanded === "true" || expanded === "false" || ["true", "menu", "listbox", "dialog", "tree", "grid"].includes(popup) || /^(?:(?:open|close|toggle|show|hide|expand|collapse)\s+)?(?:menu|navigation|dropdown|accordion|hamburger|sidebar|tabs?|more options)(?:\s|$)|منو|فهرست|باز کردن منو|بستن منو/i.test(name));
-    const disabled = chain.some((node) => node.disabled || node.inert || node.hasAttribute("disabled") || node.getAttribute("aria-disabled") === "true" || node.getAttribute("aria-hidden") === "true" || node.hasAttribute("inert"));
-    const navigation = chain.some((node) => ["A", "AREA"].includes(node.tagName) || node.hasAttribute("href") || node.hasAttribute("download") || node.getAttribute("role") === "link");
+    const toggle = summary || role === "tab" || button && (expanded === "true" || expanded === "false" || ["true", "menu", "listbox", "dialog", "tree", "grid"].includes(popup) || /^(?:(?:open|close|toggle|show|hide|expand|collapse)\s+)?(?:menu|navigation|dropdown|accordion|hamburger|sidebar|tabs?|more options)(?:\s|$)|منو|فهرست|باز کردن منو|بستن منو/i.test(
+      name
+    ));
+    const disabled = chain.some(
+      (node) => node.disabled || node.inert || node.hasAttribute("disabled") || node.getAttribute("aria-disabled") === "true" || node.getAttribute("aria-hidden") === "true" || node.hasAttribute("inert")
+    );
+    const navigation = chain.some(
+      (node) => ["A", "AREA"].includes(node.tagName) || node.hasAttribute("href") || node.hasAttribute("download") || node.getAttribute("role") === "link"
+    );
     const submission = chain.some((node) => {
       const nodeTag = node.tagName.toLowerCase();
       const nodeType = (node.type || node.getAttribute("type") || "").toLowerCase();
       return nodeTag === "button" && (nodeType === "reset" || Boolean(node.form || node.closest("form")) && nodeType !== "button") || nodeTag === "input" && ["submit", "image", "reset"].includes(nodeType);
     });
-    const file = chain.some((node) => node.tagName === "INPUT" && node.type === "file" || node.tagName === "LABEL" && node.control?.type === "file");
-    const editable = chain.some((node) => node.isContentEditable || ["TEXTAREA", "SELECT"].includes(node.tagName) || node.tagName === "INPUT" && node.type !== "button" || node.tagName === "LABEL" && Boolean(node.control) || ["checkbox", "radio", "switch", "slider", "spinbutton", "combobox"].includes(node.getAttribute("role")));
+    const file = chain.some(
+      (node) => node.tagName === "INPUT" && node.type === "file" || node.tagName === "LABEL" && node.control?.type === "file"
+    );
+    const editable = chain.some(
+      (node) => node.isContentEditable || ["TEXTAREA", "SELECT"].includes(node.tagName) || node.tagName === "INPUT" && node.type !== "button" || node.tagName === "LABEL" && Boolean(node.control) || ["checkbox", "radio", "switch", "slider", "spinbutton", "combobox"].includes(
+        node.getAttribute("role")
+      )
+    );
     const visible = el.isConnected && el.getClientRects().length > 0 && style.display !== "none" && style.visibility === "visible" && Number(style.opacity) > 0 && rect.width > 0 && rect.height > 0 && rect.x < innerWidth && rect.y < innerHeight && rect.x + rect.width > 0 && rect.y + rect.height > 0;
     return {
       id: state.ids.get(el),
@@ -5207,7 +5465,7 @@ function inPageInteractionProbe(command, safety) {
     };
   };
   const publicTarget = (info2) => {
-    const { safetyText, ...safe } = info2;
+    const { safetyText: _safetyText, ...safe } = info2;
     return safe;
   };
   const context = {
@@ -5245,7 +5503,8 @@ function inPageInteractionProbe(command, safety) {
     const candidates = [];
     const skipped = [];
     for (const el of elements) {
-      if (!["BUTTON", "SUMMARY", "INPUT"].includes(el.tagName) && !["button", "tab"].includes(el.getAttribute("role"))) continue;
+      if (!["BUTTON", "SUMMARY", "INPUT"].includes(el.tagName) && !["button", "tab"].includes(el.getAttribute("role")))
+        continue;
       const info2 = describe(el);
       if (!info2.toggle) continue;
       const reason2 = safety(info2, command.allowDestructive, true);
@@ -5258,7 +5517,10 @@ function inPageInteractionProbe(command, safety) {
   if (command.op === "keySafety") {
     const el = document.activeElement;
     if (!el || el === document.body || el === document.documentElement) {
-      return { ...context, reason: command.key === "Enter" ? "No safe focused control for Enter" : null };
+      return {
+        ...context,
+        reason: command.key === "Enter" ? "No safe focused control for Enter" : null
+      };
     }
     let focused = el;
     while (focused.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
@@ -5296,7 +5558,11 @@ function inPageInteractionProbe(command, safety) {
     hit = deeper;
   }
   if (!hit || !ancestors(hit).includes(target)) {
-    return { ...context, reason: "Target is covered or failed hit testing", target: publicTarget(info) };
+    return {
+      ...context,
+      reason: "Target is covered or failed hit testing",
+      target: publicTarget(info)
+    };
   }
   const hitInfo = describe(hit);
   const hitReason = safety(hitInfo, command.allowDestructive, false);
@@ -5316,7 +5582,9 @@ function diffInteractionSnapshots(before, after) {
   for (const [id, node] of next) {
     const old = previous.get(id);
     if (!old) continue;
-    if (["x", "y", "width", "height"].some((key) => Math.abs((node.rect?.[key] || 0) - (old.rect?.[key] || 0)) > 0.5)) {
+    if (["x", "y", "width", "height"].some(
+      (key) => Math.abs((node.rect?.[key] || 0) - (old.rect?.[key] || 0)) > 0.5
+    )) {
       layoutChanged.push({ id, before: old.rect, after: node.rect });
     }
     const changes = {};
@@ -5340,7 +5608,8 @@ function diffInteractionSnapshots(before, after) {
       if (!["id", "rect", "tag"].includes(key)) stateKeys.add(key);
     }
     for (const key of stateKeys) {
-      if (old[key] !== node[key]) changes[key] = { before: old[key] ?? null, after: node[key] ?? null };
+      if (old[key] !== node[key])
+        changes[key] = { before: old[key] ?? null, after: node[key] ?? null };
     }
     if (Object.keys(changes).length) stateChanged.push({ id, changes });
   }
@@ -5354,8 +5623,12 @@ function diffInteractionSnapshots(before, after) {
   const beforeConsole = getConsoleList(before);
   const afterConsole = getConsoleList(after);
   const consoleEvents = afterConsole.slice(beforeConsole.length);
-  const consoleErrors = consoleEvents.filter((e) => ["error", "assert"].includes(String(e.type || e.level || "").toLowerCase()));
-  const consoleWarnings = consoleEvents.filter((e) => ["warn", "warning"].includes(String(e.type || e.level || "").toLowerCase()));
+  const consoleErrors = consoleEvents.filter(
+    (e) => ["error", "assert"].includes(String(e.type || e.level || "").toLowerCase())
+  );
+  const consoleWarnings = consoleEvents.filter(
+    (e) => ["warn", "warning"].includes(String(e.type || e.level || "").toLowerCase())
+  );
   const getErrorList = (snap) => {
     if (!snap) return [];
     if (Array.isArray(snap.errors)) return snap.errors;
@@ -5462,7 +5735,9 @@ async function performInteractions(cdp, options, beforeProbe = null) {
     telemetry.beforeSnapshot = baseline;
     telemetry.afterSnapshot = baseline;
   } catch (error) {
-    telemetry.warnings.push(`Interaction snapshot unavailable; no inputs dispatched: ${error.message}`);
+    telemetry.warnings.push(
+      `Interaction snapshot unavailable; no inputs dispatched: ${error.message}`
+    );
     return telemetry;
   }
   const sameDocument = (snapshot) => snapshot && snapshot.documentToken === baseline.documentToken && snapshot.navigationToken === baseline.navigationToken;
@@ -5490,7 +5765,12 @@ async function performInteractions(cdp, options, beforeProbe = null) {
         return;
       }
       if (action.type === "click" || action.type === "hover") {
-        let target = await probe({ op: "target", selector: action.value, id: candidate?.id, automatic });
+        let target = await probe({
+          op: "target",
+          selector: action.value,
+          id: candidate?.id,
+          automatic
+        });
         record.target = target?.target || null;
         if (!sameDocument(target)) {
           stop = true;
@@ -5502,7 +5782,11 @@ async function performInteractions(cdp, options, beforeProbe = null) {
           return;
         }
         inputSent = true;
-        await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...target.point, button: "none" });
+        await cdp.send("Input.dispatchMouseEvent", {
+          type: "mouseMoved",
+          ...target.point,
+          button: "none"
+        });
         if (action.type === "click") {
           target = await probe({ op: "verify", id: target.target.id, automatic });
           if (!sameDocument(target)) {
@@ -5567,9 +5851,12 @@ async function performInteractions(cdp, options, beforeProbe = null) {
           return;
         }
         inputSent = true;
-        const { text, unmodifiedText, ...release } = definition;
+        const { text: _text, unmodifiedText: _unmodifiedText, ...release } = definition;
         try {
-          await cdp.send("Input.dispatchKeyEvent", { type: definition.text ? "keyDown" : "rawKeyDown", ...definition });
+          await cdp.send("Input.dispatchKeyEvent", {
+            type: definition.text ? "keyDown" : "rawKeyDown",
+            ...definition
+          });
         } finally {
           await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...release });
         }
@@ -5590,7 +5877,9 @@ async function performInteractions(cdp, options, beforeProbe = null) {
         telemetry.afterSnapshot = record.after;
         if (!sameDocument(record.after)) {
           stop = true;
-          telemetry.warnings.push("Interaction changed the document or URL; remaining inputs were stopped.");
+          telemetry.warnings.push(
+            "Interaction changed the document or URL; remaining inputs were stopped."
+          );
         }
       } catch (error) {
         telemetry.warnings.push(`Post-interaction snapshot unavailable: ${error.message}`);
@@ -5598,13 +5887,17 @@ async function performInteractions(cdp, options, beforeProbe = null) {
       }
     }
   };
-  if (requested.length > 100) telemetry.warnings.push("Explicit actions capped at 100 per inspection.");
+  if (requested.length > 100)
+    telemetry.warnings.push("Explicit actions capped at 100 per inspection.");
   for (const action of requested.slice(0, 100)) {
     if (stop) break;
     await run(action);
   }
   if (options.explore && !stop) {
-    const limit = Math.max(0, Math.min(50, Number.isFinite(options.maxExplore) ? Math.floor(options.maxExplore) : 8));
+    const limit = Math.max(
+      0,
+      Math.min(50, Number.isFinite(options.maxExplore) ? Math.floor(options.maxExplore) : 8)
+    );
     telemetry.exploration.limit = limit;
     const visited = /* @__PURE__ */ new Set();
     for (let i = 0; i < limit && !stop; i += 1) {
@@ -5621,7 +5914,9 @@ async function performInteractions(cdp, options, beforeProbe = null) {
         break;
       }
       for (const skipped of scan.skipped || []) {
-        if (!telemetry.exploration.skipped.some((item) => item.target.id === skipped.target.id) && telemetry.exploration.skipped.length < 100) {
+        if (!telemetry.exploration.skipped.some(
+          (item) => item.target.id === skipped.target.id
+        ) && telemetry.exploration.skipped.length < 100) {
           telemetry.exploration.skipped.push(skipped);
         }
       }
@@ -5633,7 +5928,8 @@ async function performInteractions(cdp, options, beforeProbe = null) {
       if (telemetry.actions.at(-1)?.status === "performed") telemetry.exploration.performed += 1;
     }
   }
-  if (stop) telemetry.exploration.stoppedReason = "Stopped after navigation, document replacement, or an uncertain interaction";
+  if (stop)
+    telemetry.exploration.stoppedReason = "Stopped after navigation, document replacement, or an uncertain interaction";
   telemetry.diff = diffInteractionSnapshots(telemetry.beforeSnapshot, telemetry.afterSnapshot);
   if (inputSent && beforeProbe) {
     try {
@@ -5661,17 +5957,16 @@ async function inspectPage(cdp, options, browserInfo) {
     await installPerformanceObservers(cdp, warnings);
     const initialFrame = await cdp.send("Page.getFrameTree");
     state.mainFrameId = initialFrame.frameTree?.frame?.id ?? null;
-    const targetUrl = await validateResolvedTargetUrl(options.url, { timeoutMs: options.timeoutMs });
+    const targetUrl = await validateResolvedTargetUrl(options.url, {
+      timeoutMs: options.timeoutMs
+    });
     logInfo(options, `Navigating to ${redactUrl(targetUrl.toString())}`);
     const navigation = await cdp.send("Page.navigate", { url: targetUrl.toString() });
     if (navigation.errorText) {
       if (navigation.errorText.includes("ERR_HTTP_RESPONSE_CODE_FAILURE")) {
         warnings.push(`Navigation reported HTTP error response code: ${navigation.errorText}`);
       } else {
-        throw new InspectorError(
-          `Navigation failed: ${navigation.errorText}`,
-          "NAVIGATION_FAILED"
-        );
+        throw new InspectorError(`Navigation failed: ${navigation.errorText}`, "NAVIGATION_FAILED");
       }
     }
     state.mainFrameId = navigation.frameId || state.mainFrameId;
@@ -5684,7 +5979,9 @@ async function inspectPage(cdp, options, browserInfo) {
       warnings.push("Network-idle deadline reached; pending requests remain in the report");
     }
     if (options.waitMs > 0) await sleep(options.waitMs);
-    const finalUrlRaw = await evaluate(cdp, "location.href", options).catch(() => targetUrl.toString());
+    const finalUrlRaw = await evaluate(cdp, "location.href", options).catch(
+      () => targetUrl.toString()
+    );
     let parsedFinalUrl;
     try {
       if (finalUrlRaw && !String(finalUrlRaw).startsWith("chrome-error:")) {
@@ -5767,7 +6064,8 @@ async function inspectPage(cdp, options, browserInfo) {
     let failedCount = 0;
     for (const entry of networkEntries) {
       statusClasses[entry.state] = (statusClasses[entry.state] || 0) + 1;
-      if (entry.state === "failed" || entry.status != null && entry.status >= 400) failedCount += 1;
+      if (entry.state === "failed" || entry.status != null && entry.status >= 400)
+        failedCount += 1;
       if (entry.status != null) {
         const cls = `${Math.floor(entry.status / 100)}xx`;
         statusClasses[cls] = (statusClasses[cls] || 0) + 1;
@@ -5834,7 +6132,9 @@ async function inspectPage(cdp, options, browserInfo) {
       } : null,
       console: options.console ? {
         entries: state.console.entries,
-        errors: state.console.entries.filter((entry) => ["error", "assert"].includes(entry.type)),
+        errors: state.console.entries.filter(
+          (entry) => ["error", "assert"].includes(entry.type)
+        ),
         counts: state.console.counts,
         truncated: state.console.truncated
       } : null,
@@ -6118,7 +6418,8 @@ Cleaned ${result.count} run directories.
     }
     await validateResolvedTargetUrl(options.url, { timeoutMs: options.timeoutMs });
     if (options.cdp) validateCdpEndpoint(options.cdp, options.allowRemoteCdp);
-    if (options.redact === "none") logWarn(options, "redaction is disabled; saved reports may contain secrets");
+    if (options.redact === "none")
+      logWarn(options, "redaction is disabled; saved reports may contain secrets");
     if (options.noSandbox) logWarn(options, "--no-sandbox disables Chromium process isolation");
     if (options.ignoreCertificateErrors) logWarn(options, "TLS certificate errors will be ignored");
     if (options.explore || options.actions.length) {
@@ -6184,7 +6485,10 @@ Cleaned ${result.count} run directories.
       await writeFileSecure(destination, await fsp4.readFile(report.screenshots[0].path));
       report.screenshots.push({ ...report.screenshots[0], role: "output", path: destination });
     }
-    report.durationMs = snapshots.reduce((total, snapshot) => total + snapshot.durationMs, 0);
+    report.durationMs = snapshots.reduce(
+      (total, snapshot) => total + snapshot.durationMs,
+      0
+    );
     await persistRun(report, activeRun);
     logInfo(options, `Saved run ${activeRun.id}: ${activeRun.report}`);
     if (outPath) {
@@ -6213,8 +6517,10 @@ Cleaned ${result.count} run directories.
     }
     process.stdout.write(`${JSON.stringify(payload, null, options?.pretty ? 2 : 0)}
 `);
-    process.stderr.write(`${TOOL_NAME}: ${redactString(error.message, options?.redact ?? "sensitive")}
-`);
+    process.stderr.write(
+      `${TOOL_NAME}: ${redactString(error.message, options?.redact ?? "sensitive")}
+`
+    );
     process.exitCode = error.exitCode || 1;
   } finally {
     if (options?.ephemeral && activeRun?.directory) {

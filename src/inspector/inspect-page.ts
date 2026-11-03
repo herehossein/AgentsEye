@@ -7,12 +7,7 @@ import {
   isPrivateHost,
 } from '../security/url-guard.js';
 import { InspectorError } from '../errors/errors.js';
-import {
-  DEFAULTS,
-  SCHEMA_VERSION,
-  TOOL_NAME,
-  TOOL_VERSION,
-} from '../config/constants.js';
+import { DEFAULTS, SCHEMA_VERSION, TOOL_NAME, TOOL_VERSION } from '../config/constants.js';
 import { makeProbeConfig, inPageProbe } from '../probes/dom-probe.js';
 import { evaluate } from '../cdp/client.js';
 import {
@@ -34,11 +29,7 @@ import { performInteractions } from '../interactions/runner.js';
 import { sanitizeOptionsForReport } from '../reporting/views.js';
 import type { CdpClient } from '../cdp/client.js';
 
-export async function inspectPage(
-  cdp: CdpClient,
-  options: any,
-  browserInfo?: any,
-): Promise<any> {
+export async function inspectPage(cdp: CdpClient, options: any, browserInfo?: any): Promise<any> {
   const warnings: string[] = [];
   const startedAt = Date.now();
   const state = attachCaptureHandlers(cdp, options);
@@ -49,17 +40,16 @@ export async function inspectPage(
     await installPerformanceObservers(cdp, warnings);
     const initialFrame = await cdp.send('Page.getFrameTree');
     state.mainFrameId = initialFrame.frameTree?.frame?.id ?? null;
-    const targetUrl = await validateResolvedTargetUrl(options.url, { timeoutMs: options.timeoutMs });
+    const targetUrl = await validateResolvedTargetUrl(options.url, {
+      timeoutMs: options.timeoutMs,
+    });
     logInfo(options, `Navigating to ${redactUrl(targetUrl.toString())}`);
     const navigation = await cdp.send('Page.navigate', { url: targetUrl.toString() });
     if (navigation.errorText) {
       if (navigation.errorText.includes('ERR_HTTP_RESPONSE_CODE_FAILURE')) {
         warnings.push(`Navigation reported HTTP error response code: ${navigation.errorText}`);
       } else {
-        throw new InspectorError(
-          `Navigation failed: ${navigation.errorText}`,
-          'NAVIGATION_FAILED',
-        );
+        throw new InspectorError(`Navigation failed: ${navigation.errorText}`, 'NAVIGATION_FAILED');
       }
     }
     state.mainFrameId = navigation.frameId || state.mainFrameId;
@@ -74,7 +64,9 @@ export async function inspectPage(
     }
     if (options.waitMs > 0) await sleep(options.waitMs);
 
-    const finalUrlRaw = await evaluate(cdp, 'location.href', options).catch(() => targetUrl.toString());
+    const finalUrlRaw = await evaluate(cdp, 'location.href', options).catch(() =>
+      targetUrl.toString(),
+    );
     let parsedFinalUrl: URL;
     try {
       if (finalUrlRaw && !String(finalUrlRaw).startsWith('chrome-error:')) {
@@ -163,7 +155,8 @@ export async function inspectPage(
     let failedCount = 0;
     for (const entry of networkEntries) {
       statusClasses[entry.state] = (statusClasses[entry.state] || 0) + 1;
-      if (entry.state === 'failed' || (entry.status != null && entry.status >= 400)) failedCount += 1;
+      if (entry.state === 'failed' || (entry.status != null && entry.status >= 400))
+        failedCount += 1;
       if (entry.status != null) {
         const cls = `${Math.floor(entry.status / 100)}xx`;
         statusClasses[cls] = (statusClasses[cls] || 0) + 1;
@@ -240,7 +233,9 @@ export async function inspectPage(
       console: options.console
         ? {
             entries: state.console.entries,
-            errors: state.console.entries.filter((entry: any) => ['error', 'assert'].includes(entry.type)),
+            errors: state.console.entries.filter((entry: any) =>
+              ['error', 'assert'].includes(entry.type),
+            ),
             counts: state.console.counts,
             truncated: state.console.truncated,
           }

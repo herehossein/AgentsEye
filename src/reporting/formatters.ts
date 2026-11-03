@@ -7,34 +7,40 @@ export function formatDiffText(report: any): string {
   push(`${TOOL_NAME} diff: ${report.before || 'before'} -> ${report.after || 'after'}`);
   const s = report.summary || {};
   push(
-    `Summary: +${s.added ?? 0} added, -${s.removed ?? 0} removed, ${s.layoutChanged ?? 0} layout changed, ${s.styleChanged ?? 0} styles changed, ${s.newErrors ?? 0} new errors, ${s.newIssues ?? 0} new issues`
+    `Summary: +${s.added ?? 0} added, -${s.removed ?? 0} removed, ${s.layoutChanged ?? 0} layout changed, ${s.styleChanged ?? 0} styles changed, ${s.newErrors ?? 0} new errors, ${s.newIssues ?? 0} new issues`,
   );
   if (report.newIssues?.length) {
     push('New Issues:');
-    for (const issue of report.newIssues) push(`  [${issue.severity || 'issue'}] ${issue.code}: ${issue.message}`);
+    for (const issue of report.newIssues)
+      push(`  [${issue.severity || 'issue'}] ${issue.code}: ${issue.message}`);
   }
   if (report.newErrors?.length) {
     push('New Errors:');
-    for (const err of report.newErrors) push(`  ${err.text || err.message || safeJsonStringify(err)}`);
+    for (const err of report.newErrors)
+      push(`  ${err.text || err.message || safeJsonStringify(err)}`);
   }
   if (report.added?.length) {
     push('Added elements:');
-    for (const el of report.added.slice(0, 20)) push(`  + ${el.tag || 'node'}${el.id ? ` #${el.id}` : ''}`);
+    for (const el of report.added.slice(0, 20))
+      push(`  + ${el.tag || 'node'}${el.id ? ` #${el.id}` : ''}`);
     if (report.added.length > 20) push(`  … ${report.added.length - 20} more`);
   }
   if (report.removed?.length) {
     push('Removed elements:');
-    for (const el of report.removed.slice(0, 20)) push(`  - ${el.tag || 'node'}${el.id ? ` #${el.id}` : ''}`);
+    for (const el of report.removed.slice(0, 20))
+      push(`  - ${el.tag || 'node'}${el.id ? ` #${el.id}` : ''}`);
     if (report.removed.length > 20) push(`  … ${report.removed.length - 20} more`);
   }
   if (report.layout?.length) {
     push('Layout changes:');
-    for (const l of report.layout.slice(0, 20)) push(`  ~ ${l.tag || 'node'}${l.id ? ` #${l.id}` : ''}`);
+    for (const l of report.layout.slice(0, 20))
+      push(`  ~ ${l.tag || 'node'}${l.id ? ` #${l.id}` : ''}`);
     if (report.layout.length > 20) push(`  … ${report.layout.length - 20} more`);
   }
   if (report.styles?.length) {
     push('Style changes:');
-    for (const st of report.styles.slice(0, 20)) push(`  ~ ${st.tag || 'node'}${st.id ? ` #${st.id}` : ''}`);
+    for (const st of report.styles.slice(0, 20))
+      push(`  ~ ${st.tag || 'node'}${st.id ? ` #${st.id}` : ''}`);
     if (report.styles.length > 20) push(`  … ${report.styles.length - 20} more`);
   }
   if (report.note) push(`Note: ${report.note}`);
@@ -61,7 +67,8 @@ export function formatQueryValue(val: unknown, indent = '  ', ancestors: unknown
   if (!entries.length) return `${indent}{}`;
   return entries
     .map(([k, v]) => {
-      if (v === null || typeof v !== 'object') return `${indent}${k}: ${typeof v === 'bigint' ? v.toString() : v}`;
+      if (v === null || typeof v !== 'object')
+        return `${indent}${k}: ${typeof v === 'bigint' ? v.toString() : v}`;
       return `${indent}${k}:\n${formatQueryValue(v, indent + '  ', nextAncestors)}`;
     })
     .join('\n');
@@ -89,13 +96,13 @@ export function formatSummaryText(report: any): string {
   push(`${TOOL_NAME} v${TOOL_VERSION}`);
   if (report.security?.promptInjectionDetected) {
     push(
-      `[SECURITY ALERT] Prompt Injection DETECTED (${report.security.threatLevel.toUpperCase()}). Malicious instructions neutralized.`
+      `[SECURITY ALERT] Prompt Injection DETECTED (${report.security.threatLevel.toUpperCase()}). Malicious instructions neutralized.`,
     );
   }
   push(
     `Target: ${target.finalUrl || target.requestedUrl || '(unknown)'}${
       target.httpStatus != null ? ` [HTTP ${target.httpStatus}]` : ''
-    }`
+    }`,
   );
   if (target.title) push(`Title: ${target.title}`);
   if (run.id) push(`Run: ${run.id} (${run.directory || ''})`);
@@ -120,7 +127,7 @@ export function formatSummaryText(report: any): string {
   push(
     `Layout: overflow=${layout.horizontalOverflow ? 'YES' : 'no'} scrollTrap=${
       layout.scrollTrap ? 'YES' : 'no'
-    } nodes=${layout.nodes ?? '?'}${issueCountList ? ` (${issueCountList})` : ''}`
+    } nodes=${layout.nodes ?? '?'}${issueCountList ? ` (${issueCountList})` : ''}`,
   );
 
   if (report.issues?.length) {
@@ -133,7 +140,9 @@ export function formatSummaryText(report: any): string {
   }
 
   if (report.errors) {
-    push(`Errors: uncaught=${report.errors.uncaughtCount ?? 0} logErrors=${report.errors.logErrorCount ?? 0}`);
+    push(
+      `Errors: uncaught=${report.errors.uncaughtCount ?? 0} logErrors=${report.errors.logErrorCount ?? 0}`,
+    );
     for (const err of report.errors.uncaught || []) {
       push(`  uncaught: ${err.text || err.message || safeJsonStringify(err)}`);
     }
@@ -162,7 +171,8 @@ export function formatSummaryText(report: any): string {
   if (report.headings?.outline?.length || report.headings?.items?.length) {
     push('Headings:');
     const outline =
-      report.headings.outline || report.headings.items.map((h: any) => `h${h.level}: ${h.text || '(empty)'}`);
+      report.headings.outline ||
+      report.headings.items.map((h: any) => `h${h.level}: ${h.text || '(empty)'}`);
     for (const h of outline.slice(0, 30)) {
       push(`  ${h}`);
     }
@@ -176,7 +186,7 @@ export function formatSummaryText(report: any): string {
       push(
         `  Diff: +${d.added ?? 0} added, -${d.removed ?? 0} removed, ${d.layoutChanged ?? 0} layout changed, ${
           d.stateChanged ?? 0
-        } state changed`
+        } state changed`,
       );
     }
   }
@@ -201,7 +211,7 @@ export function formatFocusSliceText(report: any): string {
   push(`${TOOL_NAME} v${TOOL_VERSION} (Focus View)`);
   if (report.security?.promptInjectionDetected) {
     push(
-      `[SECURITY ALERT] Prompt Injection DETECTED (${report.security.threatLevel.toUpperCase()}). Malicious instructions neutralized.`
+      `[SECURITY ALERT] Prompt Injection DETECTED (${report.security.threatLevel.toUpperCase()}). Malicious instructions neutralized.`,
     );
   }
   push(`Target: ${target.finalUrl || target.requestedUrl || '(unknown)'}`);
@@ -217,21 +227,27 @@ export function formatFocusSliceText(report: any): string {
       push(
         `Layout: overflow=${report.layout.horizontalOverflow ? 'yes' : 'no'} scrollWidth=${
           report.layout.documentScrollWidth ?? '?'
-        }`
+        }`,
       );
-    if (report.scrollLock) push(`ScrollLock: trapRisk=${report.scrollLock.trapRisk ? 'yes' : 'no'}`);
+    if (report.scrollLock)
+      push(`ScrollLock: trapRisk=${report.scrollLock.trapRisk ? 'yes' : 'no'}`);
     if (report.console?.entries?.length) {
       push('Console Errors:');
-      for (const entry of report.console.entries) push(`  ${entry.type}: ${safeJsonStringify(entry.args)}`);
+      for (const entry of report.console.entries)
+        push(`  ${entry.type}: ${safeJsonStringify(entry.args)}`);
     }
   } else if (report.forms !== undefined) {
     const forms = report.forms || {};
     push(`Forms: count=${forms.items?.length ?? forms.count ?? 0}`);
     if (forms.items?.length) {
       for (const form of forms.items) {
-        push(`  Form: action="${form.action || ''}" method="${form.method || 'get'}" inputs=${form.inputs?.length ?? 0}`);
+        push(
+          `  Form: action="${form.action || ''}" method="${form.method || 'get'}" inputs=${form.inputs?.length ?? 0}`,
+        );
         for (const input of (form.inputs || []).slice(0, 10)) {
-          push(`    Input: type="${input.type || 'text'}" name="${input.name || ''}" required=${input.required ? 'yes' : 'no'}`);
+          push(
+            `    Input: type="${input.type || 'text'}" name="${input.name || ''}" required=${input.required ? 'yes' : 'no'}`,
+          );
         }
       }
     }
@@ -247,7 +263,7 @@ export function formatFocusSliceText(report: any): string {
     push(
       `DOM Stats: ${stats.elementNodes ?? 0} elements, maxDepth ${stats.maxDepthReached ?? 0}, shadowRoots ${
         stats.shadowRoots ?? 0
-      }, iframes ${stats.iframes ?? 0}`
+      }, iframes ${stats.iframes ?? 0}`,
     );
     if (dom.trees) {
       push('DOM Outline:');
@@ -267,7 +283,8 @@ export function formatFocusSliceText(report: any): string {
     push(`Network: total=${s.total ?? 0} failed=${s.failed ?? 0}`);
     if (net.failures?.length) {
       push('Failures:');
-      for (const f of net.failures) push(`  failed: ${f.method || '?'} ${f.url} ${f.errorText || ''}`);
+      for (const f of net.failures)
+        push(`  failed: ${f.method || '?'} ${f.url} ${f.errorText || ''}`);
     }
   } else if (report.performance !== undefined) {
     const perf = report.performance || {};
@@ -278,10 +295,13 @@ export function formatFocusSliceText(report: any): string {
     if (vitals.inp != null) push(`  INP: ${vitals.inp}ms`);
     if (vitals.fcp != null) push(`  FCP: ${vitals.fcp}ms`);
     if (vitals.ttfb != null) push(`  TTFB: ${vitals.ttfb}ms`);
-    if (perf.page?.navigation?.duration != null) push(`  Navigation duration: ${perf.page.navigation.duration}ms`);
+    if (perf.page?.navigation?.duration != null)
+      push(`  Navigation duration: ${perf.page.navigation.duration}ms`);
   } else if (report.console !== undefined && report.issues === undefined) {
     const c = report.console || {};
-    push(`Console entries: ${c.matched ?? c.entries?.length ?? 0} (total: ${c.total ?? c.entries?.length ?? 0})`);
+    push(
+      `Console entries: ${c.matched ?? c.entries?.length ?? 0} (total: ${c.total ?? c.entries?.length ?? 0})`,
+    );
     if (c.level) push(`  Level: ${Array.isArray(c.level) ? c.level.join(',') : c.level}`);
     if (c.filter) push(`  Filter: "${c.filter}"`);
     const counts = Object.entries(c.counts || {})
@@ -292,7 +312,9 @@ export function formatFocusSliceText(report: any): string {
     if (c.entries?.length) {
       push('Entries:');
       for (const entry of c.entries.slice(0, 50)) {
-        const argsStr = (entry.args || []).map((a: any) => (typeof a === 'string' ? a : safeJsonStringify(a))).join(' ');
+        const argsStr = (entry.args || [])
+          .map((a: any) => (typeof a === 'string' ? a : safeJsonStringify(a)))
+          .join(' ');
         push(`  [${entry.type || 'log'}] ${argsStr || entry.text || ''}`);
       }
     } else {
@@ -338,26 +360,26 @@ export function formatText(report: any, options: any = {}): string {
   if (env.viewport) {
     push(
       `Viewport: ${env.viewport.width}x${env.viewport.height} @${env.viewport.dpr}x` +
-        `${env.viewport.mobile ? ' mobile' : ''}${env.touch ? ' touch' : ''}`
+        `${env.viewport.mobile ? ' mobile' : ''}${env.touch ? ' touch' : ''}`,
     );
   }
   push(
     `Page: readyState=${page.readyState ?? '?'} scroll=(${metrics.scrollX ?? '?'},${metrics.scrollY ?? '?'}) ` +
       `scrollSize=${metrics.documentScrollWidth ?? '?'}x${metrics.documentScrollHeight ?? '?'} ` +
-      `horizontalOverflow=${metrics.horizontalOverflow ? 'yes' : 'no'}`
+      `horizontalOverflow=${metrics.horizontalOverflow ? 'yes' : 'no'}`,
   );
   if (metrics.visualViewport) {
     const vv = metrics.visualViewport;
     push(
       `Visual viewport: ${Math.round(vv.width)}x${Math.round(vv.height)} ` +
-        `offset=(${Math.round(vv.offsetLeft)},${Math.round(vv.offsetTop)}) scale=${vv.scale}`
+        `offset=(${Math.round(vv.offsetLeft)},${Math.round(vv.offsetTop)}) scale=${vv.scale}`,
     );
   }
   if (page.media) {
     push(
       `Media: dark=${page.media.prefersColorSchemeDark ? 'yes' : 'no'} ` +
         `reducedMotion=${page.media.prefersReducedMotion ? 'yes' : 'no'} ` +
-        `portrait=${page.media.portrait ? 'yes' : 'no'}`
+        `portrait=${page.media.portrait ? 'yes' : 'no'}`,
     );
   }
   if (dom.trees) {
@@ -365,7 +387,7 @@ export function formatText(report: any, options: any = {}): string {
       `DOM: ${stats.elementNodes ?? 0} elements (visible ${stats.visibleElements ?? 0}, ` +
         `hidden ${stats.hiddenElements ?? 0}), depth ${stats.maxDepthReached ?? 0}, ` +
         `shadowRoots ${stats.shadowRoots ?? 0}, iframes ${stats.iframes ?? 0}` +
-        `${stats.truncated || dom.truncated ? ', TRUNCATED' : ''}`
+        `${stats.truncated || dom.truncated ? ', TRUNCATED' : ''}`,
     );
   }
   if (report.landmarks) {
@@ -377,7 +399,9 @@ export function formatText(report: any, options: any = {}): string {
   if (report.headings?.items?.length) {
     push('Headings:');
     for (const heading of report.headings.items.slice(0, 30)) {
-      push(`  h${heading.level} ${heading.text || '(empty)'}${heading.id ? ` #${heading.id}` : ''}`);
+      push(
+        `  h${heading.level} ${heading.text || '(empty)'}${heading.id ? ` #${heading.id}` : ''}`,
+      );
     }
     if (report.headings.truncated) push('  … truncated');
   }
@@ -411,7 +435,7 @@ export function formatText(report: any, options: any = {}): string {
     const summary = report.network.summary || {};
     push(
       `Network: ${summary.total ?? 0} requests, ${summary.failed ?? 0} failed, ` +
-        `${summary.statusClasses ? JSON.stringify(summary.statusClasses) : ''}`
+        `${summary.statusClasses ? JSON.stringify(summary.statusClasses) : ''}`,
     );
     for (const request of (report.network.failures || []).slice(0, 10)) {
       push(`  failed: ${request.method || '?'} ${request.url} ${request.errorText || ''}`);
@@ -420,7 +444,9 @@ export function formatText(report: any, options: any = {}): string {
   if (report.storage) {
     const local = report.storage.localStorage || {};
     const session = report.storage.sessionStorage || {};
-    push(`Storage: localStorage ${local.count ?? 0} keys, sessionStorage ${session.count ?? 0} keys`);
+    push(
+      `Storage: localStorage ${local.count ?? 0} keys, sessionStorage ${session.count ?? 0} keys`,
+    );
   }
   if (report.cookies) {
     push(`Cookies: ${report.cookies.count ?? 0}`);
@@ -429,7 +455,7 @@ export function formatText(report: any, options: any = {}): string {
     for (const shot of report.screenshots) {
       const role = shot.role ? `[${shot.role}] ` : '';
       push(
-        `Screenshot: ${role}${shot.path} (${shot.bytes} bytes${shot.width ? `, ${shot.width}x${shot.height}` : ''})`
+        `Screenshot: ${role}${shot.path} (${shot.bytes} bytes${shot.width ? `, ${shot.width}x${shot.height}` : ''})`,
       );
     }
   }
@@ -457,7 +483,7 @@ export function formatText(report: any, options: any = {}): string {
       push(
         `${'  '.repeat(depth)}${node.selector || node.tag}${size}` +
           `${flags.length ? ` [${flags.join(',')}]` : ''}` +
-          `${node.ownText ? ` “${node.ownText}”` : ''}`
+          `${node.ownText ? ` “${node.ownText}”` : ''}`,
       );
       emitted += 1;
       for (const child of node.children || []) walkText(child, depth + 1);

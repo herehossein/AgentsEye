@@ -22,7 +22,11 @@ export function parseInteger(
   return n;
 }
 
-export function parseEnum<T extends string>(value: any, name: string, allowed: readonly T[] | T[]): T {
+export function parseEnum<T extends string>(
+  value: any,
+  name: string,
+  allowed: readonly T[] | T[],
+): T {
   const normalized = String(value).toLowerCase() as T;
   if (!allowed.includes(normalized)) {
     throw new UsageError(`${name} expects one of: ${allowed.join(', ')}`);
@@ -38,7 +42,9 @@ export function parseViewport(value: any): ViewportConfig {
   }
   const match = /^(\d+)x(\d+)$/i.exec(trimmed);
   if (!match) {
-    throw new UsageError('--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl)');
+    throw new UsageError(
+      '--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl)',
+    );
   }
   const width = parseInteger(match[1], '--viewport width', { min: 1, max: 20_000 });
   const height = parseInteger(match[2], '--viewport height', { min: 1, max: 20_000 });
@@ -54,7 +60,9 @@ export function parseHeader(value: any): { name: string; value: string } {
   const index = String(value).indexOf(':');
   if (index <= 0) throw new UsageError('--header expects "Name: Value"');
   const name = String(value).slice(0, index).trim();
-  const headerValue = String(value).slice(index + 1).trim();
+  const headerValue = String(value)
+    .slice(index + 1)
+    .trim();
   if (!/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name)) {
     throw new UsageError(`Invalid header name: ${name}`);
   }
@@ -380,7 +388,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
         const raw = take();
         const parts = parseList(raw);
         if (parts.length === 0) {
-          throw new UsageError('--viewports expects a comma-separated list of viewports or presets');
+          throw new UsageError(
+            '--viewports expects a comma-separated list of viewports or presets',
+          );
         }
         options.customViewports = parts.map((part) => {
           const parsed = parseViewport(part);
@@ -388,7 +398,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
             width: parsed.width,
             height: parsed.height,
             dpr: parsed.dpr ?? options.viewport.dpr ?? 1,
-            mobile: parsed.mobile ?? (parsed.width < 768),
+            mobile: parsed.mobile ?? parsed.width < 768,
           };
         });
         options.matrix = true;
@@ -404,7 +414,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.colorScheme = parseEnum(take(), '--color-scheme', ['light', 'dark'] as const);
         break;
       case 'reduced-motion':
-        options.reducedMotion = parseEnum(take(), '--reduced-motion', ['reduce', 'no-preference'] as const);
+        options.reducedMotion = parseEnum(take(), '--reduced-motion', [
+          'reduce',
+          'no-preference',
+        ] as const);
         break;
       case 'timezone':
         options.timezone = take();
@@ -489,7 +502,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
         if (!list.length) throw new UsageError('--console-level expects comma-separated levels');
         for (const item of list) {
           if (!validLevels.includes(item)) {
-            throw new UsageError(`Invalid --console-level "${item}". Valid: error, warn, info, log, debug, all`);
+            throw new UsageError(
+              `Invalid --console-level "${item}". Valid: error, warn, info, log, debug, all`,
+            );
           }
         }
         options.consoleLevel = list.includes('all') ? null : list;
@@ -497,7 +512,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       }
       case 'console-filter': {
         const raw = take();
-        if (!raw.trim()) throw new UsageError('--console-filter expects a non-empty string or regex');
+        if (!raw.trim())
+          throw new UsageError('--console-filter expects a non-empty string or regex');
         if (/^\/(.+)\/([a-z]*)$/i.test(raw)) {
           const m = /^\/(.+)\/([a-z]*)$/i.exec(raw)!;
           try {
@@ -519,7 +535,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.redact = parseEnum(take(), '--redact', ['none', 'sensitive', 'all'] as const);
         break;
       case 'sanitize-injections':
-        options.sanitizeInjections = parseEnum(take(), '--sanitize-injections', ['neutralize', 'warn', 'none'] as const);
+        options.sanitizeInjections = parseEnum(take(), '--sanitize-injections', [
+          'neutralize',
+          'warn',
+          'none',
+        ] as const);
         break;
       case 'no-sanitize-injections':
         options.sanitizeInjections = 'none';
@@ -546,10 +566,17 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.fullPage = true;
         break;
       case 'screenshot-format':
-        options.screenshotFormat = parseEnum(take(), '--screenshot-format', ['png', 'jpeg', 'webp'] as const);
+        options.screenshotFormat = parseEnum(take(), '--screenshot-format', [
+          'png',
+          'jpeg',
+          'webp',
+        ] as const);
         break;
       case 'screenshot-quality':
-        options.screenshotQuality = parseInteger(take(), '--screenshot-quality', { min: 0, max: 100 });
+        options.screenshotQuality = parseInteger(take(), '--screenshot-quality', {
+          min: 0,
+          max: 100,
+        });
         break;
       case 'hide-scrollbars':
         options.hideScrollbars = true;
@@ -621,7 +648,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
   for (const section of [...(options.include ?? []), ...(options.exclude ?? [])]) {
     if (!KNOWN_SECTIONS.has(section)) {
-      throw new UsageError(`Unknown section "${section}". Known: ${Array.from(KNOWN_SECTIONS).join(', ')}`);
+      throw new UsageError(
+        `Unknown section "${section}". Known: ${Array.from(KNOWN_SECTIONS).join(', ')}`,
+      );
     }
   }
   if (positionals[0] === 'clean') {
@@ -636,7 +665,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
     const countModes = (hasRunIds ? 1 : 0) + (hasOlderThan ? 1 : 0) + (hasAll ? 1 : 0);
 
     if (countModes === 0) {
-      throw new UsageError('Usage: clean <run-id> [<run-id> ...] | clean --older-than <duration> | clean --all');
+      throw new UsageError(
+        'Usage: clean <run-id> [<run-id> ...] | clean --older-than <duration> | clean --all',
+      );
     }
     if (countModes > 1) {
       throw new UsageError('clean accepts either run IDs, --older-than, or --all (not multiple)');
@@ -662,7 +693,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   } else if (options.command === 'diff') {
     if (positionals.length) throw new UsageError('--diff does not accept a target URL');
   } else {
-    if (positionals.length !== 1) throw new UsageError('One target URL is required. Run --help for usage.');
+    if (positionals.length !== 1)
+      throw new UsageError('One target URL is required. Run --help for usage.');
     options.url = positionals[0];
   }
   for (const id of options.runIds) validateRunId(id);
@@ -678,7 +710,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (options.allowDestructive && !options.explore && !options.actions.length) {
     throw new UsageError('--allow-destructive requires --explore or an explicit interaction');
   }
-  if (options.actions.length > 50) throw new UsageError('At most 50 explicit interactions are allowed');
+  if (options.actions.length > 50)
+    throw new UsageError('At most 50 explicit interactions are allowed');
   for (const action of options.actions) {
     if (!action.value.trim()) throw new UsageError(`--${action.type} expects a non-empty value`);
     if (action.type === 'scroll' && !/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(action.value)) {
