@@ -4194,6 +4194,31 @@ function inPageProbe(config) {
   const W = typeof window !== "undefined" ? window : null;
   const D = typeof document !== "undefined" ? document : null;
   if (!D || !W) return { error: "No document available" };
+  let registry = W.__agentsEyeRefsV1 || (typeof globalThis !== "undefined" ? globalThis.__agentsEyeRefsV1 : void 0);
+  if (!registry || registry.document !== D) {
+    registry = { document: D, map: /* @__PURE__ */ new Map(), nextId: 1 };
+    try {
+      Object.defineProperty(W, "__agentsEyeRefsV1", {
+        value: registry,
+        configurable: true,
+        writable: true
+      });
+    } catch {
+    }
+    if (typeof globalThis !== "undefined" && globalThis !== W) {
+      try {
+        Object.defineProperty(globalThis, "__agentsEyeRefsV1", {
+          value: registry,
+          configurable: true,
+          writable: true
+        });
+      } catch {
+      }
+    }
+  } else {
+    registry.map.clear();
+    registry.nextId = 1;
+  }
   const warnings = [];
   const stats = {
     nodes: 0,
@@ -4895,40 +4920,74 @@ function inPageProbe(config) {
     return { count: elements.length, items, truncated: elements.length > config.maxForms };
   };
   const collectInteractive = () => {
-    const selector = 'a[href],button,summary,[role="button"],[role="link"],[role="menuitem"],[role="tab"],[tabindex],[onclick]';
-    let elements = [];
-    try {
-      elements = deepQuery(selector);
-    } catch {
-      elements = [];
+    let scopeRoot = null;
+    if (typeof config.interactiveScope === "string" && config.interactiveScope.trim()) {
+      try {
+        scopeRoot = D.querySelector(config.interactiveScope.trim());
+      } catch {
+        scopeRoot = null;
+      }
+      if (!scopeRoot) {
+        return { count: 0, items: [], truncated: false };
+      }
     }
+    const interactiveSelector = 'button,a[href],summary,[role="button"],[role="link"],[role="tab"],[role="checkbox"],[role="switch"],[role="menuitem"],[tabindex]:not([tabindex="-1"]),[onclick]';
+    const pool = scopeRoot ? summaryElements.filter((el) => scopeRoot.contains(el)) : summaryElements;
     const seen = /* @__PURE__ */ new Set();
     const items = [];
-    for (const el of elements) {
-      if (seen.has(el)) continue;
+    for (const el of pool) {
+      if (!el || el.nodeType !== 1 || seen.has(el)) continue;
       seen.add(el);
+      let isCandidate = false;
+      try {
+        if (el.matches(interactiveSelector)) isCandidate = true;
+      } catch {
+      }
+      if (!isCandidate && typeof el.onclick === "function") isCandidate = true;
+      if (!isCandidate) {
+        const style2 = styleOf(el);
+        if (style2 && styleValue(style2, "cursor") === "pointer") isCandidate = true;
+      }
+      if (!isCandidate) continue;
       const rect = rectOf(el);
       const style = styleOf(el);
       const width = rect?.viewport.width ?? 0;
       const height = rect?.viewport.height ?? 0;
-      const rendered = visibleState(el, style, rect).rendered && width > 0 && height > 0;
+      const isVisible = width > 0 && height > 0 && styleValue(style, "visibility") !== "hidden" && styleValue(style, "display") !== "none" && visibleState(el, style, rect).rendered;
+      if (!isVisible) continue;
+      const refId = `@e${registry.nextId++}`;
+      const rawNum = String(registry.nextId - 1);
+      const strippedRef = refId.slice(1);
+      registry.map.set(refId, el);
+      registry.map.set(strippedRef, el);
+      registry.map.set(rawNum, el);
+      try {
+        el.setAttribute("data-agentseye-ref", strippedRef);
+      } catch {
+      }
+      const rawName = basicName(el, 50) || textOf(el) || "";
+      const cleanName = cut(
+        rawName.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim(),
+        50
+      );
       items.push({
+        ref: refId,
         tag: el.tagName.toLowerCase(),
         role: el.getAttribute("role") || null,
-        accessibleName: cut(basicName(el, config.textLimit), config.textLimit),
+        name: cleanName,
+        accessibleName: cleanName,
         text: cut(textOf(el), config.textLimit),
         href: el.getAttribute("href"),
         tabIndex: el.tabIndex,
         disabled: Boolean(el.disabled) || el.getAttribute("aria-disabled") === "true" || el.getAttribute("disabled") != null,
-        rendered,
-        smallTouchTarget: rendered && !el.disabled && el.getAttribute("aria-disabled") !== "true" && !(el.tagName === "A" && el.closest("p") && styleValue(style, "display") === "inline") && isInteractive(el) && (width < 44 || height < 44),
+        rendered: true,
+        smallTouchTarget: !el.disabled && el.getAttribute("aria-disabled") !== "true" && !(el.tagName === "A" && el.closest("p") && styleValue(style, "display") === "inline") && isInteractive(el) && (width < 44 || height < 44),
         fontSize: styleValue(style, "font-size"),
         rect,
         cssPath: cssPath(el)
       });
-      if (items.length >= config.maxInteractive) break;
     }
-    return { count: elements.length, items, truncated: elements.length > items.length };
+    return { count: items.length, items, truncated: false };
   };
   const collectImages = () => {
     let elements = [];

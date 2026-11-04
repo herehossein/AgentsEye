@@ -6,6 +6,8 @@ import {
   compactDom,
   minimalSummary,
   selectSections,
+  inPageProbe,
+  makeProbeConfig,
   TOOL_NAME,
   TOOL_VERSION,
   SCHEMA_VERSION,
@@ -639,4 +641,168 @@ test('selectSections: handles edge cases (empty strings, non-existent sections, 
   assert.equal(selectSections(null, { only: 'issues' }), null);
   const noOpts = selectSections(report);
   assert.deepEqual(noOpts, report);
+});
+
+// ============================================================================
+// 6. inPageProbe Universal Semantic Ref Indexing (@eN)
+// ============================================================================
+
+function createMockElement(tag, attrs = {}, children = []) {
+  const attrMap = new Map(Object.entries(attrs));
+  const el = {
+    nodeType: 1,
+    tagName: tag.toUpperCase(),
+    children,
+    childNodes: children,
+    closest: () => null,
+    getAttribute: (k) => attrMap.get(k) ?? null,
+    hasAttribute: (k) => attrMap.has(k),
+    setAttribute: (k, v) => attrMap.set(k, String(v)),
+    removeAttribute: (k) => attrMap.delete(k),
+    matches: (s) => {
+      if (s.includes('button') && tag === 'button') return true;
+      if (s.includes('a[href]') && tag === 'a' && attrMap.has('href')) return true;
+      if (s.includes('summary') && tag === 'summary') return true;
+      if (s.includes('[role="tab"]') && attrMap.get('role') === 'tab') return true;
+      return false;
+    },
+    contains(candidate) {
+      if (candidate === this) return true;
+      return children.some((child) => (child.contains ? child.contains(candidate) : child === candidate));
+    },
+    getBoundingClientRect: () => ({ x: 0, y: 0, width: 100, height: 40, top: 0, bottom: 40, left: 0, right: 100 }),
+  };
+  return el;
+}
+
+test('inPageProbe assigns sequential @e1..@eN refs to all interactive elements', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+
+  try {
+    const btn1 = createMockElement('button', { id: 'btn-1', 'aria-label': 'Submit Form' });
+    const link1 = createMockElement('a', { href: 'https://example.com/docs' }, []);
+    const tab1 = createMockElement('div', { role: 'tab', 'aria-label': 'Settings Tab' });
+    const body = createMockElement('body', {}, [btn1, link1, tab1]);
+    const html = createMockElement('html', {}, [body]);
+
+    const mockDoc = {
+      documentElement: html,
+      body,
+      title: 'Test Ref Suite',
+      readyState: 'complete',
+      contentType: 'text/html',
+      characterSet: 'UTF-8',
+      compatMode: 'CSS1Compat',
+      querySelector: () => null,
+    };
+
+    const mockWin = {
+      location: { href: 'http://localhost/test' },
+      innerWidth: 1024,
+      innerHeight: 768,
+      scrollX: 0,
+      scrollY: 0,
+      getComputedStyle: () => ({
+        getPropertyValue: (p) => (p === 'visibility' ? 'visible' : p === 'display' ? 'block' : ''),
+        visibility: 'visible',
+        display: 'block',
+        opacity: '1',
+        cursor: 'default',
+      }),
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.window = mockWin;
+
+    const config = makeProbeConfig({ styleProps: [] });
+    const report = inPageProbe(config);
+
+    assert.ok(report.interactive);
+    assert.equal(report.interactive.items.length, 3);
+    assert.equal(report.interactive.truncated, false);
+
+    assert.equal(report.interactive.items[0].ref, '@e1');
+    assert.equal(report.interactive.items[0].tag, 'button');
+    assert.equal(report.interactive.items[0].accessibleName, 'Submit Form');
+    assert.equal(btn1.getAttribute('data-agentseye-ref'), 'e1');
+
+    assert.equal(report.interactive.items[1].ref, '@e2');
+    assert.equal(report.interactive.items[1].tag, 'a');
+    assert.equal(link1.getAttribute('data-agentseye-ref'), 'e2');
+
+    assert.equal(report.interactive.items[2].ref, '@e3');
+    assert.equal(report.interactive.items[2].role, 'tab');
+    assert.equal(tab1.getAttribute('data-agentseye-ref'), 'e3');
+
+    const reg = mockWin.__agentsEyeRefsV1;
+    assert.ok(reg);
+    assert.equal(reg.map.get('@e1'), btn1);
+    assert.equal(reg.map.get('e1'), btn1);
+    assert.equal(reg.map.get('1'), btn1);
+    assert.equal(reg.map.get('@e2'), link1);
+    assert.equal(reg.map.get('@e3'), tab1);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+  }
+});
+
+test('inPageProbe respects --interactive-scope container boundary', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+
+  try {
+    const modalBtn = createMockElement('button', { id: 'modal-confirm', 'aria-label': 'Confirm' });
+    const modal = createMockElement('div', { id: 'modal-container' }, [modalBtn]);
+    const outsideBtn = createMockElement('button', { id: 'outside-btn', 'aria-label': 'Outside' });
+    const body = createMockElement('body', {}, [modal, outsideBtn]);
+    const html = createMockElement('html', {}, [body]);
+
+    const mockDoc = {
+      documentElement: html,
+      body,
+      title: 'Scoped Test',
+      readyState: 'complete',
+      contentType: 'text/html',
+      characterSet: 'UTF-8',
+      compatMode: 'CSS1Compat',
+      querySelector: (selector) => (selector === '#modal-container' ? modal : null),
+    };
+
+    const mockWin = {
+      location: { href: 'http://localhost/test' },
+      innerWidth: 1024,
+      innerHeight: 768,
+      scrollX: 0,
+      scrollY: 0,
+      getComputedStyle: () => ({
+        getPropertyValue: (p) => (p === 'visibility' ? 'visible' : p === 'display' ? 'block' : ''),
+        visibility: 'visible',
+        display: 'block',
+        opacity: '1',
+        cursor: 'default',
+      }),
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.window = mockWin;
+
+    const config = makeProbeConfig({ styleProps: [], interactiveScope: '#modal-container' });
+    const report = inPageProbe(config);
+
+    assert.ok(report.interactive);
+    assert.equal(report.interactive.items.length, 1);
+    assert.equal(report.interactive.items[0].ref, '@e1');
+    assert.equal(report.interactive.items[0].accessibleName, 'Confirm');
+    assert.equal(modalBtn.getAttribute('data-agentseye-ref'), 'e1');
+    assert.equal(outsideBtn.getAttribute('data-agentseye-ref'), null);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+  }
 });
