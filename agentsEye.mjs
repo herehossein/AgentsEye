@@ -5051,7 +5051,12 @@ function inPageProbe(config) {
       if (!isCandidate && typeof el.onclick === "function") isCandidate = true;
       if (!isCandidate) {
         const style2 = styleOf(el);
-        if (style2 && styleValue(style2, "cursor") === "pointer") isCandidate = true;
+        if (style2 && styleValue(style2, "cursor") === "pointer") {
+          const parentCursor = el.parentElement ? styleValue(styleOf(el.parentElement), "cursor") : null;
+          if (parentCursor !== "pointer") {
+            isCandidate = true;
+          }
+        }
       }
       if (!isCandidate) continue;
       const rect = rectOf(el);
@@ -5602,11 +5607,12 @@ function inPageInteractionProbe(command, safety) {
     const file = chain.some(
       (node) => node.tagName === "INPUT" && node.type === "file" || node.tagName === "LABEL" && node.control?.type === "file"
     );
-    const editable = chain.some(
-      (node) => node.isContentEditable || ["TEXTAREA", "SELECT"].includes(node.tagName) || node.tagName === "INPUT" && node.type !== "button" || node.tagName === "LABEL" && Boolean(node.control) || ["checkbox", "radio", "switch", "slider", "spinbutton", "combobox"].includes(
-        node.getAttribute("role")
-      )
-    );
+    const editable = chain.some((node) => {
+      const nodeTag = node.tagName?.toLowerCase();
+      const nodeType = (node.type || node.getAttribute?.("type") || "").toLowerCase();
+      const ctrlType = (node.control?.type || "").toLowerCase();
+      return node.isContentEditable || ["textarea", "select"].includes(nodeTag) || nodeTag === "input" && !["button", "checkbox", "radio"].includes(nodeType) || nodeTag === "label" && Boolean(node.control) && !["checkbox", "radio"].includes(ctrlType) || ["slider", "spinbutton", "combobox"].includes(node.getAttribute?.("role"));
+    });
     const visible = el.isConnected && el.getClientRects().length > 0 && style.display !== "none" && style.visibility === "visible" && Number(style.opacity) > 0 && rect.width > 0 && rect.height > 0 && rect.x < innerWidth && rect.y < innerHeight && rect.x + rect.width > 0 && rect.y + rect.height > 0;
     return {
       id: state.ids.get(el),
@@ -5705,17 +5711,18 @@ function inPageInteractionProbe(command, safety) {
   if (command.id) target = state.targets.get(command.id);
   else if (isRef) {
     const refKey = command.selector.trim();
-    const rawNum = refKey.replace(/^@e/i, "");
+    const normalizedRef = refKey.toLowerCase();
+    const rawNum = normalizedRef.replace(/^@e/, "");
     const registry = globalThis.__agentsEyeRefsV1 || (typeof window !== "undefined" ? window.__agentsEyeRefsV1 : void 0);
-    if (registry && registry.map && registry.map.has(refKey)) {
-      const candidate = registry.map.get(refKey);
+    if (registry && registry.map) {
+      const candidate = registry.map.get(normalizedRef) || registry.map.get(refKey) || registry.map.get(rawNum) || registry.map.get(`e${rawNum}`);
       if (candidate && candidate.isConnected) target = candidate;
     }
     if (!target) {
       for (const root of roots) {
         if (typeof root.querySelector !== "function") continue;
         target = root.querySelector(
-          `[data-agentseye-ref="${rawNum}"],[data-agentseye-ref="${refKey}"],[data-agentseye-ref="e${rawNum}"]`
+          `[data-agentseye-ref="${rawNum}"],[data-agentseye-ref="${refKey}"],[data-agentseye-ref="${normalizedRef}"],[data-agentseye-ref="e${rawNum}"]`
         );
         if (target && target.isConnected) break;
       }
@@ -5739,7 +5746,11 @@ function inPageInteractionProbe(command, safety) {
   }
   if (!target) return { ...context, reason: "Target not found or stale" };
   if (command.op === "scrollIntoView") {
-    target.scrollIntoView({ behavior: "instant", block: "center", inline: "center" });
+    const proto = typeof Element !== "undefined" ? Element.prototype : Object.getPrototypeOf(target);
+    const scrollFn = proto?.scrollIntoView || target.scrollIntoView;
+    if (typeof scrollFn === "function") {
+      scrollFn.call(target, { behavior: "instant", block: "center", inline: "center" });
+    }
     return { ...context, status: "applied", target: command.selector };
   }
   const info = describe(target);
@@ -5757,16 +5768,44 @@ function inPageInteractionProbe(command, safety) {
     if (!deeper || deeper === hit) break;
     hit = deeper;
   }
-  if (!hit || !ancestors(hit).includes(target)) {
+  const isLabelAssociated = (hitEl, targetEl) => {
+    if (!hitEl || !targetEl) return false;
+    try {
+      const hitLabel = hitEl.closest ? hitEl.closest("label") : null;
+      if (hitLabel && (hitLabel.control === targetEl || hitLabel.contains(targetEl))) return true;
+      if (targetEl.labels && Array.from(targetEl.labels).some((lbl) => lbl && lbl.contains(hitEl))) return true;
+      const targetLabel = targetEl.closest ? targetEl.closest("label") : null;
+      if (targetLabel && targetLabel.contains(hitEl)) return true;
+    } catch {
+    }
+    return false;
+  };
+  const describeBlocker = (el) => {
+    if (!el || !el.tagName) return "unknown";
+    const tag = el.tagName.toLowerCase();
+    const idVal = el.id || el.getAttribute?.("id");
+    const id = idVal ? `#${idVal}` : "";
+    let classes = "";
+    const classVal = typeof el.className === "string" ? el.className : el.getAttribute?.("class") || "";
+    if (classVal && classVal.trim()) {
+      classes = "." + classVal.trim().split(/\s+/).slice(0, 2).join(".");
+    } else if (el.classList && el.classList.length > 0) {
+      classes = "." + Array.from(el.classList).slice(0, 2).join(".");
+    }
+    return `${tag}${id}${classes}`;
+  };
+  const isHitValid = hit && (ancestors(hit).includes(target) || isLabelAssociated(hit, target));
+  if (!isHitValid) {
+    const blockerDesc = hit ? describeBlocker(hit) : null;
     return {
       ...context,
-      reason: "Target is covered or failed hit testing",
+      reason: blockerDesc ? `Target is covered by <${blockerDesc}> at click point (${Math.round(x)}, ${Math.round(y)})` : "Target is covered or failed hit testing",
       target: publicTarget(info)
     };
   }
   const hitInfo = describe(hit);
   const hitReason = safety(hitInfo, command.allowDestructive, false);
-  if (hitReason) return { ...context, reason: hitReason, target: publicTarget(info) };
+  if (hitReason && !isLabelAssociated(hit, target)) return { ...context, reason: hitReason, target: publicTarget(info) };
   return { ...context, reason: null, target: publicTarget(info), point: { x, y } };
 }
 
@@ -5777,6 +5816,8 @@ var DOM_CLEANUP_SCRIPT = `(() => {
       if (!root || !root.querySelectorAll) return;
       root.querySelectorAll('[data-agentseye-ref]').forEach((el) => {
         el.removeAttribute('data-agentseye-ref');
+      });
+      root.querySelectorAll('*').forEach((el) => {
         if (el.shadowRoot) scrub(el.shadowRoot);
       });
     };

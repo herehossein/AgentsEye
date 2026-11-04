@@ -900,7 +900,12 @@ export function inPageProbe(config) {
       if (!isCandidate && typeof el.onclick === 'function') isCandidate = true;
       if (!isCandidate) {
         const style = styleOf(el);
-        if (style && styleValue(style, 'cursor') === 'pointer') isCandidate = true;
+        if (style && styleValue(style, 'cursor') === 'pointer') {
+          const parentCursor = el.parentElement ? styleValue(styleOf(el.parentElement), 'cursor') : null;
+          if (parentCursor !== 'pointer') {
+            isCandidate = true;
+          }
+        }
       }
 
       if (!isCandidate) continue;

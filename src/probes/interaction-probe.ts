@@ -145,16 +145,18 @@ export function inPageInteractionProbe(command, safety) {
         (node.tagName === 'INPUT' && node.type === 'file') ||
         (node.tagName === 'LABEL' && node.control?.type === 'file'),
     );
-    const editable = chain.some(
-      (node) =>
+    const editable = chain.some((node) => {
+      const nodeTag = node.tagName?.toLowerCase();
+      const nodeType = (node.type || node.getAttribute?.('type') || '').toLowerCase();
+      const ctrlType = (node.control?.type || '').toLowerCase();
+      return (
         node.isContentEditable ||
-        ['TEXTAREA', 'SELECT'].includes(node.tagName) ||
-        (node.tagName === 'INPUT' && node.type !== 'button') ||
-        (node.tagName === 'LABEL' && Boolean(node.control)) ||
-        ['checkbox', 'radio', 'switch', 'slider', 'spinbutton', 'combobox'].includes(
-          node.getAttribute('role'),
-        ),
-    );
+        ['textarea', 'select'].includes(nodeTag) ||
+        (nodeTag === 'input' && !['button', 'checkbox', 'radio'].includes(nodeType)) ||
+        (nodeTag === 'label' && Boolean(node.control) && !['checkbox', 'radio'].includes(ctrlType)) ||
+        ['slider', 'spinbutton', 'combobox'].includes(node.getAttribute?.('role'))
+      );
+    });
     const visible =
       el.isConnected &&
       el.getClientRects().length > 0 &&
@@ -276,12 +278,17 @@ export function inPageInteractionProbe(command, safety) {
   if (command.id) target = state.targets.get(command.id);
   else if (isRef) {
     const refKey = command.selector.trim();
-    const rawNum = refKey.replace(/^@e/i, '');
+    const normalizedRef = refKey.toLowerCase();
+    const rawNum = normalizedRef.replace(/^@e/, '');
     const registry =
       globalThis.__agentsEyeRefsV1 ||
       (typeof window !== 'undefined' ? window.__agentsEyeRefsV1 : undefined);
-    if (registry && registry.map && registry.map.has(refKey)) {
-      const candidate = registry.map.get(refKey);
+    if (registry && registry.map) {
+      const candidate =
+        registry.map.get(normalizedRef) ||
+        registry.map.get(refKey) ||
+        registry.map.get(rawNum) ||
+        registry.map.get(`e${rawNum}`);
       if (candidate && candidate.isConnected) target = candidate;
     }
     if (!target) {
@@ -289,7 +296,7 @@ export function inPageInteractionProbe(command, safety) {
       for (const root of roots) {
         if (typeof root.querySelector !== 'function') continue;
         target = root.querySelector(
-          `[data-agentseye-ref="${rawNum}"],[data-agentseye-ref="${refKey}"],[data-agentseye-ref="e${rawNum}"]`,
+          `[data-agentseye-ref="${rawNum}"],[data-agentseye-ref="${refKey}"],[data-agentseye-ref="${normalizedRef}"],[data-agentseye-ref="e${rawNum}"]`,
         );
         if (target && target.isConnected) break;
       }
@@ -314,7 +321,11 @@ export function inPageInteractionProbe(command, safety) {
   if (!target) return { ...context, reason: 'Target not found or stale' };
 
   if (command.op === 'scrollIntoView') {
-    target.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+    const proto = typeof Element !== 'undefined' ? Element.prototype : Object.getPrototypeOf(target);
+    const scrollFn = proto?.scrollIntoView || target.scrollIntoView;
+    if (typeof scrollFn === 'function') {
+      scrollFn.call(target, { behavior: 'instant', block: 'center', inline: 'center' });
+    }
     return { ...context, status: 'applied', target: command.selector };
   }
   const info = describe(target);
@@ -332,10 +343,39 @@ export function inPageInteractionProbe(command, safety) {
     if (!deeper || deeper === hit) break;
     hit = deeper;
   }
-  if (!hit || !ancestors(hit).includes(target)) {
+  const isLabelAssociated = (hitEl, targetEl) => {
+    if (!hitEl || !targetEl) return false;
+    try {
+      const hitLabel = hitEl.closest ? hitEl.closest('label') : null;
+      if (hitLabel && (hitLabel.control === targetEl || hitLabel.contains(targetEl))) return true;
+      if (targetEl.labels && Array.from(targetEl.labels).some((lbl) => lbl && lbl.contains(hitEl))) return true;
+      const targetLabel = targetEl.closest ? targetEl.closest('label') : null;
+      if (targetLabel && targetLabel.contains(hitEl)) return true;
+    } catch {}
+    return false;
+  };
+  const describeBlocker = (el) => {
+    if (!el || !el.tagName) return 'unknown';
+    const tag = el.tagName.toLowerCase();
+    const idVal = el.id || el.getAttribute?.('id');
+    const id = idVal ? `#${idVal}` : '';
+    let classes = '';
+    const classVal = typeof el.className === 'string' ? el.className : el.getAttribute?.('class') || '';
+    if (classVal && classVal.trim()) {
+      classes = '.' + classVal.trim().split(/\s+/).slice(0, 2).join('.');
+    } else if (el.classList && el.classList.length > 0) {
+      classes = '.' + Array.from(el.classList).slice(0, 2).join('.');
+    }
+    return `${tag}${id}${classes}`;
+  };
+  const isHitValid = hit && (ancestors(hit).includes(target) || isLabelAssociated(hit, target));
+  if (!isHitValid) {
+    const blockerDesc = hit ? describeBlocker(hit) : null;
     return {
       ...context,
-      reason: 'Target is covered or failed hit testing',
+      reason: blockerDesc
+        ? `Target is covered by <${blockerDesc}> at click point (${Math.round(x)}, ${Math.round(y)})`
+        : 'Target is covered or failed hit testing',
       target: publicTarget(info),
     };
   }
@@ -343,6 +383,6 @@ export function inPageInteractionProbe(command, safety) {
   // container. Recheck it too, including its ancestors, before native dispatch.
   const hitInfo = describe(hit);
   const hitReason = safety(hitInfo, command.allowDestructive, false);
-  if (hitReason) return { ...context, reason: hitReason, target: publicTarget(info) };
+  if (hitReason && !isLabelAssociated(hit, target)) return { ...context, reason: hitReason, target: publicTarget(info) };
   return { ...context, reason: null, target: publicTarget(info), point: { x, y } };
 }

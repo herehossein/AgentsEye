@@ -9,6 +9,8 @@ export const DOM_CLEANUP_SCRIPT = `(() => {
       if (!root || !root.querySelectorAll) return;
       root.querySelectorAll('[data-agentseye-ref]').forEach((el) => {
         el.removeAttribute('data-agentseye-ref');
+      });
+      root.querySelectorAll('*').forEach((el) => {
         if (el.shadowRoot) scrub(el.shadowRoot);
       });
     };

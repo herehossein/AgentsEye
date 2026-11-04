@@ -1101,3 +1101,304 @@ test('DOM hygiene cleans up data-agentseye-ref attributes after inspection', () 
     globalThis.__agentsEyeRefsV1 = prevRefs;
   }
 });
+
+test('inPageProbe skips child elements whose cursor: pointer is inherited from parentElement', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+
+  try {
+    const childSpan = createMockElement('span', { id: 'inner-label' });
+    const parentCard = createMockElement('div', { id: 'card-container' }, [childSpan]);
+    childSpan.parentElement = parentCard;
+    const body = createMockElement('body', {}, [parentCard]);
+    parentCard.parentElement = body;
+    body.parentElement = null;
+    const html = createMockElement('html', {}, [body]);
+
+    const mockDoc = {
+      documentElement: html,
+      body,
+      title: 'Inherited Cursor Test',
+      readyState: 'complete',
+      contentType: 'text/html',
+      characterSet: 'UTF-8',
+      compatMode: 'CSS1Compat',
+      querySelector: () => null,
+    };
+
+    const mockWin = {
+      location: { href: 'http://localhost/cursor-test' },
+      innerWidth: 1024,
+      innerHeight: 768,
+      scrollX: 0,
+      scrollY: 0,
+      getComputedStyle: (el) => {
+        const isPointer = el === parentCard || el === childSpan;
+        return {
+          getPropertyValue: (p) =>
+            p === 'cursor' ? (isPointer ? 'pointer' : 'default') : p === 'visibility' ? 'visible' : 'block',
+          visibility: 'visible',
+          display: 'block',
+          opacity: '1',
+          cursor: isPointer ? 'pointer' : 'default',
+        };
+      },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.window = mockWin;
+
+    const config = makeProbeConfig({ styleProps: [] });
+    const report = inPageProbe(config);
+
+    assert.ok(report.interactive);
+    // Only parentCard should be indexed; childSpan should be skipped
+    assert.equal(report.interactive.items.length, 1);
+    assert.equal(report.interactive.items[0].ref, '@e1');
+    assert.equal(parentCard.getAttribute('data-agentseye-ref'), 'e1');
+    assert.equal(childSpan.getAttribute('data-agentseye-ref'), null);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+  }
+});
+
+test('inPageInteractionProbe reports blocker descriptor when target is covered', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    const targetEl = createMockElement('button', { id: 'target-btn' });
+    targetEl.isConnected = true;
+    targetEl.getClientRects = () => [{ x: 10, y: 10, width: 80, height: 20 }];
+    targetEl.getRootNode = () => mockDoc;
+
+    const blockerEl = createMockElement('header', { id: 'sticky-nav', class: 'navbar sticky' });
+    blockerEl.className = 'navbar sticky';
+    blockerEl.classList = ['navbar', 'sticky'];
+
+    const mockDoc = {
+      querySelectorAll: () => [targetEl],
+      querySelector: () => targetEl,
+      elementFromPoint: () => blockerEl,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    globalThis.innerWidth = 1024;
+    globalThis.innerHeight = 768;
+
+    const result = inPageInteractionProbe({ selector: '#target-btn' }, interactionSafety);
+    assert.match(result.reason, /^Target is covered by <header#sticky-nav\.navbar\.sticky> at click point \(\d+, \d+\)$/);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('inPageInteractionProbe considers hit-testing valid when label or span of checkbox is hit', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    const inputEl = createMockElement('input', { type: 'checkbox', id: 'terms-chk' });
+    inputEl.type = 'checkbox';
+    inputEl.isConnected = true;
+    inputEl.getClientRects = () => [{ x: 10, y: 10, width: 20, height: 20 }];
+    inputEl.getRootNode = () => mockDoc;
+
+    const spanEl = createMockElement('span', { class: 'custom-check' });
+    const labelEl = createMockElement('label', { class: 'checkbox-wrap' }, [inputEl, spanEl]);
+    labelEl.control = inputEl;
+    spanEl.closest = (tag) => (tag === 'label' ? labelEl : null);
+    inputEl.closest = (tag) => (tag === 'label' ? labelEl : null);
+
+    const mockDoc = {
+      querySelectorAll: () => [inputEl],
+      querySelector: () => inputEl,
+      elementFromPoint: () => spanEl,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    globalThis.innerWidth = 1024;
+    globalThis.innerHeight = 768;
+
+    const result = inPageInteractionProbe({ selector: '#terms-chk' }, interactionSafety);
+    assert.equal(result.reason, null);
+    assert.ok(result.point);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('inPageInteractionProbe resolves uppercase @E1 case-insensitively', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    const targetEl = createMockElement('button', { id: 'btn' });
+    targetEl.isConnected = true;
+    targetEl.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    targetEl.getRootNode = () => mockDoc;
+
+    const mockDoc = {
+      querySelectorAll: () => [targetEl],
+      querySelector: () => targetEl,
+      elementFromPoint: () => targetEl,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    globalThis.innerWidth = 1024;
+    globalThis.innerHeight = 768;
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([['@e1', targetEl]]),
+      document: mockDoc,
+      nextId: 2,
+    };
+
+    const result = inPageInteractionProbe({ selector: '@E1' }, interactionSafety);
+    assert.equal(result.reason, null);
+    assert.ok(result.point);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('inPageInteractionProbe scrollIntoView survives form property shadowing', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+  const prevElement = globalThis.Element;
+
+  let scrollCalledWith = null;
+  class MockElementClass {}
+  MockElementClass.prototype.scrollIntoView = function (options) {
+    scrollCalledWith = { target: this, options };
+  };
+  globalThis.Element = MockElementClass;
+
+  try {
+    const formEl = createMockElement('form', { id: 'my-form' });
+    formEl.isConnected = true;
+    // Simulate property shadowing: form.scrollIntoView is an input element, not a function!
+    formEl.scrollIntoView = { tagName: 'INPUT', name: 'scrollIntoView' };
+    formEl.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    formEl.getRootNode = () => mockDoc;
+
+    const mockDoc = {
+      querySelectorAll: () => [formEl],
+      querySelector: () => formEl,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([['@e1', formEl]]),
+      document: mockDoc,
+      nextId: 2,
+    };
+
+    const result = inPageInteractionProbe({ op: 'scrollIntoView', selector: '@e1' }, interactionSafety);
+    assert.equal(result.status, 'applied');
+    assert.ok(scrollCalledWith);
+    assert.equal(scrollCalledWith.target, formEl);
+    assert.deepEqual(scrollCalledWith.options, { behavior: 'instant', block: 'center', inline: 'center' });
+  } finally {
+    globalThis.Element = prevElement;
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('DOM hygiene recursively scrubs data-agentseye-ref from nested shadow roots', () => {
+  const prevDoc = globalThis.document;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+
+  try {
+    const innerBtn = createMockElement('button', { 'data-agentseye-ref': 'e9' });
+    const shadowRoot2 = {
+      querySelectorAll: (sel) => {
+        if (sel === '[data-agentseye-ref]') return [innerBtn];
+        if (sel === '*') return [innerBtn];
+        return [];
+      },
+    };
+
+    const childHost = createMockElement('div', { id: 'child-host' });
+    childHost.shadowRoot = shadowRoot2;
+
+    const shadowRoot1 = {
+      querySelectorAll: (sel) => {
+        if (sel === '[data-agentseye-ref]') return [];
+        if (sel === '*') return [childHost];
+        return [];
+      },
+    };
+
+    const parentHost = createMockElement('div', { id: 'parent-host' });
+    parentHost.shadowRoot = shadowRoot1;
+
+    const mockDoc = {
+      querySelectorAll: (sel) => {
+        if (sel === '[data-agentseye-ref]') return [];
+        if (sel === '*') return [parentHost];
+        return [];
+      },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([['@e9', innerBtn]]),
+      document: mockDoc,
+    };
+
+    new Function(DOM_CLEANUP_SCRIPT)();
+
+    assert.equal(innerBtn.getAttribute('data-agentseye-ref'), null);
+    assert.equal(globalThis.__agentsEyeRefsV1, undefined);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+  }
+});
