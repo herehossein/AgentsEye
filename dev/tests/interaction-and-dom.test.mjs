@@ -7,6 +7,7 @@ import {
   minimalSummary,
   selectSections,
   inPageProbe,
+  inPageInteractionProbe,
   makeProbeConfig,
   TOOL_NAME,
   TOOL_VERSION,
@@ -804,5 +805,259 @@ test('inPageProbe respects --interactive-scope container boundary', () => {
     globalThis.document = prevDoc;
     globalThis.window = prevWin;
     globalThis.__agentsEyeRefsV1 = prevRefs;
+  }
+});
+
+// ============================================================================
+// 7. inPageInteractionProbe Semantic Ref Resolution & Safety Gates
+// ============================================================================
+
+test('Ref resolution locates target by @eN and dispatches click', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    const btn = createMockElement('button', { id: 'btn-target', 'aria-label': 'Safe Action' });
+    btn.isConnected = true;
+    btn.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    btn.getRootNode = () => mockDoc;
+
+    const mockDoc = {
+      documentElement: btn,
+      querySelectorAll: () => [btn],
+      querySelector: () => btn,
+      elementFromPoint: () => btn,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    const mockWin = {
+      innerWidth: 1024,
+      innerHeight: 768,
+      getComputedStyle: () => ({
+        display: 'block',
+        visibility: 'visible',
+        opacity: '1',
+      }),
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.window = mockWin;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.innerWidth = 1024;
+    globalThis.innerHeight = 768;
+    globalThis.getComputedStyle = mockWin.getComputedStyle;
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([
+        ['@e1', btn],
+        ['e1', btn],
+        ['1', btn],
+      ]),
+      document: mockDoc,
+      nextId: 2,
+    };
+
+    const result = inPageInteractionProbe({ op: 'target', selector: '@e1' }, interactionSafety);
+    assert.equal(result.reason, null);
+    assert.ok(result.point);
+    assert.equal(result.target.name, 'Safe Action');
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('Ref resolution gracefully skips stale or missing @eN refs with explicit reason', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    const mockDoc = {
+      querySelectorAll: () => [],
+      querySelector: () => null,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map(),
+      document: mockDoc,
+      nextId: 1,
+    };
+
+    const result = inPageInteractionProbe({ op: 'target', selector: '@e42' }, interactionSafety);
+    assert.equal(result.status, 'skipped');
+    assert.equal(result.reason, 'Element ref @e42 not found or stale');
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('Ref safety gates strictly block clicks on navigation links and submit buttons targeting @eN', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    const link = createMockElement('a', { href: 'https://example.com/dest' });
+    link.isConnected = true;
+    link.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    link.getRootNode = () => mockDoc;
+
+    const submit = createMockElement('button', { type: 'submit' });
+    submit.isConnected = true;
+    submit.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    submit.getRootNode = () => mockDoc;
+
+    const mockDoc = {
+      querySelectorAll: () => [link, submit],
+      querySelector: () => null,
+      elementFromPoint: () => null,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.innerWidth = 1024;
+    globalThis.innerHeight = 768;
+    globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([
+        ['@e1', link],
+        ['@e2', submit],
+      ]),
+      document: mockDoc,
+      nextId: 3,
+    };
+
+    const linkRes = inPageInteractionProbe({ op: 'target', selector: '@e1' }, interactionSafety);
+    assert.equal(linkRes.reason, 'Links and navigation controls are never clicked');
+
+    const submitRes = inPageInteractionProbe({ op: 'target', selector: '@e2' }, interactionSafety);
+    assert.equal(submitRes.reason, 'Form submission/reset controls are never clicked');
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('Ref safety gates block destructive English and Persian keywords on @eN targets', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    const deleteBtn = createMockElement('button', { 'aria-label': 'Delete repository permanently' });
+    deleteBtn.isConnected = true;
+    deleteBtn.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    deleteBtn.getRootNode = () => mockDoc;
+
+    const persianBtn = createMockElement('button', { 'aria-label': 'حذف حساب کاربری' });
+    persianBtn.isConnected = true;
+    persianBtn.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    persianBtn.getRootNode = () => mockDoc;
+
+    const mockDoc = {
+      querySelectorAll: () => [deleteBtn, persianBtn],
+      querySelector: () => null,
+      elementFromPoint: () => null,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.innerWidth = 1024;
+    globalThis.innerHeight = 768;
+    globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([
+        ['@e1', deleteBtn],
+        ['@e2', persianBtn],
+      ]),
+      document: mockDoc,
+      nextId: 3,
+    };
+
+    const deleteRes = inPageInteractionProbe({ op: 'target', selector: '@e1' }, interactionSafety);
+    assert.equal(deleteRes.reason, 'Potentially destructive action blocked by text safety policy');
+
+    const persianRes = inPageInteractionProbe({ op: 'target', selector: '@e2' }, interactionSafety);
+    assert.equal(persianRes.reason, 'Potentially destructive action blocked by text safety policy');
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
+  }
+});
+
+test('--scroll @eN successfully calls scrollIntoView on target element', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+  const prevLoc = globalThis.location;
+  const prevPerf = globalThis.performance;
+
+  try {
+    let scrollOptionsPassed = null;
+    const targetEl = createMockElement('div', { id: 'section-heading' });
+    targetEl.isConnected = true;
+    targetEl.scrollIntoView = (options) => {
+      scrollOptionsPassed = options;
+    };
+    targetEl.getClientRects = () => [{ x: 10, y: 10, width: 100, height: 40 }];
+    targetEl.getRootNode = () => mockDoc;
+
+    const mockDoc = {
+      querySelectorAll: () => [targetEl],
+      querySelector: () => targetEl,
+      location: { href: 'http://localhost/test', origin: 'http://localhost', pathname: '/test' },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.location = mockDoc.location;
+    globalThis.performance = { timeOrigin: 100 };
+    globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([['@e5', targetEl]]),
+      document: mockDoc,
+      nextId: 6,
+    };
+
+    const result = inPageInteractionProbe({ op: 'scrollIntoView', selector: '@e5' }, interactionSafety);
+    assert.equal(result.status, 'applied');
+    assert.equal(result.target, '@e5');
+    assert.deepEqual(scrollOptionsPassed, { behavior: 'instant', block: 'center', inline: 'center' });
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+    globalThis.location = prevLoc;
+    globalThis.performance = prevPerf;
   }
 });

@@ -5492,7 +5492,7 @@ function inPageInteractionProbe(command, safety) {
     const submission = chain.some((node) => {
       const nodeTag = node.tagName.toLowerCase();
       const nodeType = (node.type || node.getAttribute("type") || "").toLowerCase();
-      return nodeTag === "button" && (nodeType === "reset" || Boolean(node.form || node.closest("form")) && nodeType !== "button") || nodeTag === "input" && ["submit", "image", "reset"].includes(nodeType);
+      return nodeTag === "button" && (nodeType === "reset" || nodeType === "submit" || Boolean(node.form || node.closest?.("form")) && nodeType !== "button") || nodeTag === "input" && ["submit", "image", "reset"].includes(nodeType);
     });
     const file = chain.some(
       (node) => node.tagName === "INPUT" && node.type === "file" || node.tagName === "LABEL" && node.control?.type === "file"
@@ -5596,8 +5596,33 @@ function inPageInteractionProbe(command, safety) {
     return { ...context, reason: reason2, target: publicTarget(info2) };
   }
   let target = null;
+  const isRef = typeof command.selector === "string" && /^@e\d+$/i.test(command.selector.trim());
   if (command.id) target = state.targets.get(command.id);
-  else {
+  else if (isRef) {
+    const refKey = command.selector.trim();
+    const rawNum = refKey.replace(/^@e/i, "");
+    const registry = globalThis.__agentsEyeRefsV1 || (typeof window !== "undefined" ? window.__agentsEyeRefsV1 : void 0);
+    if (registry && registry.map && registry.map.has(refKey)) {
+      const candidate = registry.map.get(refKey);
+      if (candidate && candidate.isConnected) target = candidate;
+    }
+    if (!target) {
+      for (const root of roots) {
+        if (typeof root.querySelector !== "function") continue;
+        target = root.querySelector(
+          `[data-agentseye-ref="${rawNum}"],[data-agentseye-ref="${refKey}"],[data-agentseye-ref="e${rawNum}"]`
+        );
+        if (target && target.isConnected) break;
+      }
+    }
+    if (!target || !target.isConnected) {
+      return {
+        ...context,
+        status: "skipped",
+        reason: `Element ref ${refKey} not found or stale`
+      };
+    }
+  } else {
     try {
       for (const root of roots) {
         target = root.querySelector(command.selector);
@@ -5608,6 +5633,10 @@ function inPageInteractionProbe(command, safety) {
     }
   }
   if (!target) return { ...context, reason: "Target not found or stale" };
+  if (command.op === "scrollIntoView") {
+    target.scrollIntoView({ behavior: "instant", block: "center", inline: "center" });
+    return { ...context, status: "applied", target: command.selector };
+  }
   const info = describe(target);
   const reason = safety(info, command.allowDestructive, command.automatic);
   if (reason) return { ...context, reason, target: publicTarget(info) };
@@ -5883,23 +5912,42 @@ async function performInteractions(cdp, options, beforeProbe = null) {
           }
         }
       } else if (action.type === "scroll") {
-        const match = /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(
-          String(action.value)
+        const valStr = String(action.value ?? "").trim();
+        const deltaMatch = /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(
+          valStr
         );
-        const deltaX = match ? Number(match[1]) : NaN;
-        const deltaY = match ? Number(match[2]) : NaN;
-        if (![deltaX, deltaY].every(Number.isFinite) || Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 1e5) {
-          record.reason = "Scroll requires finite X,Y deltas within 100000 pixels";
-          return;
+        if (deltaMatch) {
+          const deltaX = Number(deltaMatch[1]);
+          const deltaY = Number(deltaMatch[2]);
+          if (![deltaX, deltaY].every(Number.isFinite) || Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 1e5) {
+            record.reason = "Scroll requires finite X,Y deltas within 100000 pixels";
+            return;
+          }
+          inputSent = true;
+          await cdp.send("Input.dispatchMouseEvent", {
+            type: "mouseWheel",
+            x: Math.max(0, (live.viewport.width - 1) / 2),
+            y: Math.max(0, (live.viewport.height - 1) / 2),
+            deltaX,
+            deltaY
+          });
+        } else {
+          const scrollRes = await probe({
+            op: "scrollIntoView",
+            selector: valStr
+          });
+          if (!sameDocument(scrollRes)) {
+            stop = true;
+            record.reason = "Document changed";
+            return;
+          }
+          if (scrollRes.reason) {
+            record.reason = scrollRes.reason;
+            return;
+          }
+          record.target = scrollRes.target || null;
+          inputSent = true;
         }
-        inputSent = true;
-        await cdp.send("Input.dispatchMouseEvent", {
-          type: "mouseWheel",
-          x: Math.max(0, (live.viewport.width - 1) / 2),
-          y: Math.max(0, (live.viewport.height - 1) / 2),
-          deltaX,
-          deltaY
-        });
       } else if (action.type === "key") {
         const definition = interactionKeyDefinition(action.value);
         if (!definition) {
@@ -6648,6 +6696,7 @@ export {
   findBrowser,
   focusReport,
   formatText,
+  inPageInteractionProbe,
   inPagePerformanceObserver,
   inPageProbe,
   inspectPage,

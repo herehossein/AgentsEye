@@ -135,7 +135,8 @@ export function inPageInteractionProbe(command, safety) {
       return (
         (nodeTag === 'button' &&
           (nodeType === 'reset' ||
-            (Boolean(node.form || node.closest('form')) && nodeType !== 'button'))) ||
+            nodeType === 'submit' ||
+            (Boolean(node.form || node.closest?.('form')) && nodeType !== 'button'))) ||
         (nodeTag === 'input' && ['submit', 'image', 'reset'].includes(nodeType))
       );
     });
@@ -271,8 +272,36 @@ export function inPageInteractionProbe(command, safety) {
     return { ...context, reason, target: publicTarget(info) };
   }
   let target = null;
+  const isRef = typeof command.selector === 'string' && /^@e\d+$/i.test(command.selector.trim());
   if (command.id) target = state.targets.get(command.id);
-  else {
+  else if (isRef) {
+    const refKey = command.selector.trim();
+    const rawNum = refKey.replace(/^@e/i, '');
+    const registry =
+      globalThis.__agentsEyeRefsV1 ||
+      (typeof window !== 'undefined' ? window.__agentsEyeRefsV1 : undefined);
+    if (registry && registry.map && registry.map.has(refKey)) {
+      const candidate = registry.map.get(refKey);
+      if (candidate && candidate.isConnected) target = candidate;
+    }
+    if (!target) {
+      // Fallback across main document and open shadow roots
+      for (const root of roots) {
+        if (typeof root.querySelector !== 'function') continue;
+        target = root.querySelector(
+          `[data-agentseye-ref="${rawNum}"],[data-agentseye-ref="${refKey}"],[data-agentseye-ref="e${rawNum}"]`,
+        );
+        if (target && target.isConnected) break;
+      }
+    }
+    if (!target || !target.isConnected) {
+      return {
+        ...context,
+        status: 'skipped',
+        reason: `Element ref ${refKey} not found or stale`,
+      };
+    }
+  } else {
     try {
       for (const root of roots) {
         target = root.querySelector(command.selector);
@@ -283,6 +312,11 @@ export function inPageInteractionProbe(command, safety) {
     }
   }
   if (!target) return { ...context, reason: 'Target not found or stale' };
+
+  if (command.op === 'scrollIntoView') {
+    target.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+    return { ...context, status: 'applied', target: command.selector };
+  }
   const info = describe(target);
   const reason = safety(info, command.allowDestructive, command.automatic);
   if (reason) return { ...context, reason, target: publicTarget(info) };

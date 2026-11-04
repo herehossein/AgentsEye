@@ -274,27 +274,46 @@ export async function performInteractions(
           }
         }
       } else if (action.type === 'scroll') {
-        const match =
+        const valStr = String(action.value ?? '').trim();
+        const deltaMatch =
           /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(
-            String(action.value),
+            valStr,
           );
-        const deltaX = match ? Number(match[1]) : NaN;
-        const deltaY = match ? Number(match[2]) : NaN;
-        if (
-          ![deltaX, deltaY].every(Number.isFinite) ||
-          Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 100_000
-        ) {
-          record.reason = 'Scroll requires finite X,Y deltas within 100000 pixels';
-          return;
+        if (deltaMatch) {
+          const deltaX = Number(deltaMatch[1]);
+          const deltaY = Number(deltaMatch[2]);
+          if (
+            ![deltaX, deltaY].every(Number.isFinite) ||
+            Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 100_000
+          ) {
+            record.reason = 'Scroll requires finite X,Y deltas within 100000 pixels';
+            return;
+          }
+          inputSent = true;
+          await cdp.send('Input.dispatchMouseEvent', {
+            type: 'mouseWheel',
+            x: Math.max(0, (live.viewport.width - 1) / 2),
+            y: Math.max(0, (live.viewport.height - 1) / 2),
+            deltaX,
+            deltaY,
+          });
+        } else {
+          const scrollRes = await probe({
+            op: 'scrollIntoView',
+            selector: valStr,
+          });
+          if (!sameDocument(scrollRes)) {
+            stop = true;
+            record.reason = 'Document changed';
+            return;
+          }
+          if (scrollRes.reason) {
+            record.reason = scrollRes.reason;
+            return;
+          }
+          record.target = scrollRes.target || null;
+          inputSent = true;
         }
-        inputSent = true;
-        await cdp.send('Input.dispatchMouseEvent', {
-          type: 'mouseWheel',
-          x: Math.max(0, (live.viewport.width - 1) / 2),
-          y: Math.max(0, (live.viewport.height - 1) / 2),
-          deltaX,
-          deltaY,
-        });
       } else if (action.type === 'key') {
         const definition = interactionKeyDefinition(action.value);
         if (!definition) {

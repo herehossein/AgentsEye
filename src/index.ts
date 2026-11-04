@@ -69,7 +69,7 @@ import { collectPerformance, installPerformanceObservers } from './cdp/collector
 
 import { inPageProbe, makeProbeConfig } from './probes/dom-probe.js';
 
-import { interactionSafety } from './probes/interaction-probe.js';
+import { inPageInteractionProbe, interactionSafety } from './probes/interaction-probe.js';
 
 import { inPagePerformanceObserver } from './probes/perf-observer-probe.js';
 
@@ -118,6 +118,7 @@ export {
   installPerformanceObservers,
   collectPerformance,
   interactionSafety,
+  inPageInteractionProbe,
   diffInteractionSnapshots,
   inPagePerformanceObserver,
   formatText,
