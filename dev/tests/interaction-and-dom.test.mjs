@@ -6,6 +6,9 @@ import {
   compactDom,
   minimalSummary,
   selectSections,
+  TOOL_NAME,
+  TOOL_VERSION,
+  SCHEMA_VERSION,
 } from '../../agentsEye.mjs';
 
 // ============================================================================
@@ -481,7 +484,7 @@ test('compactDom: handles edge cases (null/empty DOM, unusual tag names, missing
 test('minimalSummary: accurately extracts report summary, performance, issue counts, and fatal errors', () => {
   const report = {
     ok: false,
-    schemaVersion: '1.0',
+    schemaVersion: SCHEMA_VERSION,
     target: {
       title: 'Dashboard Page',
       requestedUrl: 'http://localhost:8080/dashboard?token=xyz',
@@ -558,8 +561,8 @@ test('minimalSummary: handles null or empty reports without throwing', () => {
 test('selectSections: filters report sections using only and skip options', () => {
   const fullReport = {
     ok: true,
-    schemaVersion: '1.0',
-    tool: { name: 'agentsEye', version: '1.0.0' },
+    schemaVersion: SCHEMA_VERSION,
+    tool: { name: TOOL_NAME, version: TOOL_VERSION },
     generatedAt: '2026-10-31T20:00:00Z',
     durationMs: 150,
     target: { title: 'App' },

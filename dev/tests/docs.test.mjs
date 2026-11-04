@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
+import { TOOL_NAME, TOOL_VERSION, SCHEMA_VERSION } from '../../agentsEye.mjs';
 
 const REPO_ROOT = path.resolve('.');
 
@@ -98,9 +99,74 @@ test('skill works when SKILL.md, agentsEye.mjs and references/ are copied alone 
     });
 
     assert.equal(res.status, 0, `Isolated agentsEye.mjs --help should exit with 0, got ${res.status}`);
-    assert.match(res.stdout, /agentsEye v1\.0\.0/);
+    assert.match(res.stdout, new RegExp(`${TOOL_NAME} v${TOOL_VERSION.replace(/\./g, '\\.')}`));
     assert.doesNotMatch(res.stdout, /npx/);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('SSOT: version in package.json, CLI flags, badges, and docs matches TOOL_VERSION', () => {
+  // 1. package.json consistency
+  const pkgPath = path.join(REPO_ROOT, 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  assert.equal(
+    pkg.version,
+    TOOL_VERSION,
+    `package.json version (${pkg.version}) must match TOOL_VERSION (${TOOL_VERSION})`
+  );
+  assert.equal(
+    pkg.name,
+    TOOL_NAME.toLowerCase(),
+    `package.json name (${pkg.name}) must match TOOL_NAME.toLowerCase() (${TOOL_NAME.toLowerCase()})`
+  );
+
+  // 2. CLI --version and -V stdout consistency
+  const binPath = path.join(REPO_ROOT, 'agentsEye.mjs');
+  const resLong = spawnSync(process.execPath, [binPath, '--version'], { encoding: 'utf8' });
+  assert.equal(resLong.status, 0, '--version should exit 0');
+  assert.equal(
+    resLong.stdout.trim(),
+    `${TOOL_NAME} ${TOOL_VERSION}`,
+    `--version stdout should output "${TOOL_NAME} ${TOOL_VERSION}"`
+  );
+
+  const resShort = spawnSync(process.execPath, [binPath, '-V'], { encoding: 'utf8' });
+  assert.equal(resShort.status, 0, '-V should exit 0');
+  assert.equal(
+    resShort.stdout.trim(),
+    `${TOOL_NAME} ${TOOL_VERSION}`,
+    `-V stdout should output "${TOOL_NAME} ${TOOL_VERSION}"`
+  );
+
+  // 3. CLI --help header line consistency
+  const resHelp = spawnSync(process.execPath, [binPath, '--help'], { encoding: 'utf8' });
+  assert.equal(resHelp.status, 0, '--help should exit 0');
+  assert.match(
+    resHelp.stdout,
+    new RegExp(`^${TOOL_NAME} v${TOOL_VERSION.replace(/\./g, '\\.')}\\b`, 'm'),
+    `--help header must match "${TOOL_NAME} v${TOOL_VERSION}"`
+  );
+
+  // 4. README badges consistency (English and Persian)
+  for (const readme of ['README.md', 'README.fa.md']) {
+    const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
+    const match = content.match(/badge\/version-([^-\s)]+)-blue\.svg/);
+    assert.ok(match, `${readme} must contain a version shield badge`);
+    assert.equal(
+      match[1],
+      TOOL_VERSION,
+      `${readme} badge version (${match[1]}) must match TOOL_VERSION (${TOOL_VERSION})`
+    );
+  }
+
+  // 5. AGENTS.md project header consistency
+  const agentsMd = fs.readFileSync(path.join(REPO_ROOT, 'AGENTS.md'), 'utf8');
+  const projectMatch = agentsMd.match(/> \*\*Project\*\*:\s*`agentsEye`\s*v([^\s]+)/);
+  assert.ok(projectMatch, 'AGENTS.md must contain project header with version');
+  assert.equal(
+    projectMatch[1],
+    TOOL_VERSION,
+    `AGENTS.md project header (${projectMatch[1]}) must match TOOL_VERSION (${TOOL_VERSION})`
+  );
 });

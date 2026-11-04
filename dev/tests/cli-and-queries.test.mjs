@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArgs, parseViewport, queryReport, focusReport, TAILWIND_VIEWPORTS, MATRIX_VIEWPORTS, DEFAULTS } from '../../agentsEye.mjs';
+import { parseArgs, parseViewport, queryReport, focusReport, TAILWIND_VIEWPORTS, MATRIX_VIEWPORTS, DEFAULTS, SCHEMA_VERSION } from '../../agentsEye.mjs';
 
 test('parseArgs: valid flags and viewport parsing', () => {
   const options = parseArgs(['http://example.com', '--viewport', '375x812', '--focus', 'issues', '--quiet']);
@@ -85,7 +85,7 @@ test('queryReport: blocks prototype pollution and property traversal attacks', (
 test('focusReport: slices report correctly across known slices', () => {
   const dummyReport = {
     ok: true,
-    schemaVersion: '1.0',
+    schemaVersion: SCHEMA_VERSION,
     target: { title: 'Test' },
     layout: { horizontalOverflow: false },
     issues: [{ code: 'contrast-low' }],

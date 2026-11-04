@@ -1,5 +1,5 @@
 export const TOOL_NAME = 'agentsEye';
-export const TOOL_VERSION = '1.0.0';
+export const TOOL_VERSION = '2.1.1';
 export const SCHEMA_VERSION = '1.0';
 
 export const FOCUS_SLICES = [

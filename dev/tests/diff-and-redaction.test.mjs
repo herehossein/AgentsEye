@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diffReports, redactString, redactUrl } from '../../agentsEye.mjs';
+import { diffReports, redactString, redactUrl, SCHEMA_VERSION } from '../../agentsEye.mjs';
 
 test('diffReports: identical reports produce zero new issues and zero new errors', () => {
   const baseReport = {
     ok: true,
-    schemaVersion: '1.0',
+    schemaVersion: SCHEMA_VERSION,
     run: { id: 'run-1' },
     target: { requestedUrl: 'http://test.local', finalUrl: 'http://test.local' },
     layout: { horizontalOverflow: false },

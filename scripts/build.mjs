@@ -3,6 +3,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 async function build() {
+  // SSOT Quality Gate: Verify package.json version matches src/config/constants.ts TOOL_VERSION
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  const constantsContent = fs.readFileSync('src/config/constants.ts', 'utf8');
+  const match = constantsContent.match(/export const TOOL_VERSION = ['"]([^'"]+)['"]/);
+
+  if (!match || match[1] !== pkg.version) {
+    console.error(
+      `[BUILD ERROR] SSOT version mismatch: package.json version is "${pkg.version}" but src/config/constants.ts TOOL_VERSION is "${match?.[1]}"`
+    );
+    process.exit(1);
+  }
+
   await esbuild.build({
     entryPoints: ['src/index.ts'],
     bundle: true,

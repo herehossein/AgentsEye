@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 
 // src/config/constants.ts
 var TOOL_NAME = "agentsEye";
-var TOOL_VERSION = "1.0.0";
+var TOOL_VERSION = "2.1.1";
 var SCHEMA_VERSION = "1.0";
 var FOCUS_SLICES = [
   "issues",
@@ -6558,7 +6558,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path7.resolve(process.a
 export {
   DEFAULTS,
   MATRIX_VIEWPORTS,
+  SCHEMA_VERSION,
   TAILWIND_VIEWPORTS,
+  TOOL_NAME,
+  TOOL_VERSION,
   attachCaptureHandlers,
   attachToCdp,
   auditAndSanitizeReport,

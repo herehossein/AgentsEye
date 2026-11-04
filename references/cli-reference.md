@@ -1,6 +1,6 @@
 # agentsEye CLI Reference
 
-> **Tool**: `agentsEye` v1.0.0  
+> **Tool**: `agentsEye` v2.1.1  
 > **Node.js**: `>= 22.0.0` (native WebSocket, `node:fs/promises`, `node:crypto`)  
 > **Protocol**: Chromium DevTools Protocol (CDP) over native loopback WebSocket  
 

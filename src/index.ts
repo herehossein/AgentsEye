@@ -1,7 +1,14 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { DEFAULTS, MATRIX_VIEWPORTS, TAILWIND_VIEWPORTS, TOOL_NAME } from './config/constants.js';
+import {
+  DEFAULTS,
+  MATRIX_VIEWPORTS,
+  SCHEMA_VERSION,
+  TAILWIND_VIEWPORTS,
+  TOOL_NAME,
+  TOOL_VERSION,
+} from './config/constants.js';
 
 import { parseArgs, parseViewport } from './cli/parser.js';
 
@@ -119,6 +126,9 @@ export {
   TAILWIND_VIEWPORTS,
   MATRIX_VIEWPORTS,
   DEFAULTS,
+  TOOL_NAME,
+  TOOL_VERSION,
+  SCHEMA_VERSION,
   main,
 };
 

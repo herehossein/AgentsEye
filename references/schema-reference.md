@@ -1,6 +1,6 @@
 # agentsEye Schema Reference
 
-> **Tool**: `agentsEye` v1.0.0  
+> **Tool**: `agentsEye` v2.1.1  
 > **Schema Version**: `1.0`  
 > **Output Formats**: `minimalSummary` (stdout), `report.json` (disk artifact), `diffReports` (structural diff)  
 

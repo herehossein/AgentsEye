@@ -11,6 +11,9 @@ import {
   serializeOutput,
   outputView,
   cleanRuns,
+  TOOL_NAME,
+  TOOL_VERSION,
+  SCHEMA_VERSION,
 } from '../../agentsEye.mjs';
 
 function createTempDir(prefix = 'agentseye-resilience-') {
@@ -20,8 +23,8 @@ function createTempDir(prefix = 'agentseye-resilience-') {
 function sampleReport(overrides = {}) {
   return {
     ok: true,
-    schemaVersion: '1.0.0',
-    tool: { name: 'agentsEye', version: '1.0.0' },
+    schemaVersion: SCHEMA_VERSION,
+    tool: { name: TOOL_NAME, version: TOOL_VERSION },
     generatedAt: new Date().toISOString(),
     durationMs: 420,
     target: {
@@ -121,7 +124,7 @@ test('createRun, persistRun, readRun: normal run creation, persisting and readin
     assert.ok(fs.existsSync(run.dom), 'dom.json should exist');
 
     const readBack = await readRun(run.id, { testRunsDir });
-    assert.equal(readBack.schemaVersion, '1.0.0');
+    assert.equal(readBack.schemaVersion, SCHEMA_VERSION);
     assert.equal(readBack.customNote, 'persistence-check');
     assert.equal(readBack.run.id, run.id);
   } finally {
@@ -325,7 +328,7 @@ test('serializeOutput: compact vs pretty JSON output', () => {
 test('serializeOutput: text format delegates to formatText', () => {
   const report = sampleReport();
   const textOutput = serializeOutput(report, { format: 'text' });
-  assert.ok(textOutput.includes('agentsEye v1.0.0'));
+  assert.ok(textOutput.includes(`${TOOL_NAME} v${TOOL_VERSION}`));
   assert.ok(textOutput.includes('Target: https://example.com/test'));
 });
 
@@ -392,7 +395,7 @@ test('formatText: formats normal comprehensive report', () => {
   const report = sampleReport();
   const text = formatText(report);
 
-  assert.ok(text.includes('agentsEye v1.0.0'));
+  assert.ok(text.includes(`${TOOL_NAME} v${TOOL_VERSION}`));
   assert.ok(text.includes('Target: https://example.com/test'));
   assert.ok(text.includes('HTTP status: 200'));
   assert.ok(text.includes('Title: Resilience Test Page'));
@@ -430,8 +433,8 @@ test('formatText: formats report with critical issues and console errors', () =>
 test('formatText: formats report with failed probe / fatal error', () => {
   const failedReport = {
     ok: false,
-    schemaVersion: '1.0.0',
-    tool: { name: 'agentsEye', version: '1.0.0' },
+    schemaVersion: SCHEMA_VERSION,
+    tool: { name: TOOL_NAME, version: TOOL_VERSION },
     error: {
       code: 'PROBE_FAILED',
       message: 'DOM probe failed: Execution context was destroyed.',
@@ -447,7 +450,7 @@ test('formatText: handles empty report and edge cases gracefully without throwin
   // Empty report object
   assert.doesNotThrow(() => {
     const text = formatText({});
-    assert.ok(text.includes('agentsEye v1.0.0'));
+    assert.ok(text.includes(`${TOOL_NAME} v${TOOL_VERSION}`));
     assert.ok(text.includes('Target: (unknown)'));
   });
 
