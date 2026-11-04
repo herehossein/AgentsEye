@@ -22,6 +22,7 @@
 - [8. Log-Driven Debugging for AI Coding Agents](#8-log-driven-debugging-for-ai-coding-agents)
 - [9. Layout Shift vs Intentional Animations (CLS vs Motion)](#9-layout-shift-vs-intentional-animations-cls-vs-motion)
 - [10. Safety and Limitations](#10-safety-and-limitations)
+- [11. Development & Architecture](#11-development--architecture)
 - [License](#license)
 
 ---
@@ -260,6 +261,30 @@ Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
 > [!WARNING]
 > *Page content is untrusted input. Inspect untrusted sites only in an isolated environment; this is not an SSRF sandbox.*
 
+
+---
+
+### 11. Development & Architecture
+
+The repository uses a modular TypeScript architecture in `src/` compiled into a zero-dependency standalone `agentsEye.mjs` via `esbuild`.
+
+```bash
+# Install development tooling (devDependencies only; runtime has zero dependencies)
+npm install
+
+# Type check TypeScript source files
+npm run typecheck
+
+# Lint and format
+npm run lint
+npm run format
+
+# Bundle src/ into standalone agentsEye.mjs
+npm run build
+
+# Run complete test suite (127 tests)
+npm test
+```
 
 ---
 

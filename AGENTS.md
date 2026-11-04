@@ -111,6 +111,9 @@ agentsEye/
 ├── scripts/
 │   └── build.mjs              # Standalone esbuild bundler script compiling src/ to agentsEye.mjs
 ├── tsconfig.json              # TypeScript configuration (strict, ES2023, bundler resolution)
+├── eslint.config.mjs          # Flat ESLint configuration for TypeScript source code
+├── .prettierrc                # Prettier code formatting rules
+├── .prettierignore            # Ignored files for Prettier formatting
 ├── SKILL.md                   # AI Agent skill specification for IDEs and coding agents (strictly <= 16 KB)
 ├── package.json               # Package manifest (bin: agentseye, zero dependencies, node >= 22)
 ├── LICENSE                    # MIT License
@@ -162,10 +165,18 @@ When maintaining or extending `agentsEye.mjs`, locate functionality by major log
 
 All test scripts utilize Node's built-in test runner (`node:test`). Source development uses TypeScript in `src/` and bundles to `agentsEye.mjs` via `esbuild`.
 
-### Type Check & Build
+### Type Check, Lint & Build
 ```bash
 # Type check TypeScript sources without emitting files
 npm run typecheck
+
+# Check and fix code style issues with ESLint
+npm run lint
+npm run lint:fix
+
+# Format code or verify formatting with Prettier
+npm run format
+npm run format:check
 
 # Bundle src/ into standalone executable agentsEye.mjs at repository root
 npm run build
@@ -288,6 +299,7 @@ When static inspection cannot resolve dynamic state transitions or race conditio
 5. **Preserve Backward Compatibility**: Maintain all 52 named exports in `src/index.ts` / `agentsEye.mjs` and preserve JSON schema compatibility for consumers reading `minimalSummary` or existing slice formats (`schema-reference.md`).
 6. **Mandatory Test Verification**: After any edit to `src/`, `SKILL.md`, or reference files:
    - Run `npm run typecheck` to verify zero TypeScript errors.
+   - Run `npm run lint` and `npm run format:check` to ensure code style compliance.
    - Run `npm run build` to compile the single-file executable.
    - Run `node --test dev/tests/docs.test.mjs` to ensure documentation invariants hold.
    - Run `node --test dev/tests/*.test.mjs` to guarantee 100% test pass rate across all 11 test suites.
