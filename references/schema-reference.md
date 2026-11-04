@@ -134,6 +134,13 @@ export interface MinimalSummary {
     vars: Record<string, string>;
   };
 
+  /** Interactive elements overview with sequential @eN semantic refs */
+  interactive?: {
+    total: number;
+    showing: number;
+    items: Array<InteractiveItem>;
+  };
+
   /** Non-fatal execution warnings */
   warnings: string[];
 
@@ -283,6 +290,27 @@ export interface MinimalSummary {
 
 Saved locally to `.agentsEye/runs/<run-id>/report.json`. This document contains unbudgeted, high-fidelity browser inspection telemetry.
 
+### Interactive Element Contract
+
+```typescript
+export interface InteractiveItem {
+  ref: string;                 // Semantic ref token (e.g. "@e1", "@e2")
+  tag: string;                 // HTML element tag (e.g. "button", "a", "input")
+  role?: string | null;        // ARIA role (e.g. "button", "link", "tab")
+  name?: string;               // Accessible name or text content (capped at 50 chars)
+  accessibleName?: string;     // Explicit accessibility name
+  text?: string;               // Text content
+  rendered?: boolean;          // Physical visibility
+  href?: string | null;        // Link destination (if applicable)
+  tabIndex?: number;           // Tab navigation index
+  disabled?: boolean;          // Disabled state
+  smallTouchTarget?: boolean;  // True if bounding box < 44x44 CSS px
+  fontSize?: string;           // Computed font size
+  rect?: { x: number; y: number; width: number; height: number };
+  cssPath?: string;            // Resolved CSS selector path
+}
+```
+
 ### Top-Level Structure
 
 ```typescript
@@ -369,7 +397,7 @@ export interface FullReport {
   };
   interactive: {
     count: number;
-    items: Array<object>;
+    items: Array<InteractiveItem>;
     truncated: boolean;
   };
   images: {

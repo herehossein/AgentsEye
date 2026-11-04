@@ -29,7 +29,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | Command | Syntax | Description |
 | :--- | :--- | :--- |
 | **`inspect` (default)** | `node agentsEye.mjs <url> [options]` | Launches headless Chromium, performs passive inspection, saves telemetry to `.agentsEye/runs/<id>/` (or OS temp when `--temp` is used), and outputs a compact `minimalSummary` JSON to stdout. |
-| **`show`** | `node agentsEye.mjs show <run-id> [slice\|dotted.path]` | Reads a saved run from disk **without launching Chromium**. Outputs the minimal summary, a focused slice (`issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`), or queries a deep nested JSON path (e.g. `page.metrics.overflowElements`). |
+| **`show`** | `node agentsEye.mjs show <run-id> [slice\|dotted.path]` | Reads a saved run from disk **without launching Chromium**. Outputs the minimal summary, a focused slice (`issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`, `interactive`), or queries a deep nested JSON path (e.g. `page.metrics.overflowElements`). |
 | **`diff`** | `node agentsEye.mjs diff <run-1> <run-2>` | Compares two saved runs offline. Produces a structural delta report showing added/removed DOM nodes, bounding box shifts, computed style alterations, and newly introduced console/layout errors. |
 | **`clean`** | `node agentsEye.mjs clean <run-id>...` \| `clean --older-than <dur>` \| `clean --all` | Removes specified runs, runs older than a duration, or all saved runs. |
 | **`help`** | `node agentsEye.mjs --help`, `-h` | Prints the complete built-in command help and flag options. |
@@ -104,6 +104,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--no-iframes` | boolean | `false` | Skips expanding same-origin iframe document trees. |
 | `--include-templates`| boolean | `false` | Traverses `<template>` fragment contents. |
 | `--css-vars` | boolean | `false` | Collects computed CSS custom properties (`--*`) on the root element. |
+| `--interactive-scope`| `<css-selector>` | `null` | Scopes semantic ref allocation (`@e1`..`@eN`) and interactive element discovery to the specified container subtree. |
 | `--a11y` | boolean | `false` | Opt-in extraction of the full Chromium Accessibility (AX) tree. |
 | `--max-a11y-nodes` | `<n>` | `1000` | Cap on accessibility tree nodes returned. |
 
@@ -111,9 +112,9 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 
 | Flag | Argument | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--click` | `<css-selector>` | `null` | Performs hit-test validation and dispatches a native pointer click on target selector, recording DOM diff. |
-| `--hover` | `<css-selector>` | `null` | Dispatches native mouse pointer movement to selector bounding-box center. |
-| `--scroll` | `<X,Y>` | `null` | Dispatches native mouse wheel scroll deltas (e.g. `0,600`). |
+| `--click` | `<selector\|@eN>` | `null` | Performs hit-test validation and dispatches a native pointer click on target CSS selector or semantic ref (`@e1`, `@e2`), recording DOM diff. |
+| `--hover` | `<selector\|@eN>` | `null` | Dispatches native mouse pointer movement to selector or semantic ref bounding-box center. |
+| `--scroll` | `<X,Y\|selector\|@eN>` | `null` | Dispatches native mouse wheel scroll deltas (e.g. `0,600`) or element-centric `scrollIntoView` for selector or semantic ref (`@eN`). |
 | `--key` | `<name>` | `null` | Dispatches safe keyboard key event. Supports 12 keys: `Enter`, `Escape`, `Tab`, `Space`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home`, `End`, `PageUp`, `PageDown`. |
 | `--explore` | boolean | `false` | Conservatively discovers and clicks interactive disclosure elements (menus, accordions, tabs) and logs before/after diffs. |
 | `--max-explore` | `<n>` | `8` | Maximum number of exploratory clicks allowed (upper bound: 50). |
@@ -133,7 +134,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | :--- | :--- | :--- | :--- |
 | `--temp` | boolean | `false` | Stores run artifacts in OS temporary directory (`%TEMP%/.agentsEye/runs/`) instead of workspace `.agentsEye/runs/`. |
 | `--ephemeral` | boolean | `false` | Automatically deletes the run directory immediately after producing stdout. |
-| `--focus` | `<slice>` | `null` | Emits a focused slice directly to stdout. Allowed: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`. |
+| `--focus` | `<slice>` | `null` | Emits a focused slice directly to stdout. Allowed: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`, `interactive`. |
 | `--console-filter` | `<pattern>` | `null` | Filters console entries by case-insensitive substring or `/regex/flags` pattern (e.g. `'[AGENT_DEBUG_TAG]'` or `/\/api\/error/i`). Works live with `--focus console` and offline via `show`. |
 | `--console-level` | `<levels>` | `all` | Filters console entries by comma-separated levels: `error,warn,info,log,debug,all`. Works live and offline via `show`. |
 | `--full` | boolean | `false` | Emits complete comprehensive JSON report to stdout. *(Not recommended for AI agent contexts).* |

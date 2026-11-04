@@ -86,7 +86,7 @@ flowchart LR
 | **Zero Dependencies & Zero Setup** | Runs on native Node.js 22+ using native Chrome DevTools Protocol (CDP) over WebSocket directly. | No `npm install`, no Puppeteer/Playwright setup, no framework overhead. Single-file execution. |
 | **Three-Layer Runtime Observability** | Captures live DOM/computed layout, network transit (4xx/5xx failures & slow endpoints), and runtime console (uncaught exceptions & errors) in a single unified snapshot. | Unveils silent runtime failures, broken API integrations, and hydration crashes that build-time tools miss. |
 | **Autonomous Regression Quality Gate (`diff`)** | Deterministically diffs two saved runs offline without opening Chromium. | Validates that a bugfix resolved the issue without introducing new console errors or layout regressions (`newErrors === 0`). |
-| **Interactive State Exploration** | Dispatches pointer clicks, hovers, scroll deltas, and keyboard events (`--click`, `--hover`, `--key`), or auto-discovers expandable UI elements (`--explore`). | Goes beyond static snapshots to test live interactions, state transitions, modals, and dynamic menus. |
+| **Interactive State Exploration** | Dispatches pointer clicks, hovers, scroll deltas, and keyboard events using CSS selectors or stable semantic refs (`--click @e1`, `--hover @e2`, `--scroll @e3`), and scopes containers (`--interactive-scope`). | Goes beyond static snapshots to test live interactions, state transitions, modals, and dynamic menus. |
 | **Token-Budgeted Context Probes** | Emits a tightly structured summary tailored for LLMs (`--summary-only`, `--focus <slice>`, `show <id> <path>`). | Drastically reduces context consumption compared to dumping raw HTML trees, keeping agent reasoning focused and fast. |
 | **Multi-Device Responsive Matrix (`--matrix`)** | Sequentially audits mobile-first (`375px`) and standard Tailwind breakpoints (`sm`: 640px, `md`: 768px, `lg`: 1024px, `xl`: 1280px, `2xl`: 1536px) in a single run. Also supports custom viewports (`--viewport <WxH|preset>`, `--viewports <list>`). | Catches cross-breakpoint layout breakages and responsive discrepancies across devices automatically. |
 | **Deep Layout & Usability Diagnostics** | Detects viewport overflow leaks, body scroll-lock traps (`overflow: hidden`), touch target sizes, and form constraints (e.g. iOS auto-zoom on inputs < 16px). | Pinpoints the exact CSS selectors causing layout overflow or usability traps with precise bounding boxes. |
@@ -162,6 +162,9 @@ Ask your assistant:
 | **Inspect Specific Element** | `node agentsEye.mjs <url> --selector "#login-modal" --temp` | Inspects computed styles, bounding box, and exact `hiddenReason`. |
 | **Exact Computed CSS** | `node agentsEye.mjs <url> --selector "#modal" --style-props "display,position,z-index,backdrop-filter" --temp` | Disables style compaction to extract exact computed CSS values. |
 | **Interactive Click Test** | `node agentsEye.mjs <url> --click "#menu-button" --temp` | Simulates user click and captures post-action DOM and layout changes. |
+| **Semantic Ref Interaction** | `node agentsEye.mjs <url> --click @e1 --hover @e2 --scroll @e3 --temp` | Targets actionable elements using stable 1-based semantic ref tokens (`@e1`, `@e2`, ...) instead of fragile CSS selectors. |
+| **Subtree Ref Scoping** | `node agentsEye.mjs <url> --interactive-scope "#modal" --click @e1 --temp` | Scopes semantic ref allocation strictly inside a specific container or dialog subtree. |
+| **Interactive Catalog** | `node agentsEye.mjs <url> --focus interactive --temp` | Inspects full catalog of interactive elements with refs, accessible names, and bounds. |
 | **Chained Action Sequence** | `node agentsEye.mjs <url> --click "#menu" --key Escape --scroll 0,500 --temp` | Sequences up to 50 clicks, hovers, scrolls, and keyboard inputs in one run. |
 | **Explore Interactive UI** | `node agentsEye.mjs <url> --explore --temp` | Auto-discovers and tests disclosure elements (menus, accordions, tabs). |
 | **Wait for Dynamic SPA** | `node agentsEye.mjs <url> --wait-for "#root" --temp` | Waits for dynamic SPA component to render before taking snapshot. |
@@ -237,6 +240,7 @@ Modern web apps use intentional motion (marquee tickers, slide-ins, accordion ex
   - Transitions animating layout-triggering properties (`top`, `margin`, `height`).
 
 Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
+Consult the [Interactive Refs Guide](references/interactive-refs-guide.md) for semantic ref locators, scoping, and interaction safety.
 
 ---
 
