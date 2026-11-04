@@ -73,7 +73,12 @@ import { inPageInteractionProbe, interactionSafety } from './probes/interaction-
 
 import { inPagePerformanceObserver } from './probes/perf-observer-probe.js';
 
-import { diffInteractionSnapshots, performInteractions } from './interactions/runner.js';
+import {
+  cleanupDomRefs,
+  diffInteractionSnapshots,
+  DOM_CLEANUP_SCRIPT,
+  performInteractions,
+} from './interactions/runner.js';
 
 import { inspectPage } from './inspector/inspect-page.js';
 
@@ -115,6 +120,8 @@ export {
   installRequestGuard,
   inspectPage,
   performInteractions,
+  cleanupDomRefs,
+  DOM_CLEANUP_SCRIPT,
   installPerformanceObservers,
   collectPerformance,
   interactionSafety,

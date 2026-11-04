@@ -9,6 +9,7 @@ import {
   inPageProbe,
   inPageInteractionProbe,
   makeProbeConfig,
+  DOM_CLEANUP_SCRIPT,
   TOOL_NAME,
   TOOL_VERSION,
   SCHEMA_VERSION,
@@ -1059,5 +1060,44 @@ test('--scroll @eN successfully calls scrollIntoView on target element', () => {
     globalThis.__agentsEyeRefsV1 = prevRefs;
     globalThis.location = prevLoc;
     globalThis.performance = prevPerf;
+  }
+});
+
+test('DOM hygiene cleans up data-agentseye-ref attributes after inspection', () => {
+  const prevDoc = globalThis.document;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+
+  try {
+    const btn = createMockElement('button', { 'data-agentseye-ref': '1' });
+    const link = createMockElement('a', { 'data-agentseye-ref': '2' });
+    const taggedElements = [btn, link];
+
+    const mockDoc = {
+      querySelectorAll: (sel) => {
+        if (sel === '[data-agentseye-ref]') {
+          return taggedElements.filter((el) => el.hasAttribute('data-agentseye-ref'));
+        }
+        return [];
+      },
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.__agentsEyeRefsV1 = {
+      map: new Map([
+        ['@e1', btn],
+        ['@e2', link],
+      ]),
+      document: mockDoc,
+    };
+
+    // Execute DOM_CLEANUP_SCRIPT
+    new Function(DOM_CLEANUP_SCRIPT)();
+
+    assert.equal(btn.getAttribute('data-agentseye-ref'), null);
+    assert.equal(link.getAttribute('data-agentseye-ref'), null);
+    assert.equal(globalThis.__agentsEyeRefsV1, undefined);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
   }
 });

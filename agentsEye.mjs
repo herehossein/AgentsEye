@@ -5666,6 +5666,28 @@ function inPageInteractionProbe(command, safety) {
 }
 
 // src/interactions/runner.ts
+var DOM_CLEANUP_SCRIPT = `(() => {
+  try {
+    const scrub = (root) => {
+      if (!root || !root.querySelectorAll) return;
+      root.querySelectorAll('[data-agentseye-ref]').forEach((el) => {
+        el.removeAttribute('data-agentseye-ref');
+        if (el.shadowRoot) scrub(el.shadowRoot);
+      });
+    };
+    scrub(document);
+    if (globalThis.__agentsEyeRefsV1) {
+      globalThis.__agentsEyeRefsV1.map?.clear();
+      delete globalThis.__agentsEyeRefsV1;
+    }
+  } catch {}
+})()`;
+async function cleanupDomRefs(cdp, evaluationOptions = {}) {
+  try {
+    await evaluate(cdp, DOM_CLEANUP_SCRIPT, evaluationOptions);
+  } catch {
+  }
+}
 function diffInteractionSnapshots(before, after) {
   if (!before || !after) return null;
   const previous = new Map((before.nodes || []).map((node) => [node.id, node]));
@@ -6057,6 +6079,7 @@ async function performInteractions(cdp, options, beforeProbe = null) {
       telemetry.warnings.push(`Final DOM probe unavailable: ${error.message}`);
     }
   }
+  await cleanupDomRefs(cdp, evaluationOptions);
   return telemetry;
 }
 
@@ -6303,6 +6326,8 @@ async function inspectPage(cdp, options, browserInfo) {
     const redacted = redactReport(report, options.redact);
     return auditAndSanitizeReport(redacted, options.sanitizeInjections);
   } finally {
+    await cleanupDomRefs(cdp).catch(() => {
+    });
     state.dispose();
     if (disposeGuard) await disposeGuard();
   }
@@ -6672,6 +6697,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path7.resolve(process.a
 export {
   DEFAULTS,
   DEFAULT_SUMMARY_INTERACTIVE_LIMIT,
+  DOM_CLEANUP_SCRIPT,
   FOCUS_SLICES,
   MATRIX_VIEWPORTS,
   REF_ATTR,
@@ -6686,6 +6712,7 @@ export {
   attachToCdp,
   auditAndSanitizeReport,
   cleanRuns,
+  cleanupDomRefs,
   collectPerformance,
   compactDom,
   connectCdp,

@@ -25,7 +25,7 @@ import {
   collectFrameTree,
   takeScreenshot,
 } from '../cdp/collectors.js';
-import { performInteractions } from '../interactions/runner.js';
+import { cleanupDomRefs, performInteractions } from '../interactions/runner.js';
 import { sanitizeOptionsForReport } from '../reporting/views.js';
 import type { CdpClient } from '../cdp/client.js';
 
@@ -292,6 +292,7 @@ export async function inspectPage(cdp: CdpClient, options: any, browserInfo?: an
     const redacted = redactReport(report, options.redact);
     return auditAndSanitizeReport(redacted, options.sanitizeInjections);
   } finally {
+    await cleanupDomRefs(cdp).catch(() => {});
     state.dispose();
     if (disposeGuard) await disposeGuard();
   }

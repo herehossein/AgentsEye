@@ -3,6 +3,29 @@ import { CdpClient, evaluate } from '../cdp/client.js';
 import { inPageProbe, makeProbeConfig } from '../probes/dom-probe.js';
 import { interactionSafety, inPageInteractionProbe } from '../probes/interaction-probe.js';
 
+export const DOM_CLEANUP_SCRIPT = `(() => {
+  try {
+    const scrub = (root) => {
+      if (!root || !root.querySelectorAll) return;
+      root.querySelectorAll('[data-agentseye-ref]').forEach((el) => {
+        el.removeAttribute('data-agentseye-ref');
+        if (el.shadowRoot) scrub(el.shadowRoot);
+      });
+    };
+    scrub(document);
+    if (globalThis.__agentsEyeRefsV1) {
+      globalThis.__agentsEyeRefsV1.map?.clear();
+      delete globalThis.__agentsEyeRefsV1;
+    }
+  } catch {}
+})()`;
+
+export async function cleanupDomRefs(cdp: CdpClient, evaluationOptions: any = {}): Promise<void> {
+  try {
+    await evaluate(cdp, DOM_CLEANUP_SCRIPT, evaluationOptions);
+  } catch {}
+}
+
 export function diffInteractionSnapshots(before: any, after: any): any {
   if (!before || !after) return null;
   const previous = new Map((before.nodes || []).map((node: any) => [node.id, node]));
@@ -429,5 +452,6 @@ export async function performInteractions(
       telemetry.warnings.push(`Final DOM probe unavailable: ${error.message}`);
     }
   }
+  await cleanupDomRefs(cdp, evaluationOptions);
   return telemetry;
 }
