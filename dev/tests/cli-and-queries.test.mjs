@@ -5,6 +5,8 @@ import {
   parseViewport,
   queryReport,
   focusReport,
+  minimalSummary,
+  formatText,
   TAILWIND_VIEWPORTS,
   MATRIX_VIEWPORTS,
   DEFAULTS,
@@ -222,4 +224,107 @@ test('viewport: DEFAULTS.breakpoints includes Tailwind 2xl (1536px)', () => {
   assert.ok(DEFAULTS.breakpoints.includes(1024));
   assert.ok(DEFAULTS.breakpoints.includes(1280));
   assert.ok(DEFAULTS.breakpoints.includes(1536));
+});
+
+test('parseArgs: accepts @eN locators for --click, --hover, and --scroll', () => {
+  const options = parseArgs(['http://example.com', '--click', '@e1', '--hover', '@e2', '--scroll', '@e3']);
+  assert.equal(options.actions.length, 3);
+  assert.deepEqual(options.actions[0], { type: 'click', value: '@e1', selector: '@e1' });
+  assert.deepEqual(options.actions[1], { type: 'hover', value: '@e2', selector: '@e2' });
+  assert.deepEqual(options.actions[2], { type: 'scroll', value: '@e3' });
+});
+
+test('parseArgs: accepts --interactive-scope flag', () => {
+  const options = parseArgs(['http://example.com', '--interactive-scope', '#settings-modal']);
+  assert.equal(options.interactiveScope, '#settings-modal');
+});
+
+test('parseArgs: rejects malformed ref syntax (e.g. @e, @e-2, @invalid)', () => {
+  assert.throws(() => parseArgs(['http://example.com', '--click', '@e']), /Invalid element ref/);
+  assert.throws(() => parseArgs(['http://example.com', '--hover', '@e-2']), /Invalid element ref/);
+  assert.throws(() => parseArgs(['http://example.com', '--scroll', '@invalid']), /Invalid element ref/);
+});
+
+test('minimalSummary: contains interactive object with total, showing, and ref items', () => {
+  const dummyReport = {
+    ok: true,
+    schemaVersion: '1.0',
+    target: { requestedUrl: 'http://example.com', finalUrl: 'http://example.com' },
+    run: { id: 'run-1' },
+    interactive: {
+      items: [
+        { ref: '@e1', tag: 'button', role: 'button', accessibleName: 'Submit Form', rendered: true },
+        { ref: '@e2', tag: 'a', href: 'https://example.com/docs', name: 'Docs', rendered: true },
+      ],
+    },
+  };
+  const summary = minimalSummary(dummyReport);
+  assert.ok(summary.interactive);
+  assert.equal(summary.interactive.total, 2);
+  assert.equal(summary.interactive.showing, 2);
+  assert.equal(summary.interactive.items[0].ref, '@e1');
+  assert.equal(summary.interactive.items[0].tag, 'button');
+  assert.equal(summary.interactive.items[1].ref, '@e2');
+  assert.equal(summary.interactive.items[1].tag, 'a');
+});
+
+test('minimalSummary: respects the 6 KB hard token budget ceiling', () => {
+  const items = [];
+  for (let i = 1; i <= 60; i++) {
+    items.push({
+      ref: `@e${i}`,
+      tag: 'button',
+      role: 'button',
+      accessibleName: `Very long descriptive button text that consumes context budget item number ${i}`,
+      rendered: true,
+    });
+  }
+  const dummyReport = {
+    ok: true,
+    schemaVersion: '1.0',
+    target: { requestedUrl: 'http://example.com', finalUrl: 'http://example.com' },
+    run: { id: 'run-budget-test' },
+    interactive: { items },
+  };
+  const summary = minimalSummary(dummyReport);
+  const jsonStr = JSON.stringify(summary);
+  assert.ok(jsonStr.length < 6000, `Summary length ${jsonStr.length} exceeded 6000 bytes`);
+  assert.equal(summary.interactive.total, 60);
+});
+
+test('focusReport: supports interactive slice', () => {
+  const dummyReport = {
+    ok: true,
+    schemaVersion: '1.0',
+    target: { requestedUrl: 'http://example.com' },
+    interactive: {
+      count: 2,
+      items: [{ ref: '@e1', tag: 'button' }, { ref: '@e2', tag: 'a' }],
+      truncated: false,
+    },
+  };
+  const slice = focusReport(dummyReport, 'interactive');
+  assert.ok(slice.interactive);
+  assert.equal(slice.interactive.items.length, 2);
+});
+
+test('formatText: renders interactive elements table in plain text summary', () => {
+  const dummySummary = {
+    ok: true,
+    layout: { issueCounts: {} },
+    run: { id: 'run-tbl' },
+    interactive: {
+      total: 30,
+      showing: 2,
+      items: [
+        { ref: '@e1', tag: 'button', role: 'button', name: 'Submit' },
+        { ref: '@e2', tag: 'a', name: 'Home' },
+      ],
+    },
+  };
+  const text = formatText(dummySummary);
+  assert.match(text, /Interactive Elements \(@eN\):/);
+  assert.match(text, /@e1\s+button\/button\s+Submit/);
+  assert.match(text, /@e2\s+a\s+Home/);
+  assert.match(text, /Use '--focus interactive' or 'show run-tbl interactive\.items' to view all 30 elements\./);
 });

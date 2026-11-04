@@ -613,6 +613,32 @@ function parseDuration(value) {
   };
   return num * multipliers[unit];
 }
+function validateElementLocator(val, flag) {
+  const trimmed = String(val ?? "").trim();
+  if (!trimmed) {
+    throw new UsageError(`${flag} expects a non-empty selector or @eN locator`);
+  }
+  if (trimmed.startsWith("@")) {
+    if (!REF_REGEX.test(trimmed)) {
+      throw new UsageError(
+        `Invalid element ref for ${flag}: ${val}. Expected @e<number> (e.g. @e1)`
+      );
+    }
+    return trimmed;
+  }
+  return trimmed;
+}
+function validateScrollLocator(val) {
+  const trimmed = String(val ?? "").trim();
+  if (!trimmed) {
+    throw new UsageError("--scroll expects X,Y deltas or an element locator");
+  }
+  const deltaMatch = /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(trimmed);
+  if (deltaMatch) {
+    return trimmed;
+  }
+  return validateElementLocator(trimmed, "--scroll");
+}
 function parseArgs(argv) {
   const options = {
     url: null,
@@ -687,6 +713,7 @@ function parseArgs(argv) {
     explore: false,
     allowDestructive: false,
     maxExplore: 8,
+    interactiveScope: null,
     actions: [],
     quiet: false,
     temp: false,
@@ -1032,8 +1059,24 @@ function parseArgs(argv) {
         options.maxExplore = parseInteger(take(), "--max-explore", { min: 1, max: 50 });
         break;
       case "click":
-      case "hover":
-      case "scroll":
+      case "hover": {
+        const val = validateElementLocator(take(), `--${key}`);
+        options.actions.push({ type: key, value: val, selector: val });
+        break;
+      }
+      case "scroll": {
+        const val = validateScrollLocator(take());
+        options.actions.push({ type: "scroll", value: val });
+        break;
+      }
+      case "interactive-scope": {
+        const val = take();
+        if (!val || !val.trim()) {
+          throw new UsageError("--interactive-scope expects a selector");
+        }
+        options.interactiveScope = val.trim();
+        break;
+      }
       case "key":
         options.actions.push({ type: key, value: take() });
         break;
@@ -1127,8 +1170,17 @@ function parseArgs(argv) {
     throw new UsageError("At most 50 explicit interactions are allowed");
   for (const action of options.actions) {
     if (!action.value.trim()) throw new UsageError(`--${action.type} expects a non-empty value`);
-    if (action.type === "scroll" && !/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(action.value)) {
-      throw new UsageError("--scroll expects X,Y wheel deltas, e.g. 0,500");
+    if (action.type === "scroll") {
+      const isDelta = /^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(action.value.trim());
+      if (!isDelta) {
+        if (action.value.trim().startsWith("@")) {
+          if (!REF_REGEX.test(action.value.trim())) {
+            throw new UsageError(
+              `Invalid element ref for --scroll: ${action.value}. Expected @e<number> (e.g. @e1)`
+            );
+          }
+        }
+      }
     }
   }
   return options;
@@ -1755,6 +1807,28 @@ function minimalSummary(report) {
       diff: report.interactions.diff?.summary ?? null
     };
   }
+  if (report.interactive?.items) {
+    const rawItems = report.interactive.items;
+    const total = rawItems.length;
+    const renderedItems = rawItems.filter((i) => i.rendered !== false).slice(0, DEFAULT_SUMMARY_INTERACTIVE_LIMIT);
+    summary.interactive = {
+      total,
+      showing: renderedItems.length,
+      items: renderedItems.map((i) => ({
+        ref: i.ref,
+        tag: i.tag,
+        role: i.role || void 0,
+        name: shortText(i.accessibleName || i.name || "", 40),
+        href: i.href ? shortText(i.href, 60) : void 0
+      }))
+    };
+  }
+  if (JSON.stringify(summary).length > 5800) {
+    if (summary.interactive?.items && summary.interactive.items.length > 4) {
+      summary.interactive.items = summary.interactive.items.slice(0, 4);
+      summary.interactive.showing = summary.interactive.items.length;
+    }
+  }
   if (Buffer.byteLength(JSON.stringify(summary)) > 6e3) {
     summary.issues = summary.issues.slice(0, 3);
     summary.console.errors = [];
@@ -1809,6 +1883,8 @@ function focusReport(report, slice, options = {}) {
       return { ...base, performance: report.performance };
     case "storage":
       return { ...base, storage: report.storage };
+    case "interactive":
+      return { ...base, interactive: report.interactive };
     case "console": {
       let entries = report.console?.entries || [];
       const levelFilter = options.consoleLevel ?? report.meta?.options?.consoleLevel ?? null;
@@ -2071,6 +2147,23 @@ function formatSummaryText(report) {
       push(`  ${h}`);
     }
   }
+  if (report.interactive?.items?.length) {
+    const inter = report.interactive;
+    push("Interactive Elements (@eN):");
+    push("  Ref    Tag/Role     Name");
+    push("  -----  -----------  --------------------------------");
+    for (const item of inter.items) {
+      const ref = (item.ref || "").padEnd(6);
+      const tagRole = (item.role ? `${item.tag}/${item.role}` : item.tag).padEnd(14);
+      const name = (item.name || item.accessibleName || "").slice(0, 40);
+      push(`  ${ref} ${tagRole} ${name}`);
+    }
+    if (inter.total > inter.showing) {
+      push(
+        `  Use '--focus interactive' or 'show ${run.id || "<id>"} interactive.items' to view all ${inter.total} elements.`
+      );
+    }
+  }
   if (report.interactions) {
     const inter = report.interactions;
     push(`Interactions: performed=${inter.performed ?? 0} explored=${inter.explored ?? 0}`);
@@ -2198,6 +2291,18 @@ function formatFocusSliceText(report) {
     } else {
       push("  (no matching console entries)");
     }
+  } else if (report.interactive !== void 0) {
+    const inter = report.interactive || {};
+    const items = inter.items || [];
+    push(`Interactive Elements: count=${inter.count ?? items.length}`);
+    push("  Ref    Tag/Role     Name");
+    push("  -----  -----------  --------------------------------");
+    for (const item of items) {
+      const ref = (item.ref || "").padEnd(6);
+      const tagRole = (item.role ? `${item.tag}/${item.role}` : item.tag).padEnd(14);
+      const name = (item.name || item.accessibleName || "").slice(0, 40);
+      push(`  ${ref} ${tagRole} ${name}`);
+    }
   }
   return `${lines.join("\n")}
 `;
@@ -2212,7 +2317,7 @@ function formatText(report, options = {}) {
   if (report.before && report.after && report.summary) return formatDiffText(report);
   if (report.query && "data" in report) return formatQueryText(report);
   if (report.layout?.issueCounts !== void 0) return formatSummaryText(report);
-  if (report.issues !== void 0 && report.shifts !== void 0 && !report.page || report.forms !== void 0 && !report.page || report.dom !== void 0 && !report.page && !report.layout || report.network !== void 0 && !report.page && !report.layout || report.performance !== void 0 && !report.page && !report.layout || report.console !== void 0 && report.issues === void 0 && !report.page && !report.layout) {
+  if (report.issues !== void 0 && report.shifts !== void 0 && !report.page || report.forms !== void 0 && !report.page || report.dom !== void 0 && !report.page && !report.layout || report.network !== void 0 && !report.page && !report.layout || report.performance !== void 0 && !report.page && !report.layout || report.interactive !== void 0 && !report.page && !report.layout || report.console !== void 0 && report.issues === void 0 && !report.page && !report.layout) {
     return formatFocusSliceText(report);
   }
   const lines = [];

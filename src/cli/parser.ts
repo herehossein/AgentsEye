@@ -6,6 +6,7 @@ import {
   DEFAULT_STYLE_PROPS,
   FOCUS_SLICES,
   KNOWN_SECTIONS,
+  REF_REGEX,
   TAILWIND_VIEWPORTS,
 } from '../config/constants.js';
 import type { ViewportConfig } from '../types/options.js';
@@ -105,6 +106,35 @@ export function parseDuration(value: any): number {
   return num * multipliers[unit];
 }
 
+export function validateElementLocator(val: any, flag: string): string {
+  const trimmed = String(val ?? '').trim();
+  if (!trimmed) {
+    throw new UsageError(`${flag} expects a non-empty selector or @eN locator`);
+  }
+  if (trimmed.startsWith('@')) {
+    if (!REF_REGEX.test(trimmed)) {
+      throw new UsageError(
+        `Invalid element ref for ${flag}: ${val}. Expected @e<number> (e.g. @e1)`,
+      );
+    }
+    return trimmed;
+  }
+  return trimmed;
+}
+
+export function validateScrollLocator(val: any): string {
+  const trimmed = String(val ?? '').trim();
+  if (!trimmed) {
+    throw new UsageError('--scroll expects X,Y deltas or an element locator');
+  }
+  const deltaMatch =
+    /^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/.exec(trimmed);
+  if (deltaMatch) {
+    return trimmed;
+  }
+  return validateElementLocator(trimmed, '--scroll');
+}
+
 export interface ParsedArgs {
   url: string | null;
   help: boolean;
@@ -178,7 +208,8 @@ export interface ParsedArgs {
   explore: boolean;
   allowDestructive: boolean;
   maxExplore: number;
-  actions: Array<{ type: string; value: string }>;
+  interactiveScope: string | null;
+  actions: Array<{ type: string; value: string; selector?: string }>;
   quiet: boolean;
   temp: boolean;
   ephemeral: boolean;
@@ -264,6 +295,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     explore: false,
     allowDestructive: false,
     maxExplore: 8,
+    interactiveScope: null,
     actions: [],
     quiet: false,
     temp: false,
@@ -614,8 +646,24 @@ export function parseArgs(argv: string[]): ParsedArgs {
         options.maxExplore = parseInteger(take(), '--max-explore', { min: 1, max: 50 });
         break;
       case 'click':
-      case 'hover':
-      case 'scroll':
+      case 'hover': {
+        const val = validateElementLocator(take(), `--${key}`);
+        options.actions.push({ type: key, value: val, selector: val });
+        break;
+      }
+      case 'scroll': {
+        const val = validateScrollLocator(take());
+        options.actions.push({ type: 'scroll', value: val });
+        break;
+      }
+      case 'interactive-scope': {
+        const val = take();
+        if (!val || !val.trim()) {
+          throw new UsageError('--interactive-scope expects a selector');
+        }
+        options.interactiveScope = val.trim();
+        break;
+      }
       case 'key':
         options.actions.push({ type: key, value: take() });
         break;
@@ -714,8 +762,17 @@ export function parseArgs(argv: string[]): ParsedArgs {
     throw new UsageError('At most 50 explicit interactions are allowed');
   for (const action of options.actions) {
     if (!action.value.trim()) throw new UsageError(`--${action.type} expects a non-empty value`);
-    if (action.type === 'scroll' && !/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(action.value)) {
-      throw new UsageError('--scroll expects X,Y wheel deltas, e.g. 0,500');
+    if (action.type === 'scroll') {
+      const isDelta = /^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(action.value.trim());
+      if (!isDelta) {
+        if (action.value.trim().startsWith('@')) {
+          if (!REF_REGEX.test(action.value.trim())) {
+            throw new UsageError(
+              `Invalid element ref for --scroll: ${action.value}. Expected @e<number> (e.g. @e1)`,
+            );
+          }
+        }
+      }
     }
   }
   return options;

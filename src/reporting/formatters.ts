@@ -178,6 +178,24 @@ export function formatSummaryText(report: any): string {
     }
   }
 
+  if (report.interactive?.items?.length) {
+    const inter = report.interactive;
+    push('Interactive Elements (@eN):');
+    push('  Ref    Tag/Role     Name');
+    push('  -----  -----------  --------------------------------');
+    for (const item of inter.items) {
+      const ref = (item.ref || '').padEnd(6);
+      const tagRole = (item.role ? `${item.tag}/${item.role}` : item.tag).padEnd(14);
+      const name = (item.name || item.accessibleName || '').slice(0, 40);
+      push(`  ${ref} ${tagRole} ${name}`);
+    }
+    if (inter.total > inter.showing) {
+      push(
+        `  Use '--focus interactive' or 'show ${run.id || '<id>'} interactive.items' to view all ${inter.total} elements.`,
+      );
+    }
+  }
+
   if (report.interactions) {
     const inter = report.interactions;
     push(`Interactions: performed=${inter.performed ?? 0} explored=${inter.explored ?? 0}`);
@@ -320,6 +338,18 @@ export function formatFocusSliceText(report: any): string {
     } else {
       push('  (no matching console entries)');
     }
+  } else if (report.interactive !== undefined) {
+    const inter = report.interactive || {};
+    const items = inter.items || [];
+    push(`Interactive Elements: count=${inter.count ?? items.length}`);
+    push('  Ref    Tag/Role     Name');
+    push('  -----  -----------  --------------------------------');
+    for (const item of items) {
+      const ref = (item.ref || '').padEnd(6);
+      const tagRole = (item.role ? `${item.tag}/${item.role}` : item.tag).padEnd(14);
+      const name = (item.name || item.accessibleName || '').slice(0, 40);
+      push(`  ${ref} ${tagRole} ${name}`);
+    }
   }
   return `${lines.join('\n')}\n`;
 }
@@ -338,6 +368,7 @@ export function formatText(report: any, options: any = {}): string {
     (report.dom !== undefined && !report.page && !report.layout) ||
     (report.network !== undefined && !report.page && !report.layout) ||
     (report.performance !== undefined && !report.page && !report.layout) ||
+    (report.interactive !== undefined && !report.page && !report.layout) ||
     (report.console !== undefined && report.issues === undefined && !report.page && !report.layout)
   ) {
     return formatFocusSliceText(report);

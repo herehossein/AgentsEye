@@ -1,4 +1,4 @@
-import { FOCUS_SLICES } from '../config/constants.js';
+import { DEFAULT_SUMMARY_INTERACTIVE_LIMIT, FOCUS_SLICES } from '../config/constants.js';
 import { UsageError } from '../errors/errors.js';
 import { shortText, safeJsonStringify } from '../utils/helpers.js';
 import { redactUrl } from '../security/redaction.js';
@@ -285,8 +285,32 @@ export function minimalSummary(report: any): any {
       diff: report.interactions.diff?.summary ?? null,
     };
   }
+  if (report.interactive?.items) {
+    const rawItems = report.interactive.items;
+    const total = rawItems.length;
+    const renderedItems = rawItems
+      .filter((i: any) => i.rendered !== false)
+      .slice(0, DEFAULT_SUMMARY_INTERACTIVE_LIMIT);
+    summary.interactive = {
+      total,
+      showing: renderedItems.length,
+      items: renderedItems.map((i: any) => ({
+        ref: i.ref,
+        tag: i.tag,
+        role: i.role || undefined,
+        name: shortText(i.accessibleName || i.name || '', 40),
+        href: i.href ? shortText(i.href, 60) : undefined,
+      })),
+    };
+  }
   // Budget the default view, never the persisted report. Diagnostics retain counts
   // and samples even when a particularly noisy page exceeds the normal budget.
+  if (JSON.stringify(summary).length > 5800) {
+    if (summary.interactive?.items && summary.interactive.items.length > 4) {
+      summary.interactive.items = summary.interactive.items.slice(0, 4);
+      summary.interactive.showing = summary.interactive.items.length;
+    }
+  }
   if (Buffer.byteLength(JSON.stringify(summary)) > 6000) {
     summary.issues = summary.issues.slice(0, 3);
     summary.console.errors = [];
@@ -342,6 +366,8 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
       return { ...base, performance: report.performance };
     case 'storage':
       return { ...base, storage: report.storage };
+    case 'interactive':
+      return { ...base, interactive: report.interactive };
     case 'console': {
       let entries = report.console?.entries || [];
       const levelFilter = options.consoleLevel ?? report.meta?.options?.consoleLevel ?? null;
