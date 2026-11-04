@@ -1,6 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArgs, parseViewport, queryReport, focusReport, TAILWIND_VIEWPORTS, MATRIX_VIEWPORTS, DEFAULTS, SCHEMA_VERSION } from '../../agentsEye.mjs';
+import {
+  parseArgs,
+  parseViewport,
+  queryReport,
+  focusReport,
+  TAILWIND_VIEWPORTS,
+  MATRIX_VIEWPORTS,
+  DEFAULTS,
+  SCHEMA_VERSION,
+  REF_PREFIX,
+  REF_REGEX,
+  REF_ATTR,
+  REF_REGISTRY_SLOT,
+  DEFAULT_SUMMARY_INTERACTIVE_LIMIT,
+  FOCUS_SLICES,
+} from '../../agentsEye.mjs';
 
 test('parseArgs: valid flags and viewport parsing', () => {
   const options = parseArgs(['http://example.com', '--viewport', '375x812', '--focus', 'issues', '--quiet']);
@@ -23,6 +38,19 @@ test('parseArgs: rejects invalid focus slice', () => {
     () => parseArgs(['http://example.com', '--focus', 'unknown-slice']),
     /--focus expects one of/
   );
+});
+
+test('constants: ref configuration and interactive focus slice contracts', () => {
+  assert.equal(REF_PREFIX, '@e');
+  assert.equal(REF_ATTR, 'data-agentseye-ref');
+  assert.equal(REF_REGISTRY_SLOT, '__agentsEyeRefsV1');
+  assert.equal(DEFAULT_SUMMARY_INTERACTIVE_LIMIT, 12);
+  assert.match('@e1', REF_REGEX);
+  assert.match('@e42', REF_REGEX);
+  assert.ok(!REF_REGEX.test('@invalid'));
+  assert.ok(FOCUS_SLICES.includes('interactive'));
+  const options = parseArgs(['http://example.com', '--focus', 'interactive']);
+  assert.equal(options.focus, 'interactive');
 });
 
 test('parseArgs: rejects malformed header formats', () => {

@@ -13,6 +13,7 @@ export interface ActionItem {
   dx?: number;
   dy?: number;
   key?: string;
+  value?: string;
   description?: string;
 }
 
@@ -81,6 +82,7 @@ export interface InspectorOptions {
   explore?: boolean;
   maxExplore?: number;
   allowDestructive?: boolean;
+  interactiveScope?: string;
   focus?: string;
   full?: boolean;
   format?: 'json' | 'text';
@@ -122,6 +124,7 @@ export interface ProbeConfig {
   maxHeadings: number;
   maxForms: number;
   maxInteractive: number;
+  interactiveScope?: string;
   maxImages: number;
   maxStorage: number;
   maxStorageValueLength: number;

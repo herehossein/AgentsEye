@@ -2,6 +2,12 @@ export const TOOL_NAME = 'agentsEye';
 export const TOOL_VERSION = '2.1.1';
 export const SCHEMA_VERSION = '1.0';
 
+export const REF_PREFIX = '@e';
+export const REF_REGEX = /^@e\d+$/i;
+export const REF_ATTR = 'data-agentseye-ref';
+export const REF_REGISTRY_SLOT = '__agentsEyeRefsV1';
+export const DEFAULT_SUMMARY_INTERACTIVE_LIMIT = 12;
+
 export const FOCUS_SLICES = [
   'issues',
   'forms',
@@ -10,6 +16,7 @@ export const FOCUS_SLICES = [
   'perf',
   'console',
   'storage',
+  'interactive',
 ] as const;
 
 export const TAILWIND_VIEWPORTS = Object.freeze({

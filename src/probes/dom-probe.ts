@@ -25,6 +25,7 @@ export function makeProbeConfig(options: InspectorOptions): ProbeConfig {
     maxHeadings: DEFAULTS.maxHeadings,
     maxForms: DEFAULTS.maxForms,
     maxInteractive: DEFAULTS.maxInteractive,
+    interactiveScope: options.interactiveScope,
     maxImages: DEFAULTS.maxImages,
     maxStorage: DEFAULTS.maxStorage,
     maxStorageValueLength: DEFAULTS.maxStorageValueLength,

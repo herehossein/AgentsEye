@@ -34,6 +34,24 @@ export interface NetworkEntry {
   failed?: boolean;
 }
 
+export interface InteractiveItem {
+  ref: string;
+  tag: string;
+  role?: string | null;
+  name?: string;
+  accessibleName?: string;
+  text?: string;
+  rendered?: boolean;
+  href?: string | null;
+  tabIndex?: number;
+  disabled?: boolean;
+  smallTouchTarget?: boolean;
+  fontSize?: string;
+  rect?: unknown;
+  cssPath?: string;
+  [key: string]: unknown;
+}
+
 export interface MinimalSummary {
   ok: boolean;
   schemaVersion: '1.0';
@@ -91,6 +109,18 @@ export interface MinimalSummary {
     items: Array<{ type: string; message: string; defaultPrompt?: string }>;
   };
   landmarks: Record<string, { count: number; items?: string[] }>;
+  interactive?: {
+    total: number;
+    showing: number;
+    items: Array<{
+      ref: string;
+      tag: string;
+      role?: string;
+      name: string;
+      rendered?: boolean;
+      href?: string;
+    }>;
+  };
   headings?: {
     count: number;
     items: Array<{ level: number; tag: string; text: string }>;
@@ -238,7 +268,7 @@ export interface FullReport {
   };
   interactive: {
     count: number;
-    items: unknown[];
+    items: InteractiveItem[];
     truncated: boolean;
   };
   images: {

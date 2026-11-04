@@ -8,6 +8,11 @@ import { pathToFileURL } from "node:url";
 var TOOL_NAME = "agentsEye";
 var TOOL_VERSION = "2.1.1";
 var SCHEMA_VERSION = "1.0";
+var REF_PREFIX = "@e";
+var REF_REGEX = /^@e\d+$/i;
+var REF_ATTR = "data-agentseye-ref";
+var REF_REGISTRY_SLOT = "__agentsEyeRefsV1";
+var DEFAULT_SUMMARY_INTERACTIVE_LIMIT = 12;
 var FOCUS_SLICES = [
   "issues",
   "forms",
@@ -15,7 +20,8 @@ var FOCUS_SLICES = [
   "network",
   "perf",
   "console",
-  "storage"
+  "storage",
+  "interactive"
 ];
 var TAILWIND_VIEWPORTS = Object.freeze({
   mobile: Object.freeze({ width: 375, height: 667, dpr: 1, mobile: true }),
@@ -4174,6 +4180,7 @@ function makeProbeConfig(options) {
     maxHeadings: DEFAULTS.maxHeadings,
     maxForms: DEFAULTS.maxForms,
     maxInteractive: DEFAULTS.maxInteractive,
+    interactiveScope: options.interactiveScope,
     maxImages: DEFAULTS.maxImages,
     maxStorage: DEFAULTS.maxStorage,
     maxStorageValueLength: DEFAULTS.maxStorageValueLength,
@@ -6557,7 +6564,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path7.resolve(process.a
 }
 export {
   DEFAULTS,
+  DEFAULT_SUMMARY_INTERACTIVE_LIMIT,
+  FOCUS_SLICES,
   MATRIX_VIEWPORTS,
+  REF_ATTR,
+  REF_PREFIX,
+  REF_REGEX,
+  REF_REGISTRY_SLOT,
   SCHEMA_VERSION,
   TAILWIND_VIEWPORTS,
   TOOL_NAME,
