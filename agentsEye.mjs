@@ -14,6 +14,8 @@ var REF_ATTR = "data-agentseye-ref";
 var REF_REGISTRY_SLOT = "__agentsEyeRefsV1";
 var DEFAULT_SUMMARY_INTERACTIVE_LIMIT = 12;
 var DEFAULT_MAX_OUTPUT = 12e3;
+var CONTENT_BOUNDARY_PREFIX = "--- AGENTSEYE_PAGE_CONTENT";
+var CONTENT_BOUNDARY_SUFFIX = "--- END_AGENTSEYE_PAGE_CONTENT";
 var FOCUS_SLICES = [
   "issues",
   "forms",
@@ -2099,6 +2101,7 @@ function outputView(report, options = {}) {
 }
 
 // src/security/prompt-injection.ts
+import crypto from "node:crypto";
 function normalizeForPromptScan(input) {
   if (!input || typeof input !== "string") return "";
   return input.normalize("NFKC").replace(INVISIBLE_CHARS_REGEX, "");
@@ -2112,6 +2115,13 @@ function neutralizeControlTokens(input) {
   return text;
 }
 var normalizeControlTokens = neutralizeControlTokens;
+function wrapContentBoundaries(content, origin = "unknown", nonce) {
+  const boundaryNonce = nonce || crypto.randomBytes(16).toString("hex");
+  return `${CONTENT_BOUNDARY_PREFIX} nonce=${boundaryNonce} origin=${origin} ---
+${content}
+${CONTENT_BOUNDARY_SUFFIX} nonce=${boundaryNonce} ---
+`;
+}
 function scanPromptInjection(input, fieldPath = "") {
   if (!input || typeof input !== "string") return [];
   const normalized = normalizeForPromptScan(input);
@@ -2671,13 +2681,33 @@ function formatText(report, options = {}) {
   return `${lines.join("\n")}
 `;
 }
+function truncateOutput(content, maxOutput) {
+  if (!maxOutput || maxOutput <= 0 || content.length <= maxOutput) {
+    return content;
+  }
+  const sliced = content.slice(0, maxOutput);
+  const totalChars = content.length;
+  return `${sliced}
+[truncated: showing ${maxOutput} of ${totalChars} chars. Use --max-output or --focus <slice> to narrow]
+`;
+}
 function serializeOutput(report, options = {}) {
   const opts = options || {};
+  let output;
   if (opts.format === "text") {
-    return formatText(report, opts);
-  }
-  return `${safeJsonStringify(report, opts.pretty ? 2 : 0)}
+    output = formatText(report, opts);
+  } else {
+    output = `${safeJsonStringify(report, opts.pretty ? 2 : 0)}
 `;
+  }
+  if (opts.contentBoundaries) {
+    const origin = report?.target?.finalUrl || report?.target?.requestedUrl || "unknown";
+    output = wrapContentBoundaries(output, origin);
+  }
+  if (opts.maxOutput && opts.maxOutput > 0) {
+    output = truncateOutput(output, opts.maxOutput);
+  }
+  return output;
 }
 function formatInteractiveTreeText(items, options = {}) {
   if (!Array.isArray(items) || items.length === 0) {
@@ -7074,11 +7104,13 @@ export {
   scanPromptInjection,
   selectSections,
   serializeOutput,
+  truncateOutput,
   validateBrowserArg,
   validateCdpEndpoint,
   validateResolvedHostname,
   validateResolvedTargetUrl,
   validateRunId,
   validateTargetUrl,
-  waitForNetworkIdle
+  waitForNetworkIdle,
+  wrapContentBoundaries
 };

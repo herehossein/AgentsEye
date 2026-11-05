@@ -11,6 +11,8 @@ import {
   serializeOutput,
   outputView,
   cleanRuns,
+  truncateOutput,
+  wrapContentBoundaries,
   TOOL_NAME,
   TOOL_VERSION,
   SCHEMA_VERSION,
@@ -543,4 +545,44 @@ test('cleanRuns: removes target run in test directory by ID', async () => {
   } finally {
     fs.rmSync(testRunsDir, { recursive: true, force: true });
   }
+});
+
+// ============================================================================
+// Context Budgeting & Content Boundaries
+// ============================================================================
+
+test('truncateOutput: truncates output exceeding character budget and appends hint', () => {
+  const content = 'a'.repeat(50);
+  const truncated = truncateOutput(content, 20);
+  assert.ok(truncated.startsWith('a'.repeat(20)));
+  assert.ok(truncated.includes('[truncated: showing 20 of 50 chars. Use --max-output or --focus <slice> to narrow]'));
+
+  // No truncation when within budget or non-positive
+  assert.equal(truncateOutput(content, 100), content);
+  assert.equal(truncateOutput(content, 0), content);
+  assert.equal(truncateOutput(content, -5), content);
+  assert.equal(truncateOutput(content, undefined), content);
+});
+
+test('wrapContentBoundaries: wraps content inside CSPRNG nonce markers', () => {
+  const content = '{"sample": "data"}';
+  const wrapped = wrapContentBoundaries(content, 'https://example.com', 'test-nonce-1234');
+  assert.ok(wrapped.includes('--- AGENTSEYE_PAGE_CONTENT nonce=test-nonce-1234 origin=https://example.com ---'));
+  assert.ok(wrapped.includes('{"sample": "data"}'));
+  assert.ok(wrapped.includes('--- END_AGENTSEYE_PAGE_CONTENT nonce=test-nonce-1234 ---'));
+
+  // Without explicit nonce, generates 32-hex CSPRNG nonce
+  const autoNonce = wrapContentBoundaries(content, 'https://example.com');
+  assert.match(autoNonce, /nonce=([0-9a-f]{32})/);
+});
+
+test('serializeOutput: honors contentBoundaries and maxOutput options', () => {
+  const rep = { target: { finalUrl: 'https://example.com/checkout' }, ok: true };
+  const outBoundaries = serializeOutput(rep, { contentBoundaries: true });
+  assert.ok(outBoundaries.includes('--- AGENTSEYE_PAGE_CONTENT'));
+  assert.ok(outBoundaries.includes('origin=https://example.com/checkout'));
+  assert.ok(outBoundaries.includes('--- END_AGENTSEYE_PAGE_CONTENT'));
+
+  const outTruncated = serializeOutput(rep, { maxOutput: 15 });
+  assert.ok(outTruncated.includes('[truncated: showing 15 of'));
 });

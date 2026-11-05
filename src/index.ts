@@ -32,6 +32,7 @@ import {
   serializeOutput,
   formatInteractiveTreeText,
   compactInteractiveTree,
+  truncateOutput,
 } from './reporting/formatters.js';
 
 import { diffReports, computeUnifiedTextDiff, diffInteractiveSnapshots } from './reporting/diff.js';
@@ -43,6 +44,7 @@ import {
   neutralizeControlTokens,
   sanitizePromptInjection,
   scanPromptInjection,
+  wrapContentBoundaries,
 } from './security/prompt-injection.js';
 
 import {
@@ -139,10 +141,12 @@ export {
   serializeOutput,
   formatInteractiveTreeText,
   compactInteractiveTree,
+  truncateOutput,
   outputView,
   validateBrowserArg,
   resolveSafePath,
   neutralizeControlTokens,
+  wrapContentBoundaries,
   scanPromptInjection,
   sanitizePromptInjection,
   auditAndSanitizeReport,

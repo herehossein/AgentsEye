@@ -1,8 +1,11 @@
+import crypto from 'node:crypto';
 import {
   LLM_CONTROL_TOKENS,
   PROMPT_INJECTION_PATTERNS,
   INVISIBLE_CHARS_REGEX,
   PromptInjectionPattern,
+  CONTENT_BOUNDARY_PREFIX,
+  CONTENT_BOUNDARY_SUFFIX,
 } from '../config/constants.js';
 
 export function normalizeForPromptScan(input: unknown): string {
@@ -20,6 +23,11 @@ export function neutralizeControlTokens(input: unknown): unknown {
 }
 
 export const normalizeControlTokens = neutralizeControlTokens;
+
+export function wrapContentBoundaries(content: string, origin = 'unknown', nonce?: string): string {
+  const boundaryNonce = nonce || crypto.randomBytes(16).toString('hex');
+  return `${CONTENT_BOUNDARY_PREFIX} nonce=${boundaryNonce} origin=${origin} ---\n${content}\n${CONTENT_BOUNDARY_SUFFIX} nonce=${boundaryNonce} ---\n`;
+}
 
 export interface PromptInjectionFinding {
   id: string;

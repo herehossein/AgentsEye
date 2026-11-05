@@ -1,6 +1,6 @@
 import { TOOL_NAME, TOOL_VERSION } from '../config/constants.js';
 import { safeJsonStringify } from '../utils/helpers.js';
-import { normalizeControlTokens } from '../security/prompt-injection.js';
+import { normalizeControlTokens, wrapContentBoundaries } from '../security/prompt-injection.js';
 
 export function formatDiffText(report: any): string {
   const lines: string[] = [];
@@ -542,12 +542,37 @@ export function formatText(report: any, options: any = {}): string {
   return `${lines.join('\n')}\n`;
 }
 
+export function truncateOutput(content: string, maxOutput?: number): string {
+  if (!maxOutput || maxOutput <= 0 || content.length <= maxOutput) {
+    return content;
+  }
+
+  const sliced = content.slice(0, maxOutput);
+  const totalChars = content.length;
+
+  return `${sliced}\n[truncated: showing ${maxOutput} of ${totalChars} chars. Use --max-output or --focus <slice> to narrow]\n`;
+}
+
 export function serializeOutput(report: any, options: any = {}): string {
   const opts = options || {};
+  let output: string;
+
   if (opts.format === 'text') {
-    return formatText(report, opts);
+    output = formatText(report, opts);
+  } else {
+    output = `${safeJsonStringify(report, opts.pretty ? 2 : 0)}\n`;
   }
-  return `${safeJsonStringify(report, opts.pretty ? 2 : 0)}\n`;
+
+  if (opts.contentBoundaries) {
+    const origin = report?.target?.finalUrl || report?.target?.requestedUrl || 'unknown';
+    output = wrapContentBoundaries(output, origin);
+  }
+
+  if (opts.maxOutput && opts.maxOutput > 0) {
+    output = truncateOutput(output, opts.maxOutput);
+  }
+
+  return output;
 }
 
 export interface FormatTreeOptions {
