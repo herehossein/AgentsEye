@@ -1557,6 +1557,102 @@ function diffReports(before, after) {
     note: "Heuristic structural matching; bounding-box/style differences require review, not every change is a regression."
   };
 }
+function computeUnifiedTextDiff(beforeText, afterText, _contextRadius = 3) {
+  if (beforeText === afterText) {
+    return {
+      diff: "",
+      additions: 0,
+      removals: 0,
+      unchanged: beforeText ? beforeText.split("\n").length : 0,
+      changed: false
+    };
+  }
+  const beforeLines = beforeText ? beforeText.split("\n") : [];
+  const afterLines = afterText ? afterText.split("\n") : [];
+  const diffLines = ["--- before", "+++ after"];
+  let additions = 0;
+  let removals = 0;
+  let unchanged = 0;
+  const bSet = new Set(beforeLines);
+  const aSet = new Set(afterLines);
+  for (const line of beforeLines) {
+    if (!aSet.has(line)) {
+      diffLines.push(`- ${line}`);
+      removals++;
+    } else {
+      unchanged++;
+    }
+  }
+  for (const line of afterLines) {
+    if (!bSet.has(line)) {
+      diffLines.push(`+ ${line}`);
+      additions++;
+    }
+  }
+  return {
+    diff: diffLines.join("\n"),
+    additions,
+    removals,
+    unchanged,
+    changed: additions > 0 || removals > 0
+  };
+}
+function diffInteractiveSnapshots(beforeItems = [], afterItems = [], beforeTreeText = "", afterTreeText = "") {
+  const beforeMap = /* @__PURE__ */ new Map();
+  const afterMap = /* @__PURE__ */ new Map();
+  for (const item of beforeItems) if (item.ref) beforeMap.set(item.ref, item);
+  for (const item of afterItems) if (item.ref) afterMap.set(item.ref, item);
+  if (beforeTreeText && afterTreeText && beforeTreeText === afterTreeText) {
+    return {
+      kind: "unchanged",
+      changed: false,
+      additions: 0,
+      removals: 0,
+      unchanged: afterItems.length
+    };
+  }
+  const changes = [];
+  let additions = 0;
+  let removals = 0;
+  for (const [ref, item] of beforeMap.entries()) {
+    if (!afterMap.has(ref)) {
+      changes.push({ op: "remove", ref, role: item.role, name: item.name });
+      removals++;
+    }
+  }
+  for (const [ref, afterItem] of afterMap.entries()) {
+    const beforeItem = beforeMap.get(ref);
+    if (!beforeItem) {
+      changes.push({
+        op: "add",
+        ref,
+        role: afterItem.role,
+        name: afterItem.name,
+        tag: afterItem.tag
+      });
+      additions++;
+    } else if (beforeItem.role !== afterItem.role || beforeItem.name !== afterItem.name || beforeItem.disabled !== afterItem.disabled || beforeItem.checked !== afterItem.checked) {
+      changes.push({
+        op: "replace",
+        ref,
+        role: afterItem.role,
+        name: afterItem.name
+      });
+      additions++;
+      removals++;
+    }
+  }
+  const textDiff = computeUnifiedTextDiff(beforeTreeText, afterTreeText);
+  return {
+    kind: changes.length === 0 && !textDiff.changed ? "unchanged" : "delta",
+    changed: changes.length > 0 || textDiff.changed,
+    additions,
+    removals,
+    unchanged: afterItems.length - additions,
+    changes,
+    diff: textDiff.diff
+  };
+}
 
 // src/reporting/views.ts
 function sanitizeOptionsForReport(options, finalUrl) {
@@ -6937,9 +7033,11 @@ export {
   collectPerformance,
   compactDom,
   compactInteractiveTree,
+  computeUnifiedTextDiff,
   connectCdp,
   createRun,
   diffInteractionSnapshots,
+  diffInteractiveSnapshots,
   diffReports,
   evaluate,
   findBrowser,

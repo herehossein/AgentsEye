@@ -34,7 +34,7 @@ import {
   compactInteractiveTree,
 } from './reporting/formatters.js';
 
-import { diffReports } from './reporting/diff.js';
+import { diffReports, computeUnifiedTextDiff, diffInteractiveSnapshots } from './reporting/diff.js';
 
 import { redactReport, redactString, redactUrl } from './security/redaction.js';
 
@@ -105,6 +105,8 @@ export {
   focusReport,
   queryReport,
   diffReports,
+  computeUnifiedTextDiff,
+  diffInteractiveSnapshots,
   readRun,
   createRun,
   persistRun,

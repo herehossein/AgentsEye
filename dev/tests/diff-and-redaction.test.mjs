@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diffReports, redactString, redactUrl, SCHEMA_VERSION } from '../../agentsEye.mjs';
+import {
+  diffReports,
+  redactString,
+  redactUrl,
+  SCHEMA_VERSION,
+  computeUnifiedTextDiff,
+  diffInteractiveSnapshots,
+} from '../../agentsEye.mjs';
 
 test('diffReports: identical reports produce zero new issues and zero new errors', () => {
   const baseReport = {
@@ -89,4 +96,61 @@ test('redactUrl: masks query credentials in URLs', () => {
   assert.doesNotMatch(redactedUrl, /myPrivateApiKey/);
   assert.ok(redactedUrl.includes('api_key=[REDACTED]'));
   assert.ok(redactedUrl.includes('filter=active'));
+});
+
+test('computeUnifiedTextDiff: identical inputs return empty diff and changed=false', () => {
+  const text = 'line 1\nline 2\nline 3';
+  const result = computeUnifiedTextDiff(text, text);
+  assert.equal(result.changed, false);
+  assert.equal(result.diff, '');
+  assert.equal(result.additions, 0);
+  assert.equal(result.removals, 0);
+  assert.equal(result.unchanged, 3);
+});
+
+test('computeUnifiedTextDiff: detects line additions and removals', () => {
+  const before = 'line 1\nline 2';
+  const after = 'line 1\nline 3';
+  const result = computeUnifiedTextDiff(before, after);
+  assert.equal(result.changed, true);
+  assert.ok(result.diff.includes('- line 2'));
+  assert.ok(result.diff.includes('+ line 3'));
+  assert.equal(result.additions, 1);
+  assert.equal(result.removals, 1);
+});
+
+test('diffInteractiveSnapshots: identical snapshots return kind unchanged and changed=false', () => {
+  const items = [
+    { ref: '@e1', role: 'button', name: 'Submit' },
+    { ref: '@e2', role: 'link', name: 'Home' },
+  ];
+  const treeText = '@e1 [button] "Submit"\n@e2 [link] "Home"\n';
+  const delta = diffInteractiveSnapshots(items, items, treeText, treeText);
+
+  assert.equal(delta.kind, 'unchanged');
+  assert.equal(delta.changed, false);
+  assert.equal(delta.additions, 0);
+  assert.equal(delta.removals, 0);
+});
+
+test('diffInteractiveSnapshots: detects additions, removals, and replacements', () => {
+  const beforeItems = [
+    { ref: '@e1', role: 'button', name: 'Submit', disabled: false },
+    { ref: '@e2', role: 'link', name: 'Help' },
+  ];
+  const afterItems = [
+    { ref: '@e1', role: 'button', name: 'Submit', disabled: true },
+    { ref: '@e3', role: 'textbox', name: 'Search', tag: 'input' },
+  ];
+  const beforeTree = '@e1 [button] "Submit"\n@e2 [link] "Help"';
+  const afterTree = '@e1 [button] "Submit" [disabled]\n@e3 [textbox] "Search"';
+
+  const delta = diffInteractiveSnapshots(beforeItems, afterItems, beforeTree, afterTree);
+
+  assert.equal(delta.kind, 'delta');
+  assert.equal(delta.changed, true);
+  assert.ok(delta.changes);
+  assert.ok(delta.changes.some((c) => c.op === 'remove' && c.ref === '@e2'));
+  assert.ok(delta.changes.some((c) => c.op === 'add' && c.ref === '@e3'));
+  assert.ok(delta.changes.some((c) => c.op === 'replace' && c.ref === '@e1'));
 });

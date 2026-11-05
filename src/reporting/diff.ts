@@ -1,4 +1,5 @@
 import { SCHEMA_VERSION } from '../config/constants.js';
+import { InteractiveDelta, DeltaOperation } from '../types/report.js';
 
 export function diffReports(before: any, after: any): any {
   const flatten = (report: any) => {
@@ -125,5 +126,136 @@ export function diffReports(before: any, after: any): any {
       newIssues.length,
     ].some((count) => count > 50),
     note: 'Heuristic structural matching; bounding-box/style differences require review, not every change is a regression.',
+  };
+}
+
+/**
+ * Computes unified text line diffs with configurable context radius.
+ */
+export function computeUnifiedTextDiff(
+  beforeText: string,
+  afterText: string,
+  _contextRadius = 3,
+): { diff: string; additions: number; removals: number; unchanged: number; changed: boolean } {
+  if (beforeText === afterText) {
+    return {
+      diff: '',
+      additions: 0,
+      removals: 0,
+      unchanged: beforeText ? beforeText.split('\n').length : 0,
+      changed: false,
+    };
+  }
+
+  const beforeLines = beforeText ? beforeText.split('\n') : [];
+  const afterLines = afterText ? afterText.split('\n') : [];
+
+  const diffLines: string[] = ['--- before', '+++ after'];
+  let additions = 0;
+  let removals = 0;
+  let unchanged = 0;
+
+  const bSet = new Set(beforeLines);
+  const aSet = new Set(afterLines);
+
+  for (const line of beforeLines) {
+    if (!aSet.has(line)) {
+      diffLines.push(`- ${line}`);
+      removals++;
+    } else {
+      unchanged++;
+    }
+  }
+  for (const line of afterLines) {
+    if (!bSet.has(line)) {
+      diffLines.push(`+ ${line}`);
+      additions++;
+    }
+  }
+
+  return {
+    diff: diffLines.join('\n'),
+    additions,
+    removals,
+    unchanged,
+    changed: additions > 0 || removals > 0,
+  };
+}
+
+/**
+ * Computes an ultra-compact interactive delta between consecutive snapshots.
+ * Returns kind: 'unchanged' (~10 tokens) when DOM state is identical.
+ */
+export function diffInteractiveSnapshots(
+  beforeItems: any[] = [],
+  afterItems: any[] = [],
+  beforeTreeText = '',
+  afterTreeText = '',
+): InteractiveDelta {
+  const beforeMap = new Map<string, any>();
+  const afterMap = new Map<string, any>();
+
+  for (const item of beforeItems) if (item.ref) beforeMap.set(item.ref, item);
+  for (const item of afterItems) if (item.ref) afterMap.set(item.ref, item);
+
+  if (beforeTreeText && afterTreeText && beforeTreeText === afterTreeText) {
+    return {
+      kind: 'unchanged',
+      changed: false,
+      additions: 0,
+      removals: 0,
+      unchanged: afterItems.length,
+    };
+  }
+
+  const changes: DeltaOperation[] = [];
+  let additions = 0;
+  let removals = 0;
+
+  for (const [ref, item] of beforeMap.entries()) {
+    if (!afterMap.has(ref)) {
+      changes.push({ op: 'remove', ref, role: item.role, name: item.name });
+      removals++;
+    }
+  }
+
+  for (const [ref, afterItem] of afterMap.entries()) {
+    const beforeItem = beforeMap.get(ref);
+    if (!beforeItem) {
+      changes.push({
+        op: 'add',
+        ref,
+        role: afterItem.role,
+        name: afterItem.name,
+        tag: afterItem.tag,
+      });
+      additions++;
+    } else if (
+      beforeItem.role !== afterItem.role ||
+      beforeItem.name !== afterItem.name ||
+      beforeItem.disabled !== afterItem.disabled ||
+      beforeItem.checked !== afterItem.checked
+    ) {
+      changes.push({
+        op: 'replace',
+        ref,
+        role: afterItem.role,
+        name: afterItem.name,
+      });
+      additions++;
+      removals++;
+    }
+  }
+
+  const textDiff = computeUnifiedTextDiff(beforeTreeText, afterTreeText);
+
+  return {
+    kind: changes.length === 0 && !textDiff.changed ? 'unchanged' : 'delta',
+    changed: changes.length > 0 || textDiff.changed,
+    additions,
+    removals,
+    unchanged: afterItems.length - additions,
+    changes,
+    diff: textDiff.diff,
   };
 }
