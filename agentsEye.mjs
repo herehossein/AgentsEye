@@ -7118,6 +7118,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path7.resolve(process.a
 }
 export {
   DEFAULTS,
+  DEFAULT_MAX_OUTPUT,
   DEFAULT_SUMMARY_INTERACTIVE_LIMIT,
   DOM_CLEANUP_SCRIPT,
   FOCUS_SLICES,
