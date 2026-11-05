@@ -348,6 +348,7 @@ export interface InteractiveDelta {
   changed: boolean;
   additions: number;
   removals: number;
+  replacements?: number;
   unchanged: number;
   changes?: DeltaOperation[];
   diff?: string;

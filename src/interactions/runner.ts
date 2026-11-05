@@ -2,6 +2,7 @@ import { sleep } from '../utils/helpers.js';
 import { CdpClient, evaluate } from '../cdp/client.js';
 import { inPageProbe, makeProbeConfig } from '../probes/dom-probe.js';
 import { interactionSafety, inPageInteractionProbe } from '../probes/interaction-probe.js';
+import { formatInteractiveTreeText } from '../reporting/formatters.js';
 
 export const DOM_CLEANUP_SCRIPT = `(() => {
   try {
@@ -208,8 +209,20 @@ export async function performInteractions(
   let baseline: any;
   try {
     baseline = await probe({ op: 'snapshot' });
-    telemetry.beforeSnapshot = baseline;
-    telemetry.afterSnapshot = baseline;
+    const beforeInteractive = beforeProbe?.interactive || null;
+    const beforeTreeText = beforeInteractive?.items
+      ? formatInteractiveTreeText(beforeInteractive.items)
+      : '';
+    telemetry.beforeSnapshot = {
+      ...baseline,
+      interactive: beforeInteractive,
+      interactiveTreeText: beforeTreeText,
+    };
+    telemetry.afterSnapshot = {
+      ...baseline,
+      interactive: beforeInteractive,
+      interactiveTreeText: beforeTreeText,
+    };
   } catch (error: any) {
     telemetry.warnings.push(
       `Interaction snapshot unavailable; no inputs dispatched: ${error.message}`,
@@ -246,6 +259,7 @@ export async function performInteractions(
       if (action.type === 'click' || action.type === 'hover') {
         let target = await probe({
           op: 'target',
+          type: action.type,
           selector: action.value,
           id: candidate?.id,
           automatic,
@@ -450,6 +464,15 @@ export async function performInteractions(
         evaluationOptions,
         { timeoutMs: Math.max(evaluationOptions.timeoutMs, 45_000) },
       );
+      if (telemetry.finalProbe?.interactive) {
+        telemetry.afterSnapshot = {
+          ...telemetry.afterSnapshot,
+          interactive: telemetry.finalProbe.interactive,
+          interactiveTreeText: formatInteractiveTreeText(
+            telemetry.finalProbe.interactive.items || [],
+          ),
+        };
+      }
     } catch (error: any) {
       telemetry.warnings.push(`Final DOM probe unavailable: ${error.message}`);
     }

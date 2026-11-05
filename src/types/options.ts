@@ -105,6 +105,7 @@ export interface InspectorOptions {
   cwd?: string;
   compact?: boolean;
   delta?: boolean;
+  depth?: number;
   maxOutput?: number;
   contentBoundaries?: boolean;
 }

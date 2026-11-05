@@ -188,6 +188,20 @@ test('interactionSafety: allowDestructive flag permits destructive keywords but 
   assert.equal(interactionSafety(null, true, false), 'Target not found');
 });
 
+test('interactionSafety: allows hover on navigation controls while blocking click', () => {
+  const linkTarget = {
+    connected: true,
+    visible: true,
+    navigation: true,
+    name: 'Docs Menu',
+  };
+  assert.equal(
+    interactionSafety(linkTarget, false, false, 'click'),
+    'Links and navigation controls are never clicked'
+  );
+  assert.equal(interactionSafety(linkTarget, false, false, 'hover'), null);
+});
+
 test('interactionSafety: automatic exploration mode vs manual interaction mode', () => {
   const plainButton = {
     connected: true,

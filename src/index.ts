@@ -32,6 +32,7 @@ import {
   formatText,
   serializeOutput,
   formatInteractiveTreeText,
+  formatInteractiveDeltaText,
   compactInteractiveTree,
   truncateOutput,
 } from './reporting/formatters.js';
@@ -141,6 +142,7 @@ export {
   formatText,
   serializeOutput,
   formatInteractiveTreeText,
+  formatInteractiveDeltaText,
   compactInteractiveTree,
   truncateOutput,
   outputView,

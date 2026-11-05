@@ -277,6 +277,30 @@ test('parseArgs: rejects malformed ref syntax (e.g. @e, @e-2, @invalid)', () => 
   assert.throws(() => parseArgs(['http://example.com', '--scroll', '@invalid']), /Invalid element ref/);
 });
 
+test('parseArgs: accepts bare element refs like e1, e2 and normalizes to @eN', () => {
+  const options = parseArgs(['http://example.com', '--click', 'e1', '--hover', 'e2', '--scroll', 'e3']);
+  assert.equal(options.actions[0].value, '@e1');
+  assert.equal(options.actions[1].value, '@e2');
+  assert.equal(options.actions[2].value, '@e3');
+});
+
+test('parseArgs: rejects flag names passed as action locator values', () => {
+  assert.throws(
+    () => parseArgs(['http://example.com', '--click', '--temp']),
+    /expects a selector or @eN locator, received flag: --temp/,
+  );
+});
+
+test('parseArgs: accepts --depth flag and --no-max-output', () => {
+  const o1 = parseArgs(['http://example.com', '--depth', '3']);
+  assert.equal(o1.depth, 3);
+
+  const o2 = parseArgs(['http://example.com', '--no-max-output']);
+  assert.equal(o2.maxOutput, 0);
+
+  assert.throws(() => parseArgs(['http://example.com', '--depth', '-1']), /--depth expects an integer/);
+});
+
 test('minimalSummary: contains interactive object with total, showing, and ref items', () => {
   const dummyReport = {
     ok: true,

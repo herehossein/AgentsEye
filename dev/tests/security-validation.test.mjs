@@ -558,3 +558,9 @@ test('validateRunId: rejects null bytes, spaces, and special characters', () => 
     );
   }
 });
+
+test('resolveSafePath: allows non-existent path in temp runs without false symlink escape error', () => {
+  const target = path.join(os.tmpdir(), '.agentsEye', 'runs', 'temp-run-nonexistent', 'shot.png');
+  const resolved = resolveSafePath(target);
+  assert.equal(resolved, path.resolve(target));
+});

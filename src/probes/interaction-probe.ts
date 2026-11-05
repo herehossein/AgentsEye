@@ -1,10 +1,16 @@
 // @ts-nocheck
-export function interactionSafety(target, allowDestructive = false, automatic = false) {
+export function interactionSafety(
+  target,
+  allowDestructive = false,
+  automatic = false,
+  actionType = 'click',
+) {
   if (!target) return 'Target not found';
   if (!target.connected) return 'Target is stale or detached';
   if (!target.visible) return 'Target is hidden or outside the viewport';
   if (target.disabled) return 'Target or its ancestor is disabled/inert';
-  if (target.navigation) return 'Links and navigation controls are never clicked';
+  if (actionType !== 'hover' && target.navigation)
+    return 'Links and navigation controls are never clicked';
   if (target.submission) return 'Form submission/reset controls are never clicked';
   if (target.file) return 'File controls are never clicked';
   if (target.editable) return 'Editable and value-changing form controls are not explored';
@@ -276,11 +282,13 @@ export function inPageInteractionProbe(command, safety) {
     return { ...context, reason, target: publicTarget(info) };
   }
   let target = null;
-  const isRef = typeof command.selector === 'string' && /^@e\d+$/i.test(command.selector.trim());
+  const isRef = typeof command.selector === 'string' && /^@?e\d+$/i.test(command.selector.trim());
   if (command.id) target = state.targets.get(command.id);
   else if (isRef) {
     const refKey = command.selector.trim();
-    const normalizedRef = refKey.toLowerCase();
+    const normalizedRef = refKey.startsWith('@')
+      ? refKey.toLowerCase()
+      : `@${refKey.toLowerCase()}`;
     const rawNum = normalizedRef.replace(/^@e/, '');
     const registry =
       globalThis.__agentsEyeRefsV1 ||
@@ -332,7 +340,12 @@ export function inPageInteractionProbe(command, safety) {
     return { ...context, status: 'applied', target: command.selector };
   }
   const info = describe(target);
-  const reason = safety(info, command.allowDestructive, command.automatic);
+  const reason = safety(
+    info,
+    command.allowDestructive,
+    command.automatic,
+    command.type || command.op,
+  );
   if (reason) return { ...context, reason, target: publicTarget(info) };
   const left = Math.max(0, info.rect.x);
   const top = Math.max(0, info.rect.y);
@@ -387,7 +400,7 @@ export function inPageInteractionProbe(command, safety) {
   // A clickable descendant may have a different purpose from the selected
   // container. Recheck it too, including its ancestors, before native dispatch.
   const hitInfo = describe(hit);
-  const hitReason = safety(hitInfo, command.allowDestructive, false);
+  const hitReason = safety(hitInfo, command.allowDestructive, false, command.type || command.op);
   if (hitReason && !isLabelAssociated(hit, target))
     return { ...context, reason: hitReason, target: publicTarget(info) };
   return { ...context, reason: null, target: publicTarget(info), point: { x, y } };

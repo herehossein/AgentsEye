@@ -150,35 +150,85 @@ export function computeUnifiedTextDiff(
   const beforeLines = beforeText ? beforeText.split('\n') : [];
   const afterLines = afterText ? afterText.split('\n') : [];
 
+  let prefix = 0;
+  while (
+    prefix < beforeLines.length &&
+    prefix < afterLines.length &&
+    beforeLines[prefix] === afterLines[prefix]
+  ) {
+    prefix++;
+  }
+
+  let suffix = 0;
+  while (
+    suffix < beforeLines.length - prefix &&
+    suffix < afterLines.length - prefix &&
+    beforeLines[beforeLines.length - 1 - suffix] === afterLines[afterLines.length - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
+  const bMid = beforeLines.slice(prefix, beforeLines.length - suffix);
+  const aMid = afterLines.slice(prefix, afterLines.length - suffix);
+
   const diffLines: string[] = ['--- before', '+++ after'];
   let additions = 0;
   let removals = 0;
-  let unchanged = 0;
+  let unchanged = prefix + suffix;
 
-  const bSet = new Set(beforeLines);
-  const aSet = new Set(afterLines);
+  const n = bMid.length;
+  const m = aMid.length;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
 
-  for (const line of beforeLines) {
-    if (!aSet.has(line)) {
-      diffLines.push(`- ${line}`);
-      removals++;
-    } else {
-      unchanged++;
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      if (bMid[i - 1] === aMid[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
     }
   }
-  for (const line of afterLines) {
-    if (!bSet.has(line)) {
-      diffLines.push(`+ ${line}`);
+
+  let i = n;
+  let j = m;
+  const midDiff: string[] = [];
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && bMid[i - 1] === aMid[j - 1]) {
+      midDiff.push(`  ${bMid[i - 1]}`);
+      unchanged++;
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      midDiff.push(`+ ${aMid[j - 1]}`);
       additions++;
+      j--;
+    } else {
+      midDiff.push(`- ${bMid[i - 1]}`);
+      removals++;
+      i--;
     }
+  }
+  midDiff.reverse();
+
+  const changed = additions > 0 || removals > 0;
+  if (changed) {
+    const preContext = beforeLines.slice(Math.max(0, prefix - _contextRadius), prefix);
+    for (const line of preContext) diffLines.push(`  ${line}`);
+    diffLines.push(...midDiff);
+    const postContext = beforeLines.slice(
+      beforeLines.length - suffix,
+      Math.min(beforeLines.length, beforeLines.length - suffix + _contextRadius),
+    );
+    for (const line of postContext) diffLines.push(`  ${line}`);
   }
 
   return {
-    diff: diffLines.join('\n'),
+    diff: changed ? diffLines.join('\n') : '',
     additions,
     removals,
     unchanged,
-    changed: additions > 0 || removals > 0,
+    changed,
   };
 }
 
@@ -204,13 +254,16 @@ export function diffInteractiveSnapshots(
       changed: false,
       additions: 0,
       removals: 0,
+      replacements: 0,
       unchanged: afterItems.length,
+      diff: '',
     };
   }
 
   const changes: DeltaOperation[] = [];
   let additions = 0;
   let removals = 0;
+  let replacements = 0;
 
   for (const [ref, item] of beforeMap.entries()) {
     if (!afterMap.has(ref)) {
@@ -242,8 +295,7 @@ export function diffInteractiveSnapshots(
         role: afterItem.role,
         name: afterItem.name,
       });
-      additions++;
-      removals++;
+      replacements++;
     }
   }
 
@@ -254,7 +306,8 @@ export function diffInteractiveSnapshots(
     changed: changes.length > 0 || textDiff.changed,
     additions,
     removals,
-    unchanged: afterItems.length - additions,
+    replacements,
+    unchanged: Math.max(0, afterItems.length - additions - replacements),
     changes,
     diff: textDiff.diff,
   };

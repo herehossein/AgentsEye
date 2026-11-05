@@ -199,17 +199,50 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         JSON.stringify(selectSections(report, options), null, options.pretty ? 2 : 0),
       );
     }
-    if (options.actions.length > 0 && !options.full && options.format !== 'json') {
-      for (const act of report.interactions?.actions || []) {
-        if (act.status === 'executed' || act.status === 'performed') {
-          process.stdout.write(
-            `✓ Executed ${act.type} on ${act.target || act.selector || '@ref'}\n`,
-          );
-        } else if (act.status === 'skipped') {
-          process.stdout.write(
-            `⚠ Skipped ${act.type} on ${act.target || act.selector}: ${act.reason || 'safety gate'}\n`,
-          );
+    function formatActionTarget(act: any): string {
+      if (act.type === 'key') return `key "${act.value || 'unknown'}"`;
+      if (act.type === 'scroll') return `scroll ${act.value || 'view'}`;
+      const target = act.target;
+      if (target && typeof target === 'object') {
+        const name = target.name || target.accessibleName || '';
+        const tag = target.tag || '';
+        if (name) return `"${name}" (${tag || act.value || '@ref'})`;
+        if (tag) return `${tag} (${act.value || '@ref'})`;
+      }
+      return act.value || act.selector || '@ref';
+    }
+
+    if (options.actions.length > 0 && !options.full && !options.focus) {
+      if (options.format !== 'json' || !options.delta) {
+        for (const act of report.interactions?.actions || []) {
+          if (act.status === 'executed' || act.status === 'performed') {
+            process.stdout.write(`✓ Executed ${act.type} on ${formatActionTarget(act)}\n`);
+          } else if (act.status === 'skipped') {
+            process.stdout.write(
+              `⚠ Skipped ${act.type} on ${formatActionTarget(act)}: ${act.reason || 'safety gate'}\n`,
+            );
+          }
         }
+      }
+      if (
+        options.delta &&
+        (report.interactions?.beforeSnapshot || report.interactions?.afterSnapshot)
+      ) {
+        const delta = diffInteractiveSnapshots(
+          report.interactions?.beforeSnapshot?.interactive?.items ?? [],
+          report.interactions?.afterSnapshot?.interactive?.items ?? report.interactive?.items ?? [],
+          report.interactions?.beforeSnapshot?.interactiveTreeText ?? '',
+          report.interactions?.afterSnapshot?.interactiveTreeText ??
+            report.interactiveTreeText ??
+            '',
+        );
+        process.stdout.write(serializeOutput(delta, options));
+        if (!report.ok) process.exitCode = 1;
+        return;
+      }
+      if (options.format !== 'json') {
+        if (!report.ok) process.exitCode = 1;
+        return;
       }
     }
     if (

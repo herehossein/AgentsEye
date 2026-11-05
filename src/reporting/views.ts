@@ -3,6 +3,7 @@ import { UsageError } from '../errors/errors.js';
 import { shortText, safeJsonStringify } from '../utils/helpers.js';
 import { redactUrl } from '../security/redaction.js';
 import { diffReports } from './diff.js';
+import { formatInteractiveTreeText } from './formatters.js';
 
 export function sanitizeOptionsForReport(options: any, finalUrl: string): any {
   return {
@@ -279,11 +280,19 @@ export function minimalSummary(report: any): any {
   if (report.interactions) {
     summary.interactions = {
       performed: (report.interactions.actions ?? []).filter(
-        (action: any) => action.status === 'performed',
+        (action: any) => action.status === 'performed' || action.status === 'executed',
       ).length,
       explored: report.interactions.exploration?.performed ?? 0,
       diff: report.interactions.diff?.summary ?? null,
     };
+    if (report.interactions.actions?.length) {
+      summary.interactions.actions = report.interactions.actions.map((a: any) => ({
+        type: a.type,
+        target: a.value || a.target?.name || a.target?.id || '@ref',
+        status: a.status,
+        reason: a.reason,
+      }));
+    }
   }
   if (report.interactive?.items) {
     const rawItems = report.interactive.items;
@@ -367,7 +376,18 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
     case 'storage':
       return { ...base, storage: report.storage };
     case 'interactive':
-      return { ...base, interactive: report.interactive };
+      return {
+        ...base,
+        interactive: report.interactive,
+        ...(options.compact
+          ? {
+              tree: formatInteractiveTreeText(report.interactive?.items || [], {
+                compact: true,
+                depth: options.depth ?? undefined,
+              }),
+            }
+          : {}),
+      };
     case 'console': {
       let entries = report.console?.entries || [];
       const levelFilter = options.consoleLevel ?? report.meta?.options?.consoleLevel ?? null;

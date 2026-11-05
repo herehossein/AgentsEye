@@ -153,4 +153,24 @@ test('diffInteractiveSnapshots: detects additions, removals, and replacements', 
   assert.ok(delta.changes.some((c) => c.op === 'remove' && c.ref === '@e2'));
   assert.ok(delta.changes.some((c) => c.op === 'add' && c.ref === '@e3'));
   assert.ok(delta.changes.some((c) => c.op === 'replace' && c.ref === '@e1'));
+  assert.equal(delta.replacements, 1);
+  assert.equal(delta.additions, 1);
+  assert.equal(delta.removals, 1);
+  // unchanged should be 0 because after has 2 items: 1 addition (@e3) + 1 replacement (@e1)
+  assert.equal(delta.unchanged, 0);
+});
+
+test('computeUnifiedTextDiff: detects duplicate line additions and line reordering', () => {
+  const beforeDup = 'btn\nbtn';
+  const afterDup = 'btn\nbtn\nbtn';
+  const resDup = computeUnifiedTextDiff(beforeDup, afterDup);
+  assert.equal(resDup.changed, true);
+  assert.equal(resDup.additions, 1);
+  assert.equal(resDup.removals, 0);
+
+  const beforeSwap = 'line A\nline B';
+  const afterSwap = 'line B\nline A';
+  const resSwap = computeUnifiedTextDiff(beforeSwap, afterSwap);
+  assert.equal(resSwap.changed, true);
+  assert.ok(resSwap.additions > 0 || resSwap.removals > 0);
 });

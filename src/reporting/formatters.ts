@@ -222,7 +222,7 @@ export function formatSummaryText(report: any): string {
   return `${lines.join('\n')}\n`;
 }
 
-export function formatFocusSliceText(report: any): string {
+export function formatFocusSliceText(report: any, options: any = {}): string {
   const lines: string[] = [];
   const push = (line = '') => lines.push(line);
   const target = report.target || {};
@@ -342,6 +342,13 @@ export function formatFocusSliceText(report: any): string {
   } else if (report.interactive !== undefined) {
     const inter = report.interactive || {};
     const items = inter.items || [];
+    if (options?.compact) {
+      return formatInteractiveTreeText(items, {
+        compact: true,
+        depth: options?.depth ?? undefined,
+        urls: options?.urls ?? false,
+      });
+    }
     push(`Interactive Elements: count=${inter.count ?? items.length}`);
     push('  Ref    Tag/Role     Name');
     push('  -----  -----------  --------------------------------');
@@ -355,10 +362,37 @@ export function formatFocusSliceText(report: any): string {
   return `${lines.join('\n')}\n`;
 }
 
+export function formatInteractiveDeltaText(delta: any): string {
+  if (!delta || typeof delta !== 'object') return '';
+  const lines: string[] = [];
+  lines.push(`Interactive Delta: ${delta.kind} (${delta.changed ? 'changed' : 'no changes'})`);
+  lines.push(`  Additions: ${delta.additions ?? 0}`);
+  lines.push(`  Removals: ${delta.removals ?? 0}`);
+  if (delta.replacements !== undefined) lines.push(`  Replacements: ${delta.replacements}`);
+  lines.push(`  Unchanged: ${delta.unchanged ?? 0}`);
+  if (delta.changes?.length) {
+    lines.push('  Changes:');
+    for (const c of delta.changes.slice(0, 20)) {
+      lines.push(`    ${c.op} ${c.ref} [${c.role || c.tag || ''}] "${c.name || ''}"`);
+    }
+    if (delta.changes.length > 20) {
+      lines.push(`    ... (${delta.changes.length - 20} more changes)`);
+    }
+  }
+  if (delta.diff) {
+    lines.push('\nUnified Diff:');
+    lines.push(delta.diff);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
 export function formatText(report: any, options: any = {}): string {
   if (!report || typeof report !== 'object') return `${String(report)}\n`;
   if (report.ok === false && report.error) {
     return `${TOOL_NAME} v${TOOL_VERSION} ERROR: [${report.error.code || 'ERROR'}] ${report.error.message || ''}\n`;
+  }
+  if (report.kind === 'delta' || report.kind === 'unchanged') {
+    return formatInteractiveDeltaText(report);
   }
   if (report.before && report.after && report.summary) return formatDiffText(report);
   if (report.query && 'data' in report) return formatQueryText(report);
@@ -372,7 +406,7 @@ export function formatText(report: any, options: any = {}): string {
     (report.interactive !== undefined && !report.page && !report.layout) ||
     (report.console !== undefined && report.issues === undefined && !report.page && !report.layout)
   ) {
-    return formatFocusSliceText(report);
+    return formatFocusSliceText(report, options);
   }
 
   const lines: string[] = [];
@@ -563,13 +597,18 @@ export function serializeOutput(report: any, options: any = {}): string {
     output = `${safeJsonStringify(report, opts.pretty ? 2 : 0)}\n`;
   }
 
-  if (opts.contentBoundaries) {
-    const origin = report?.target?.finalUrl || report?.target?.requestedUrl || 'unknown';
-    output = wrapContentBoundaries(output, origin);
-  }
-
   if (opts.maxOutput && opts.maxOutput > 0) {
     output = truncateOutput(output, opts.maxOutput);
+  }
+
+  if (opts.contentBoundaries) {
+    const origin =
+      report?.target?.finalUrl ||
+      report?.target?.requestedUrl ||
+      report?.after?.target?.finalUrl ||
+      report?.before?.target?.finalUrl ||
+      'unknown';
+    output = wrapContentBoundaries(output, origin);
   }
 
   return output;
@@ -599,7 +638,10 @@ export function formatInteractiveTreeText(items: any[], options: FormatTreeOptio
     const ref = item.ref ? `${item.ref} ` : '';
 
     let name = item.accessibleName || item.name || '';
-    name = String(normalizeControlTokens(name)).trim();
+    name = String(normalizeControlTokens(name))
+      .replace(/[\r\n\t]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     const nameStr = name ? ` "${name.replace(/"/g, '\\"')}"` : '';
 
     const attrs: string[] = [];

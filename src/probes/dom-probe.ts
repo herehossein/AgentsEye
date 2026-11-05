@@ -880,7 +880,7 @@ export function inPageProbe(config) {
     }
 
     const interactiveSelector =
-      'button,a[href],summary,[role="button"],[role="link"],[role="tab"],[role="checkbox"],[role="switch"],[role="menuitem"],[tabindex]:not([tabindex="-1"]),[onclick]';
+      'button,a[href],summary,input:not([type="hidden"]),select,textarea,[role="button"],[role="link"],[role="tab"],[role="checkbox"],[role="switch"],[role="menuitem"],[tabindex]:not([tabindex="-1"]),[onclick]';
 
     const pool = scopeRoot
       ? summaryElements.filter((el) => scopeRoot.contains(el))
@@ -945,6 +945,13 @@ export function inPageProbe(config) {
         50,
       );
 
+      let d = 0;
+      let p = el.parentElement;
+      while (p && d < 50) {
+        d++;
+        p = p.parentElement;
+      }
+
       items.push({
         ref: refId,
         tag: el.tagName.toLowerCase(),
@@ -952,8 +959,17 @@ export function inPageProbe(config) {
         name: cleanName,
         accessibleName: cleanName,
         text: cut(textOf(el), config.textLimit),
+        type: el.getAttribute('type') || (el.tagName === 'INPUT' ? 'text' : null),
+        placeholder: el.getAttribute('placeholder') || null,
+        value:
+          el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+            ? el.value
+              ? cut(el.value, 50)
+              : null
+            : null,
         href: el.getAttribute('href'),
         tabIndex: el.tabIndex,
+        depth: d,
         disabled:
           Boolean(el.disabled) ||
           el.getAttribute('aria-disabled') === 'true' ||
@@ -963,6 +979,8 @@ export function inPageProbe(config) {
           !el.disabled &&
           el.getAttribute('aria-disabled') !== 'true' &&
           !(el.tagName === 'A' && el.closest('p') && styleValue(style, 'display') === 'inline') &&
+          !['text', 'password', 'email', 'number', 'tel', 'url', 'search'].includes(el.type) &&
+          el.tagName !== 'TEXTAREA' &&
           isInteractive(el) &&
           (width < 44 || height < 44),
         fontSize: styleValue(style, 'font-size'),

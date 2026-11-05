@@ -32,14 +32,17 @@ export function resolveSafePath(
   }
   const tempRuns = path.join(os.tmpdir(), `.${TOOL_NAME}`, 'runs');
   if (!options?.allowOutsideCwd) {
-    if (!isWithin(cwd, absolute) && !isWithin(tempRuns, absolute)) {
+    const inCwd = isWithin(cwd, absolute);
+    const inTemp = isWithin(tempRuns, absolute);
+    if (!inCwd && !inTemp) {
       throw new UsageError(
         `${label} must resolve inside the current working directory (${cwd}). ` +
           'Pass --allow-outside-cwd to override.',
       );
     }
+    const boundary = inTemp ? tempRuns : cwd;
     let current = fs.existsSync(absolute) ? absolute : path.dirname(absolute);
-    while (current && current !== path.dirname(current)) {
+    while (current && current !== path.dirname(current) && isWithin(boundary, current)) {
       if (fs.existsSync(current)) {
         try {
           const realParent = fs.realpathSync(current);

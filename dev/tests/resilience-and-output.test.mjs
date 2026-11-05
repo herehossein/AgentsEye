@@ -586,3 +586,11 @@ test('serializeOutput: honors contentBoundaries and maxOutput options', () => {
   const outTruncated = serializeOutput(rep, { maxOutput: 15 });
   assert.ok(outTruncated.includes('[truncated: showing 15 of'));
 });
+
+test('serializeOutput: preserves closing END_AGENTSEYE_PAGE_CONTENT nonce marker under truncation', () => {
+  const rep = { target: { finalUrl: 'https://example.com/checkout' }, payload: 'X'.repeat(500) };
+  const out = serializeOutput(rep, { contentBoundaries: true, maxOutput: 40 });
+  assert.ok(out.includes('--- AGENTSEYE_PAGE_CONTENT nonce='), 'Must include opening boundary');
+  assert.ok(out.includes('--- END_AGENTSEYE_PAGE_CONTENT nonce='), 'Must preserve closing boundary');
+  assert.ok(out.includes('[truncated: showing 40 of'), 'Must include truncation notice');
+});

@@ -27,6 +27,7 @@ import {
 } from '../cdp/collectors.js';
 import { cleanupDomRefs, performInteractions } from '../interactions/runner.js';
 import { sanitizeOptionsForReport } from '../reporting/views.js';
+import { formatInteractiveTreeText } from '../reporting/formatters.js';
 import type { CdpClient } from '../cdp/client.js';
 
 export async function inspectPage(cdp: CdpClient, options: any, browserInfo?: any): Promise<any> {
@@ -210,6 +211,9 @@ export async function inspectPage(cdp: CdpClient, options: any, browserInfo?: an
       headings: probe.headings,
       forms: probe.forms,
       interactive: probe.interactive,
+      interactiveTreeText: probe.interactive?.items
+        ? formatInteractiveTreeText(probe.interactive.items)
+        : '',
       images: probe.images,
       frames,
       network: options.network

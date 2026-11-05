@@ -111,6 +111,12 @@ export function validateElementLocator(val: any, flag: string): string {
   if (!trimmed) {
     throw new UsageError(`${flag} expects a non-empty selector or @eN locator`);
   }
+  if (trimmed.startsWith('--')) {
+    throw new UsageError(`${flag} expects a selector or @eN locator, received flag: ${trimmed}`);
+  }
+  if (/^e\d+$/i.test(trimmed)) {
+    return `@${trimmed.toLowerCase()}`;
+  }
   if (trimmed.startsWith('@')) {
     if (!REF_REGEX.test(trimmed)) {
       throw new UsageError(
@@ -307,6 +313,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     cleanAll: false,
     compact: DEFAULTS.compact,
     delta: DEFAULTS.delta,
+    depth: null,
     contentBoundaries: DEFAULTS.contentBoundaries,
     maxOutput: DEFAULTS.maxOutput,
   };
@@ -701,8 +708,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case 'delta':
         options.delta = true;
         break;
+      case 'depth':
+        options.depth = parseInteger(take(), '--depth', { min: 0, max: 100 });
+        break;
       case 'content-boundaries':
         options.contentBoundaries = true;
+        break;
+      case 'no-max-output':
+        options.maxOutput = 0;
         break;
       case 'max-output': {
         const val = take();
