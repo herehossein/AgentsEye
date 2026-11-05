@@ -1,5 +1,6 @@
 import { TOOL_NAME, TOOL_VERSION } from '../config/constants.js';
 import { safeJsonStringify } from '../utils/helpers.js';
+import { normalizeControlTokens } from '../security/prompt-injection.js';
 
 export function formatDiffText(report: any): string {
   const lines: string[] = [];
@@ -547,4 +548,88 @@ export function serializeOutput(report: any, options: any = {}): string {
     return formatText(report, opts);
   }
   return `${safeJsonStringify(report, opts.pretty ? 2 : 0)}\n`;
+}
+
+export interface FormatTreeOptions {
+  compact?: boolean;
+  urls?: boolean;
+  depth?: number;
+}
+
+export function formatInteractiveTreeText(items: any[], options: FormatTreeOptions = {}): string {
+  if (!Array.isArray(items) || items.length === 0) {
+    return '(no interactive elements)\n';
+  }
+
+  const lines: string[] = [];
+
+  for (const item of items) {
+    const depth = Math.max(0, item.depth ?? item.indent ?? 0);
+    if (options.depth !== undefined && depth > options.depth) {
+      continue;
+    }
+
+    const indent = '  '.repeat(depth);
+    const role = item.role || item.tag || 'element';
+    const ref = item.ref ? `${item.ref} ` : '';
+
+    let name = item.accessibleName || item.name || '';
+    name = String(normalizeControlTokens(name)).trim();
+    const nameStr = name ? ` "${name.replace(/"/g, '\\"')}"` : '';
+
+    const attrs: string[] = [];
+    if (item.type && item.tag === 'input') attrs.push(`type="${item.type}"`);
+    if (item.placeholder) attrs.push(`placeholder="${item.placeholder.replace(/"/g, '\\"')}"`);
+    if (item.level) attrs.push(`level=${item.level}`);
+    if (item.checked !== undefined && item.checked !== false) {
+      attrs.push(item.checked === 'mixed' ? 'checked="mixed"' : 'checked');
+    }
+    if (item.expanded !== undefined) attrs.push(`expanded=${item.expanded}`);
+    if (item.selected) attrs.push('selected');
+    if (item.disabled) attrs.push('disabled');
+    if (item.required) attrs.push('required');
+    if (options.urls && item.url) attrs.push(`url="${item.url}"`);
+    if (item.ref) attrs.push(`ref=${item.ref}`);
+
+    const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
+    lines.push(`${indent}${ref}[${role}]${nameStr}${attrStr}`);
+  }
+
+  const rawTree = lines.join('\n');
+  if (options.compact) {
+    return compactInteractiveTree(rawTree);
+  }
+  return `${rawTree}\n`;
+}
+
+export function compactInteractiveTree(tree: string): string {
+  const lines = tree.split('\n').filter((l) => l.length > 0);
+  if (lines.length === 0) return '(no interactive elements)\n';
+
+  const countIndent = (line: string): number => {
+    const trimmed = line.trimStart();
+    return (line.length - trimmed.length) / 2;
+  };
+
+  const keep = new Array(lines.length).fill(false);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.includes('ref=@e') || line.includes(' "')) {
+      keep[i] = true;
+      let currentIndent = countIndent(line);
+      for (let j = i - 1; j >= 0; j--) {
+        const ancestorIndent = countIndent(lines[j]);
+        if (ancestorIndent < currentIndent) {
+          keep[j] = true;
+          currentIndent = ancestorIndent;
+          if (ancestorIndent === 0) break;
+        }
+      }
+    }
+  }
+
+  const pruned = lines.filter((_, idx) => keep[idx]);
+  if (pruned.length === 0) return '(no interactive elements)\n';
+  return `${pruned.join('\n')}\n`;
 }

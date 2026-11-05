@@ -13,6 +13,8 @@ import {
   TOOL_NAME,
   TOOL_VERSION,
   SCHEMA_VERSION,
+  formatInteractiveTreeText,
+  compactInteractiveTree,
 } from '../../agentsEye.mjs';
 
 // ============================================================================
@@ -1401,4 +1403,85 @@ test('DOM hygiene recursively scrubs data-agentseye-ref from nested shadow roots
     globalThis.document = prevDoc;
     globalThis.__agentsEyeRefsV1 = prevRefs;
   }
+});
+
+// ============================================================================
+// 6. formatInteractiveTreeText & compactInteractiveTree
+// ============================================================================
+
+test('formatInteractiveTreeText: formats interactive items into ultra-dense indented text', () => {
+  const items = [
+    { ref: '@e1', role: 'heading', name: 'Log in', level: 1, depth: 0 },
+    {
+      role: 'form',
+      depth: 0,
+    },
+    {
+      ref: '@e2',
+      tag: 'input',
+      role: 'textbox',
+      type: 'email',
+      placeholder: 'Email address',
+      required: true,
+      depth: 1,
+    },
+    {
+      ref: '@e3',
+      tag: 'button',
+      role: 'button',
+      name: 'Continue',
+      depth: 1,
+      disabled: true,
+      url: 'https://example.com/submit',
+    },
+  ];
+
+  const text = formatInteractiveTreeText(items, { urls: true });
+  assert.ok(text.includes('@e1 [heading] "Log in" [level=1, ref=@e1]'));
+  assert.ok(text.includes('  @e2 [textbox] [type="email", placeholder="Email address", required, ref=@e2]'));
+  assert.ok(text.includes('  @e3 [button] "Continue" [disabled, url="https://example.com/submit", ref=@e3]'));
+});
+
+test('formatInteractiveTreeText: handles empty items and depth limit', () => {
+  assert.equal(formatInteractiveTreeText([]), '(no interactive elements)\n');
+  assert.equal(formatInteractiveTreeText(null), '(no interactive elements)\n');
+
+  const items = [
+    { ref: '@e1', role: 'banner', depth: 0 },
+    { ref: '@e2', role: 'button', depth: 2 },
+  ];
+  const depthZero = formatInteractiveTreeText(items, { depth: 0 });
+  assert.ok(depthZero.includes('@e1'));
+  assert.ok(!depthZero.includes('@e2'));
+});
+
+test('compactInteractiveTree: prunes empty structural wrappers while preserving ancestors', () => {
+  const rawTree = [
+    '[generic]',
+    '  [generic]',
+    '    @e1 [button] "Submit" [ref=@e1]',
+    '  [generic]',
+    '    [generic]',
+    '',
+  ].join('\n');
+
+  const compacted = compactInteractiveTree(rawTree);
+  assert.ok(compacted.includes('[generic]'));
+  assert.ok(compacted.includes('@e1 [button] "Submit" [ref=@e1]'));
+  // The second empty [generic] branch must be pruned
+  const lines = compacted.trim().split('\n');
+  assert.equal(lines.length, 3);
+  assert.equal(lines[0], '[generic]');
+  assert.equal(lines[1], '  [generic]');
+  assert.equal(lines[2], '    @e1 [button] "Submit" [ref=@e1]');
+});
+
+test('compactInteractiveTree: returns (no interactive elements) if all pruned', () => {
+  const rawTree = [
+    '[generic]',
+    '  [generic]',
+    '',
+  ].join('\n');
+
+  assert.equal(compactInteractiveTree(rawTree), '(no interactive elements)\n');
 });

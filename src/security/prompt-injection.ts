@@ -19,6 +19,8 @@ export function neutralizeControlTokens(input: unknown): unknown {
   return text;
 }
 
+export const normalizeControlTokens = neutralizeControlTokens;
+
 export interface PromptInjectionFinding {
   id: string;
   severity: PromptInjectionPattern['severity'];

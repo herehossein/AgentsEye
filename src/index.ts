@@ -27,7 +27,12 @@ import {
   selectSections,
 } from './reporting/views.js';
 
-import { formatText, serializeOutput } from './reporting/formatters.js';
+import {
+  formatText,
+  serializeOutput,
+  formatInteractiveTreeText,
+  compactInteractiveTree,
+} from './reporting/formatters.js';
 
 import { diffReports } from './reporting/diff.js';
 
@@ -130,6 +135,8 @@ export {
   inPagePerformanceObserver,
   formatText,
   serializeOutput,
+  formatInteractiveTreeText,
+  compactInteractiveTree,
   outputView,
   validateBrowserArg,
   resolveSafePath,
