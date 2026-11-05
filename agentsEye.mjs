@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 
 // src/config/constants.ts
 var TOOL_NAME = "agentsEye";
-var TOOL_VERSION = "2.1.1";
+var TOOL_VERSION = "2.2.1";
 var SCHEMA_VERSION = "1.0";
 var REF_PREFIX = "@e";
 var REF_REGEX = /^@e\d+$/i;
@@ -5773,7 +5773,8 @@ function inPageInteractionProbe(command, safety) {
     try {
       const hitLabel = hitEl.closest ? hitEl.closest("label") : null;
       if (hitLabel && (hitLabel.control === targetEl || hitLabel.contains(targetEl))) return true;
-      if (targetEl.labels && Array.from(targetEl.labels).some((lbl) => lbl && lbl.contains(hitEl))) return true;
+      if (targetEl.labels && Array.from(targetEl.labels).some((lbl) => lbl && lbl.contains(hitEl)))
+        return true;
       const targetLabel = targetEl.closest ? targetEl.closest("label") : null;
       if (targetLabel && targetLabel.contains(hitEl)) return true;
     } catch {
@@ -5805,7 +5806,8 @@ function inPageInteractionProbe(command, safety) {
   }
   const hitInfo = describe(hit);
   const hitReason = safety(hitInfo, command.allowDestructive, false);
-  if (hitReason && !isLabelAssociated(hit, target)) return { ...context, reason: hitReason, target: publicTarget(info) };
+  if (hitReason && !isLabelAssociated(hit, target))
+    return { ...context, reason: hitReason, target: publicTarget(info) };
   return { ...context, reason: null, target: publicTarget(info), point: { x, y } };
 }
 

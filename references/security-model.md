@@ -1,6 +1,6 @@
 # agentsEye Security Model & Threat Guarantees
 
-> **Tool**: `agentsEye` v2.1.1  
+> **Tool**: `agentsEye` v2.2.1  
 > **Security Posture**: Read-Only Default, Defense-in-Depth, SSRF Guardrails, Origin-Isolated Headers, Multi-tier Redaction  
 
 Autonomous AI coding agents frequently invoke terminal commands and inspect arbitrary, third-party, or developer-submitted web applications without human intervention. To operate safely in open-source, enterprise, and cloud environments, `agentsEye` enforces strict security boundaries designed to prevent Server-Side Request Forgery (SSRF), credential exfiltration, destructive state mutation, and browser compromise.

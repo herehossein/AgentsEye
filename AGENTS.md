@@ -1,6 +1,6 @@
 # AGENTS.md — Repository Context & Operating Manual
 
-> **Project**: `agentsEye` v2.1.1  
+> **Project**: `agentsEye` v2.2.1  
 > **Engine**: Node.js `>= 22.0.0` (Native ES Modules, native `WebSocket`, `node:test`)  
 > **Architecture**: Zero-dependency browser runtime inspector CLI & AI Agent Skill  
 > **Standard**: Context Engineering specification for AI coding assistants and autonomous agents

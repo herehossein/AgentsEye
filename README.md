@@ -2,7 +2,7 @@
 
 > **The zero-dependency browser runtime inspector and visual verification engine for AI coding agents.**
 
-[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](package.json)

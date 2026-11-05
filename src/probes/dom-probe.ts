@@ -901,7 +901,9 @@ export function inPageProbe(config) {
       if (!isCandidate) {
         const style = styleOf(el);
         if (style && styleValue(style, 'cursor') === 'pointer') {
-          const parentCursor = el.parentElement ? styleValue(styleOf(el.parentElement), 'cursor') : null;
+          const parentCursor = el.parentElement
+            ? styleValue(styleOf(el.parentElement), 'cursor')
+            : null;
           if (parentCursor !== 'pointer') {
             isCandidate = true;
           }

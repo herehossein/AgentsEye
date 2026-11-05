@@ -1,6 +1,6 @@
 {
   "name": "agentseye",
-  "version": "2.1.1",
+  "version": "2.2.1",
   "description": "Zero-dependency browser runtime inspector CLI and skill for autonomous AI agents and developers",
   "type": "module",
   "bin": {

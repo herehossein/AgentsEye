@@ -153,7 +153,9 @@ export function inPageInteractionProbe(command, safety) {
         node.isContentEditable ||
         ['textarea', 'select'].includes(nodeTag) ||
         (nodeTag === 'input' && !['button', 'checkbox', 'radio'].includes(nodeType)) ||
-        (nodeTag === 'label' && Boolean(node.control) && !['checkbox', 'radio'].includes(ctrlType)) ||
+        (nodeTag === 'label' &&
+          Boolean(node.control) &&
+          !['checkbox', 'radio'].includes(ctrlType)) ||
         ['slider', 'spinbutton', 'combobox'].includes(node.getAttribute?.('role'))
       );
     });
@@ -321,7 +323,8 @@ export function inPageInteractionProbe(command, safety) {
   if (!target) return { ...context, reason: 'Target not found or stale' };
 
   if (command.op === 'scrollIntoView') {
-    const proto = typeof Element !== 'undefined' ? Element.prototype : Object.getPrototypeOf(target);
+    const proto =
+      typeof Element !== 'undefined' ? Element.prototype : Object.getPrototypeOf(target);
     const scrollFn = proto?.scrollIntoView || target.scrollIntoView;
     if (typeof scrollFn === 'function') {
       scrollFn.call(target, { behavior: 'instant', block: 'center', inline: 'center' });
@@ -348,7 +351,8 @@ export function inPageInteractionProbe(command, safety) {
     try {
       const hitLabel = hitEl.closest ? hitEl.closest('label') : null;
       if (hitLabel && (hitLabel.control === targetEl || hitLabel.contains(targetEl))) return true;
-      if (targetEl.labels && Array.from(targetEl.labels).some((lbl) => lbl && lbl.contains(hitEl))) return true;
+      if (targetEl.labels && Array.from(targetEl.labels).some((lbl) => lbl && lbl.contains(hitEl)))
+        return true;
       const targetLabel = targetEl.closest ? targetEl.closest('label') : null;
       if (targetLabel && targetLabel.contains(hitEl)) return true;
     } catch {}
@@ -360,7 +364,8 @@ export function inPageInteractionProbe(command, safety) {
     const idVal = el.id || el.getAttribute?.('id');
     const id = idVal ? `#${idVal}` : '';
     let classes = '';
-    const classVal = typeof el.className === 'string' ? el.className : el.getAttribute?.('class') || '';
+    const classVal =
+      typeof el.className === 'string' ? el.className : el.getAttribute?.('class') || '';
     if (classVal && classVal.trim()) {
       classes = '.' + classVal.trim().split(/\s+/).slice(0, 2).join('.');
     } else if (el.classList && el.classList.length > 0) {
@@ -383,6 +388,7 @@ export function inPageInteractionProbe(command, safety) {
   // container. Recheck it too, including its ancestors, before native dispatch.
   const hitInfo = describe(hit);
   const hitReason = safety(hitInfo, command.allowDestructive, false);
-  if (hitReason && !isLabelAssociated(hit, target)) return { ...context, reason: hitReason, target: publicTarget(info) };
+  if (hitReason && !isLabelAssociated(hit, target))
+    return { ...context, reason: hitReason, target: publicTarget(info) };
   return { ...context, reason: null, target: publicTarget(info), point: { x, y } };
 }
