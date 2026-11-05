@@ -331,3 +331,25 @@ export interface FullReport {
   };
   meta?: Record<string, unknown>;
 }
+
+export type DeltaOpKind = 'add' | 'remove' | 'replace';
+
+export interface DeltaOperation {
+  op: DeltaOpKind;
+  ref: string;
+  role?: string;
+  name?: string;
+  selector?: string;
+  tag?: string;
+}
+
+export interface InteractiveDelta {
+  kind: 'unchanged' | 'delta' | 'full';
+  changed: boolean;
+  additions: number;
+  removals: number;
+  unchanged: number;
+  changes?: DeltaOperation[];
+  diff?: string;
+  tree?: string;
+}

@@ -51,6 +51,10 @@ test('constants: ref configuration and interactive focus slice contracts', () =>
   assert.match('@e42', REF_REGEX);
   assert.ok(!REF_REGEX.test('@invalid'));
   assert.ok(FOCUS_SLICES.includes('interactive'));
+  assert.equal(DEFAULTS.maxOutput, 12000);
+  assert.equal(DEFAULTS.compact, false);
+  assert.equal(DEFAULTS.delta, false);
+  assert.equal(DEFAULTS.contentBoundaries, false);
   const options = parseArgs(['http://example.com', '--focus', 'interactive']);
   assert.equal(options.focus, 'interactive');
 });

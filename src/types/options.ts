@@ -103,6 +103,10 @@ export interface InspectorOptions {
   runsDir?: string;
   testRunsDir?: string;
   cwd?: string;
+  compact?: boolean;
+  delta?: boolean;
+  maxOutput?: number;
+  contentBoundaries?: boolean;
 }
 
 export interface ProbeConfig {

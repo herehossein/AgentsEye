@@ -8,6 +8,10 @@ export const REF_ATTR = 'data-agentseye-ref';
 export const REF_REGISTRY_SLOT = '__agentsEyeRefsV1';
 export const DEFAULT_SUMMARY_INTERACTIVE_LIMIT = 12;
 
+export const DEFAULT_MAX_OUTPUT = 12_000;
+export const CONTENT_BOUNDARY_PREFIX = '--- AGENTSEYE_PAGE_CONTENT';
+export const CONTENT_BOUNDARY_SUFFIX = '--- END_AGENTSEYE_PAGE_CONTENT';
+
 export const FOCUS_SLICES = [
   'issues',
   'forms',
@@ -60,6 +64,10 @@ export const DEFAULTS = Object.freeze({
   maxIssues: 80,
   viewport: Object.freeze({ width: 375, height: 667, dpr: 1, mobile: true }),
   breakpoints: [320, 360, 375, 412, 640, 768, 1024, 1280, 1536, 1920],
+  maxOutput: DEFAULT_MAX_OUTPUT,
+  compact: false,
+  delta: false,
+  contentBoundaries: false,
 });
 
 export const KNOWN_SECTIONS = new Set([

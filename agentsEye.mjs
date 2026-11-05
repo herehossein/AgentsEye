@@ -13,6 +13,7 @@ var REF_REGEX = /^@e\d+$/i;
 var REF_ATTR = "data-agentseye-ref";
 var REF_REGISTRY_SLOT = "__agentsEyeRefsV1";
 var DEFAULT_SUMMARY_INTERACTIVE_LIMIT = 12;
+var DEFAULT_MAX_OUTPUT = 12e3;
 var FOCUS_SLICES = [
   "issues",
   "forms",
@@ -61,7 +62,11 @@ var DEFAULTS = Object.freeze({
   maxCssVars: 200,
   maxIssues: 80,
   viewport: Object.freeze({ width: 375, height: 667, dpr: 1, mobile: true }),
-  breakpoints: [320, 360, 375, 412, 640, 768, 1024, 1280, 1536, 1920]
+  breakpoints: [320, 360, 375, 412, 640, 768, 1024, 1280, 1536, 1920],
+  maxOutput: DEFAULT_MAX_OUTPUT,
+  compact: false,
+  delta: false,
+  contentBoundaries: false
 });
 var KNOWN_SECTIONS = /* @__PURE__ */ new Set([
   "target",
