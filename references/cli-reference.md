@@ -134,6 +134,10 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | :--- | :--- | :--- | :--- |
 | `--temp` | boolean | `false` | Stores run artifacts in OS temporary directory (`%TEMP%/.agentsEye/runs/`) instead of workspace `.agentsEye/runs/`. |
 | `--ephemeral` | boolean | `false` | Automatically deletes the run directory immediately after producing stdout. |
+| `--compact`, `-c` | boolean | `false` | Prunes empty non-interactive structural wrappers from interactive element tree representation. |
+| `--delta` | boolean | `false` | Computes and emits an ultra-compact interactive delta between consecutive snapshots (or offline via `diff` / `show`), returning `{ kind: "unchanged" }` when DOM state is unchanged. |
+| `--max-output` | `<n>` | `12000` | Character budget cap for stdout serialization with continuation guidance hint. |
+| `--content-boundaries` | boolean | `false` | Encapsulates untrusted page content inside CSPRNG nonce boundaries to safeguard against indirect prompt injection. |
 | `--focus` | `<slice>` | `null` | Emits a focused slice directly to stdout. Allowed: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`, `interactive`. |
 | `--console-filter` | `<pattern>` | `null` | Filters console entries by case-insensitive substring or `/regex/flags` pattern (e.g. `'[AGENT_DEBUG_TAG]'` or `/\/api\/error/i`). Works live with `--focus console` and offline via `show`. |
 | `--console-level` | `<levels>` | `all` | Filters console entries by comma-separated levels: `error,warn,info,log,debug,all`. Works live and offline via `show`. |

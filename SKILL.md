@@ -53,7 +53,7 @@ node agentsEye.mjs http://localhost:3000 --temp
 ```
 Emits a compact JSON summary (`minimalSummary`) budgeted for LLM context limits (health, layout issues, error counts, headings outline, landmarks).
 Avoid unbudgeted `--full` to stdout. Use targeted slices (`--focus <slice>`):
-- `interactive`: Actionable elements outline with `@eN` refs, accessible names, tags, and bounds.
+- `interactive`: Actionable elements outline with `@eN` refs, accessible names, tags, and bounds. Pass `--compact` (`-c`) for pruned tree text.
 - `issues`: Mobile overflow, body scroll-locks, small touch targets, and contrast issues.
 - `network`: Failed requests (4xx/5xx), HTTP status breakdown, and slowest endpoints.
 - `console`: Runtime errors, warnings, uncaught exceptions, and filtered logs.
@@ -61,6 +61,12 @@ Avoid unbudgeted `--full` to stdout. Use targeted slices (`--focus <slice>`):
 - `forms`: Form controls, validation states, and input font sizes (<16px iOS auto-zoom).
 - `perf`: Core Web Vitals (LCP, CLS, FCP, FID, INP) and page navigation timings.
 - `dom`: Bounded DOM tree hierarchy.
+
+Token Budgeting & Security:
+- `--compact`, `-c`: Prunes structural containers from interactive tree.
+- `--delta`: Emits discrete changes or unchanged status across runs or interactions.
+- `--max-output <n>`: Caps stdout character length with actionable continuation hint.
+- `--content-boundaries`: Wraps untrusted page text inside CSPRNG nonces against prompt injection.
 
 ### 3. Deep Element & Computed Style Inspection (`--selector`, `--all-matches`, `--style-props`)
 - `deepQuery` traverses open Shadow DOM and same-origin `<iframe>` documents.

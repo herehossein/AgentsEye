@@ -99,8 +99,12 @@ Responsive analysis:
   --diff <run-1> <run-2>       Compare two saved reports without navigation
 
 Output:
-  --focus <slice>              issues|forms|dom|network|perf|console
+  --focus <slice>              issues|forms|dom|network|perf|console|storage|interactive
   --console-filter <pattern>   Filter console entries by substring or tag
+  --compact, -c                 Prune structural wrappers from interactive tree
+  --delta                       Emit snapshot delta or unchanged state
+  --max-output <n>              Cap stdout character budget (default ${DEFAULTS.maxOutput})
+  --content-boundaries          Encapsulate page text in CSPRNG nonces
   --full                       Emit the comprehensive report to stdout
   --format <json|text>          JSON (compact by default) or clean human-readable plain text
   --temp                        Save artifacts to the OS temporary directory instead of .agentsEye/runs/

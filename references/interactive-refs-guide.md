@@ -132,6 +132,16 @@ node agentsEye.mjs show <run-id> interactive.items
 node agentsEye.mjs show <run-id> interactive.items[15]
 ```
 
+### 4. Compact Indented Text & Snapshot Deltas (`--compact`, `--delta`)
+For ultra-dense token consumption during interactive loops:
+```bash
+# Format interactive elements as compact indented text (pruning non-interactive wrappers)
+node agentsEye.mjs http://localhost:3000 --focus interactive --compact --temp
+
+# Execute interaction and receive only the delta changes (or { kind: "unchanged" })
+node agentsEye.mjs http://localhost:3000 --click @e1 --delta --temp
+```
+
 ---
 
 ## 6. Interaction Safety Gates
