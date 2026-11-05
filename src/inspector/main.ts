@@ -6,7 +6,7 @@ import { parseArgs } from '../cli/parser.js';
 import { printHelp } from '../cli/help.js';
 import { cleanRuns, readRun, createRun, persistRun } from '../storage/runs.js';
 import { selectSections, queryReport, outputView } from '../reporting/views.js';
-import { diffReports } from '../reporting/diff.js';
+import { diffReports, diffInteractiveSnapshots } from '../reporting/diff.js';
 import { serializeOutput } from '../reporting/formatters.js';
 import { validateResolvedTargetUrl, validateCdpEndpoint } from '../security/url-guard.js';
 import { resolveSafePath, assertFileDoesNotExist } from '../security/path-guard.js';
@@ -74,6 +74,19 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
     if (options.command === 'show') {
       const saved = await readRun(options.runIds[0], options);
+      if (
+        options.delta &&
+        (saved.interactions?.beforeSnapshot || saved.interactions?.afterSnapshot)
+      ) {
+        const delta = diffInteractiveSnapshots(
+          saved.interactions?.beforeSnapshot?.interactive?.items ?? [],
+          saved.interactions?.afterSnapshot?.interactive?.items ?? saved.interactive?.items ?? [],
+          saved.interactions?.beforeSnapshot?.interactiveTreeText ?? '',
+          saved.interactions?.afterSnapshot?.interactiveTreeText ?? saved.interactiveTreeText ?? '',
+        );
+        process.stdout.write(serializeOutput(delta, options));
+        return;
+      }
       const view =
         options.full && !options.query
           ? selectSections(saved, options)
@@ -84,6 +97,16 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     if (options.command === 'diff') {
       const before = await readRun(options.runIds[0], options);
       const after = await readRun(options.runIds[1], options);
+      if (options.delta) {
+        const delta = diffInteractiveSnapshots(
+          before.interactive?.items ?? [],
+          after.interactive?.items ?? [],
+          before.interactiveTreeText ?? '',
+          after.interactiveTreeText ?? '',
+        );
+        process.stdout.write(serializeOutput(delta, options));
+        return;
+      }
       process.stdout.write(
         serializeOutput(diffReports(before, after), { ...options, full: false, include: null }),
       );
@@ -175,6 +198,33 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
         outPath,
         JSON.stringify(selectSections(report, options), null, options.pretty ? 2 : 0),
       );
+    }
+    if (options.actions.length > 0 && !options.full && options.format !== 'json') {
+      for (const act of report.interactions?.actions || []) {
+        if (act.status === 'executed' || act.status === 'performed') {
+          process.stdout.write(
+            `✓ Executed ${act.type} on ${act.target || act.selector || '@ref'}\n`,
+          );
+        } else if (act.status === 'skipped') {
+          process.stdout.write(
+            `⚠ Skipped ${act.type} on ${act.target || act.selector}: ${act.reason || 'safety gate'}\n`,
+          );
+        }
+      }
+    }
+    if (
+      options.delta &&
+      (report.interactions?.beforeSnapshot || report.interactions?.afterSnapshot)
+    ) {
+      const delta = diffInteractiveSnapshots(
+        report.interactions?.beforeSnapshot?.interactive?.items ?? [],
+        report.interactions?.afterSnapshot?.interactive?.items ?? report.interactive?.items ?? [],
+        report.interactions?.beforeSnapshot?.interactiveTreeText ?? '',
+        report.interactions?.afterSnapshot?.interactiveTreeText ?? report.interactiveTreeText ?? '',
+      );
+      process.stdout.write(serializeOutput(delta, options));
+      if (!report.ok) process.exitCode = 1;
+      return;
     }
     process.stdout.write(serializeOutput(outputView(report, options), options));
     if (!report.ok) process.exitCode = 1;

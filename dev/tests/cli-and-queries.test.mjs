@@ -28,6 +28,34 @@ test('parseArgs: valid flags and viewport parsing', () => {
   assert.equal(options.quiet, true);
 });
 
+test('parseArgs: accepts --compact, -c, --delta, and --content-boundaries', () => {
+  const o1 = parseArgs(['http://example.com', '--compact', '--delta', '--content-boundaries']);
+  assert.equal(o1.compact, true);
+  assert.equal(o1.delta, true);
+  assert.equal(o1.contentBoundaries, true);
+
+  const o2 = parseArgs(['http://example.com', '-c']);
+  assert.equal(o2.compact, true);
+});
+
+test('parseArgs: validates --max-output', () => {
+  const opts = parseArgs(['http://example.com', '--max-output', '5000']);
+  assert.equal(opts.maxOutput, 5000);
+
+  assert.throws(
+    () => parseArgs(['http://example.com', '--max-output', 'invalid']),
+    /--max-output requires a positive integer/
+  );
+  assert.throws(
+    () => parseArgs(['http://example.com', '--max-output', '0']),
+    /--max-output must be greater than 0/
+  );
+  assert.throws(
+    () => parseArgs(['http://example.com', '--max-output', '-10']),
+    /--max-output requires a positive integer/
+  );
+});
+
 test('parseArgs: rejects invalid viewport format', () => {
   assert.throws(
     () => parseArgs(['http://example.com', '--viewport', 'invalid']),

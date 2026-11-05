@@ -729,7 +729,11 @@ function parseArgs(argv) {
     extraBrowserArgs: [],
     cleanRunIds: null,
     cleanOlderThan: null,
-    cleanAll: false
+    cleanAll: false,
+    compact: DEFAULTS.compact,
+    delta: DEFAULTS.delta,
+    contentBoundaries: DEFAULTS.contentBoundaries,
+    maxOutput: DEFAULTS.maxOutput
   };
   const positionals = [];
   for (let i = 0; i < argv.length; i += 1) {
@@ -748,6 +752,10 @@ function parseArgs(argv) {
     }
     if (arg === "-V" || arg === "--version") {
       options.version = true;
+      continue;
+    }
+    if (arg === "-c") {
+      options.compact = true;
       continue;
     }
     if (arg.startsWith("--browser-arg=")) {
@@ -1107,6 +1115,27 @@ function parseArgs(argv) {
       case "older-than":
         options.cleanOlderThan = parseDuration(take());
         break;
+      case "compact":
+        options.compact = true;
+        break;
+      case "delta":
+        options.delta = true;
+        break;
+      case "content-boundaries":
+        options.contentBoundaries = true;
+        break;
+      case "max-output": {
+        const val = take();
+        if (!val || !/^\d+$/.test(val)) {
+          throw new UsageError(`--max-output requires a positive integer, received: "${val}"`);
+        }
+        const parsed = parseInt(val, 10);
+        if (parsed <= 0) {
+          throw new UsageError(`--max-output must be greater than 0, received: ${parsed}`);
+        }
+        options.maxOutput = parsed;
+        break;
+      }
       default:
         throw new UsageError(`Unknown option: --${key}`);
     }
@@ -6890,6 +6919,16 @@ Cleaned ${result.count} run directories.
     }
     if (options.command === "show") {
       const saved = await readRun(options.runIds[0], options);
+      if (options.delta && (saved.interactions?.beforeSnapshot || saved.interactions?.afterSnapshot)) {
+        const delta = diffInteractiveSnapshots(
+          saved.interactions?.beforeSnapshot?.interactive?.items ?? [],
+          saved.interactions?.afterSnapshot?.interactive?.items ?? saved.interactive?.items ?? [],
+          saved.interactions?.beforeSnapshot?.interactiveTreeText ?? "",
+          saved.interactions?.afterSnapshot?.interactiveTreeText ?? saved.interactiveTreeText ?? ""
+        );
+        process.stdout.write(serializeOutput(delta, options));
+        return;
+      }
       const view = options.full && !options.query ? selectSections(saved, options) : queryReport(saved, options.query, options);
       process.stdout.write(serializeOutput(view, options));
       return;
@@ -6897,6 +6936,16 @@ Cleaned ${result.count} run directories.
     if (options.command === "diff") {
       const before = await readRun(options.runIds[0], options);
       const after = await readRun(options.runIds[1], options);
+      if (options.delta) {
+        const delta = diffInteractiveSnapshots(
+          before.interactive?.items ?? [],
+          after.interactive?.items ?? [],
+          before.interactiveTreeText ?? "",
+          after.interactiveTreeText ?? ""
+        );
+        process.stdout.write(serializeOutput(delta, options));
+        return;
+      }
       process.stdout.write(
         serializeOutput(diffReports(before, after), { ...options, full: false, include: null })
       );
@@ -6982,6 +7031,32 @@ Cleaned ${result.count} run directories.
         outPath,
         JSON.stringify(selectSections(report, options), null, options.pretty ? 2 : 0)
       );
+    }
+    if (options.actions.length > 0 && !options.full && options.format !== "json") {
+      for (const act of report.interactions?.actions || []) {
+        if (act.status === "executed" || act.status === "performed") {
+          process.stdout.write(
+            `\u2713 Executed ${act.type} on ${act.target || act.selector || "@ref"}
+`
+          );
+        } else if (act.status === "skipped") {
+          process.stdout.write(
+            `\u26A0 Skipped ${act.type} on ${act.target || act.selector}: ${act.reason || "safety gate"}
+`
+          );
+        }
+      }
+    }
+    if (options.delta && (report.interactions?.beforeSnapshot || report.interactions?.afterSnapshot)) {
+      const delta = diffInteractiveSnapshots(
+        report.interactions?.beforeSnapshot?.interactive?.items ?? [],
+        report.interactions?.afterSnapshot?.interactive?.items ?? report.interactive?.items ?? [],
+        report.interactions?.beforeSnapshot?.interactiveTreeText ?? "",
+        report.interactions?.afterSnapshot?.interactiveTreeText ?? report.interactiveTreeText ?? ""
+      );
+      process.stdout.write(serializeOutput(delta, options));
+      if (!report.ok) process.exitCode = 1;
+      return;
     }
     process.stdout.write(serializeOutput(outputView(report, options), options));
     if (!report.ok) process.exitCode = 1;

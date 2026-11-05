@@ -305,6 +305,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     cleanRunIds: null,
     cleanOlderThan: null,
     cleanAll: false,
+    compact: DEFAULTS.compact,
+    delta: DEFAULTS.delta,
+    contentBoundaries: DEFAULTS.contentBoundaries,
+    maxOutput: DEFAULTS.maxOutput,
   };
 
   const positionals: string[] = [];
@@ -325,6 +329,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === '-V' || arg === '--version') {
       options.version = true;
+      continue;
+    }
+    if (arg === '-c') {
+      options.compact = true;
       continue;
     }
     if (arg.startsWith('--browser-arg=')) {
@@ -687,6 +695,27 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case 'older-than':
         options.cleanOlderThan = parseDuration(take());
         break;
+      case 'compact':
+        options.compact = true;
+        break;
+      case 'delta':
+        options.delta = true;
+        break;
+      case 'content-boundaries':
+        options.contentBoundaries = true;
+        break;
+      case 'max-output': {
+        const val = take();
+        if (!val || !/^\d+$/.test(val)) {
+          throw new UsageError(`--max-output requires a positive integer, received: "${val}"`);
+        }
+        const parsed = parseInt(val, 10);
+        if (parsed <= 0) {
+          throw new UsageError(`--max-output must be greater than 0, received: ${parsed}`);
+        }
+        options.maxOutput = parsed;
+        break;
+      }
       default:
         throw new UsageError(`Unknown option: --${key}`);
     }
