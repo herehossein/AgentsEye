@@ -7268,16 +7268,17 @@ Cleaned ${result.count} run directories.
     }
     const viewports = options.matrix ? options.customViewports ?? MATRIX_VIEWPORTS : [options.viewport];
     const snapshots = [];
+    const seenViewportFilenames = /* @__PURE__ */ new Set();
     for (const [index, viewport] of viewports.entries()) {
+      const baseFilename = `viewport-${viewport.width}x${viewport.height}`;
+      const filename = seenViewportFilenames.has(baseFilename) ? `${baseFilename}-${index}.${options.screenshotFormat}` : `${baseFilename}.${options.screenshotFormat}`;
+      seenViewportFilenames.add(baseFilename);
       const runOptions = {
         ...options,
         viewport: { ...viewport, dpr: options.viewport.dpr ?? viewport.dpr ?? 1 },
         // Each matrix entry owns one screenshot; user-specified output is copied
         // afterwards to avoid overwriting it on the second viewport.
-        screenshot: path6.join(
-          activeRun.directory,
-          `viewport-${viewport.width}x${viewport.height}.${options.screenshotFormat}`
-        )
+        screenshot: path6.join(activeRun.directory, filename)
       };
       if (options.matrix) {
         logInfo(

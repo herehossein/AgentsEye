@@ -163,3 +163,58 @@ test('action execution output: clean JSON stdout by default and text summary in 
     fs.rmSync(testCwd, { recursive: true, force: true });
   }
 });
+
+test('matrix mode handles duplicate viewport dimensions without file collision errors', async (t) => {
+  let browserPath = null;
+  try {
+    browserPath = findBrowser(null);
+  } catch {
+    browserPath = null;
+  }
+
+  if (!browserPath) {
+    t.skip('SKIPPED: No installed Chromium browser found on system');
+    return;
+  }
+
+  const testCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'agentseye-matrix-test-'));
+
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end('<!DOCTYPE html><html><body><h1>Matrix Test</h1></body></html>');
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const testUrl = `http://127.0.0.1:${port}/`;
+
+  try {
+    const { status, stdout, stderr } = await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [
+        SCRIPT_PATH,
+        testUrl,
+        '--viewports',
+        'xl,desktop',
+        '--screenshot',
+        '--ephemeral',
+        '--timeout',
+        '5000',
+        '--no-network-idle',
+      ], { cwd: testCwd });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d) => { stdout += d; });
+      child.stderr.on('data', (d) => { stderr += d; });
+      child.on('error', reject);
+      child.on('close', (status) => { resolve({ status, stdout, stderr }); });
+    });
+
+    assert.equal(status, 0, `Expected matrix inspection to succeed with 0. Stderr: ${stderr}`);
+    const output = JSON.parse(stdout);
+    assert.equal(output.ok, true);
+    assert.ok(output.matrix);
+  } finally {
+    server.close();
+    fs.rmSync(testCwd, { recursive: true, force: true });
+  }
+});

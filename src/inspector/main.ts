@@ -151,16 +151,20 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
       ? (options.customViewports ?? MATRIX_VIEWPORTS)
       : [options.viewport];
     const snapshots: any[] = [];
+    const seenViewportFilenames = new Set<string>();
     for (const [index, viewport] of viewports.entries()) {
+      const baseFilename = `viewport-${viewport.width}x${viewport.height}`;
+      const filename = seenViewportFilenames.has(baseFilename)
+        ? `${baseFilename}-${index}.${options.screenshotFormat}`
+        : `${baseFilename}.${options.screenshotFormat}`;
+      seenViewportFilenames.add(baseFilename);
+
       const runOptions = {
         ...options,
         viewport: { ...viewport, dpr: options.viewport.dpr ?? viewport.dpr ?? 1 },
         // Each matrix entry owns one screenshot; user-specified output is copied
         // afterwards to avoid overwriting it on the second viewport.
-        screenshot: path.join(
-          activeRun.directory,
-          `viewport-${viewport.width}x${viewport.height}.${options.screenshotFormat}`,
-        ),
+        screenshot: path.join(activeRun.directory, filename),
       };
       if (options.matrix) {
         logInfo(
