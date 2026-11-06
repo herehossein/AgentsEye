@@ -1,3 +1,5 @@
 .agentsEye/
 node_modules/
-docs
+/docs/
+/dist/
+/agentsEye.mjs

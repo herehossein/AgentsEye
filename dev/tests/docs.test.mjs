@@ -11,7 +11,7 @@ import {
   interactionSafety,
   minimalSummary,
   validateResolvedTargetUrl,
-} from '../../agentsEye.mjs';
+} from '../../dist/agentsEye.mjs';
 
 const REPO_ROOT = path.resolve('.');
 
@@ -58,8 +58,8 @@ test('SKILL.md is <= 16 KB (16384 bytes)', () => {
   assert.ok(stat.size <= 16384, `SKILL.md size ${stat.size} exceeds 16384 bytes`);
 });
 
-test('no npx invocations remain in SKILL.md, README.md, README.fa.md, agentsEye.mjs, package.json', () => {
-  const filesToCheck = ['SKILL.md', 'README.md', 'README.fa.md', 'agentsEye.mjs', 'package.json'];
+test('no npx invocations remain in SKILL.md, README.md, README.fa.md, dist/agentsEye.mjs, package.json', () => {
+  const filesToCheck = ['SKILL.md', 'README.md', 'README.fa.md', 'dist/agentsEye.mjs', 'package.json'];
   for (const file of filesToCheck) {
     const filePath = path.join(REPO_ROOT, file);
     if (!fs.existsSync(filePath)) continue;
@@ -93,11 +93,46 @@ test('no numeric token claims or absolute security claims remain in docs', () =>
   }
 });
 
+test('build artifact and npm metadata use the ignored dist bundle, not a root bundle', () => {
+  const bundle = 'dist/agentsEye.mjs';
+  const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package-lock.json'), 'utf8'));
+
+  assert.equal(pkg.bin.agentseye, bundle);
+  assert.deepEqual(lock.packages[''].bin, pkg.bin, 'Lockfile bin must match package.json');
+  assert.equal(pkg.scripts.prepack, 'npm run build', 'npm packaging must build the ignored bundle');
+  for (const file of [bundle, 'SKILL.md', 'references/']) {
+    assert.ok(pkg.files.includes(file), `npm package must include ${file}`);
+  }
+  assert.ok(!pkg.files.includes('agentsEye.mjs'), 'npm package must not expect a root bundle');
+  assert.ok(fs.statSync(path.join(REPO_ROOT, bundle)).isFile(), 'Build must produce dist/agentsEye.mjs');
+  assert.ok(!fs.existsSync(path.join(REPO_ROOT, 'agentsEye.mjs')), 'Build must not recreate a root bundle');
+  assert.match(fs.readFileSync(path.join(REPO_ROOT, '.gitignore'), 'utf8'), /^\/?dist\/?\r?$/m);
+});
+
+test('English and Persian READMEs install the complete skill from a Release ZIP', () => {
+  const releaseUrl = 'https://github.com/herehossein/agentsEye/releases/latest';
+  for (const readme of ['README.md', 'README.fa.md']) {
+    const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
+    assert.ok(content.includes(releaseUrl), `${readme} must link the Release page`);
+    assert.match(content, /\.zip/, `${readme} must document the ZIP package`);
+    assert.match(content, /Assets/, `${readme} must identify the uploaded Release asset`);
+    assert.match(content, /\bextract\b|استخراج/i, `${readme} must document extracting the ZIP`);
+    assert.match(content, /\bmove\b|منتقل/i, `${readme} must document moving the extracted skill folder`);
+    assert.doesNotMatch(content, /releases\/latest\/download\/agentsEye\.mjs/, `${readme} must not require a separate script download`);
+    assert.doesNotMatch(
+      content,
+      /raw\.githubusercontent\.com\/herehossein\/agentsEye\/[^/\s]+\/(?:dist\/)?agentsEye\.mjs/,
+      `${readme} must not install a bundle from the source tree`,
+    );
+  }
+});
+
 test('skill works when SKILL.md, agentsEye.mjs and references/ are copied alone to a temp folder', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentseye-standalone-skill-'));
   try {
     fs.copyFileSync(path.join(REPO_ROOT, 'SKILL.md'), path.join(tmpDir, 'SKILL.md'));
-    fs.copyFileSync(path.join(REPO_ROOT, 'agentsEye.mjs'), path.join(tmpDir, 'agentsEye.mjs'));
+    fs.copyFileSync(path.join(REPO_ROOT, 'dist/agentsEye.mjs'), path.join(tmpDir, 'agentsEye.mjs'));
     fs.cpSync(path.join(REPO_ROOT, 'references'), path.join(tmpDir, 'references'), { recursive: true });
 
     assert.deepEqual(
@@ -135,7 +170,7 @@ test('SSOT: version in package.json, CLI flags, badges, and docs matches TOOL_VE
   );
 
   // 2. CLI --version and -V stdout consistency
-  const binPath = path.join(REPO_ROOT, 'agentsEye.mjs');
+  const binPath = path.join(REPO_ROOT, 'dist/agentsEye.mjs');
   const resLong = spawnSync(process.execPath, [binPath, '--version'], { encoding: 'utf8' });
   assert.equal(resLong.status, 0, '--version should exit 0');
   assert.equal(

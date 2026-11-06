@@ -7,7 +7,7 @@ import {
   SCHEMA_VERSION,
   computeUnifiedTextDiff,
   diffInteractiveSnapshots,
-} from '../../agentsEye.mjs';
+} from '../../dist/agentsEye.mjs';
 
 test('diffReports: identical reports produce zero new issues and zero new errors', () => {
   const baseReport = {

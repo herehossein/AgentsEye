@@ -4,7 +4,7 @@ export default tseslint.config(
   tseslint.configs.recommended,
   {
     ignores: [
-      'agentsEye.mjs',
+      'dist/**',
       'dev/**',
       'scripts/**',
       'node_modules/**',

@@ -8,7 +8,7 @@ import {
   minimalSummary,
   validateElementLocator,
   TAILWIND_VIEWPORTS,
-} from '../../agentsEye.mjs';
+} from '../../dist/agentsEye.mjs';
 
 // --- Seam 1: Viewport Presets & Desktop Dimensions ---
 test('parseViewport: supports desktop and tablet presets as intuitive aliases', () => {

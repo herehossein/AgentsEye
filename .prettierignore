@@ -1,5 +1,5 @@
 node_modules/
 .agentsEye/
-agentsEye.mjs
+dist/
 package-lock.json
 docs/

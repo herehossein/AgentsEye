@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const SCRIPT_PATH = path.resolve('agentsEye.mjs');
+const SCRIPT_PATH = path.resolve('dist/agentsEye.mjs');
 
 function createTempWorkspace() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentseye-clean-test-'));

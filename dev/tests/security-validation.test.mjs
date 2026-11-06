@@ -11,7 +11,7 @@ import {
   validateCdpEndpoint,
   resolveSafePath,
   validateRunId,
-} from '../../agentsEye.mjs';
+} from '../../dist/agentsEye.mjs';
 
 // ============================================================================
 // 1. validateTargetUrl

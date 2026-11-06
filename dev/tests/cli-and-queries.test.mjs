@@ -19,12 +19,12 @@ import {
   REF_REGISTRY_SLOT,
   DEFAULT_SUMMARY_INTERACTIVE_LIMIT,
   FOCUS_SLICES,
-} from '../../agentsEye.mjs';
+} from '../../dist/agentsEye.mjs';
 
 test('CLI --help: documents supported flag effects and limitations', () => {
   const result = spawnSync(
     process.execPath,
-    [fileURLToPath(new URL('../../agentsEye.mjs', import.meta.url)), '--help'],
+    [fileURLToPath(new URL('../../dist/agentsEye.mjs', import.meta.url)), '--help'],
     { encoding: 'utf8', timeout: 10000 },
   );
   assert.ifError(result.error);

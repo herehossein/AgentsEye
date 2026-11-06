@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { findBrowser } from '../../agentsEye.mjs';
+import { findBrowser } from '../../dist/agentsEye.mjs';
 
-const SCRIPT_PATH = path.resolve('agentsEye.mjs');
+const SCRIPT_PATH = path.resolve('dist/agentsEye.mjs');
 
 test('browser inspection against local test page', async (t) => {
   let browserPath = null;

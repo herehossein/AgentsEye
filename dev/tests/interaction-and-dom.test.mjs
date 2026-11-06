@@ -15,7 +15,7 @@ import {
   SCHEMA_VERSION,
   formatInteractiveTreeText,
   compactInteractiveTree,
-} from '../../agentsEye.mjs';
+} from '../../dist/agentsEye.mjs';
 
 // ============================================================================
 // 1. interactionSafety

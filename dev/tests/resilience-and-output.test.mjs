@@ -16,7 +16,7 @@ import {
   TOOL_NAME,
   TOOL_VERSION,
   SCHEMA_VERSION,
-} from '../../agentsEye.mjs';
+} from '../../dist/agentsEye.mjs';
 
 function createTempDir(prefix = 'agentseye-resilience-') {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

@@ -12,7 +12,7 @@
 
 ## Code boundaries
 
-- Edit `src/`, not generated/tracked `agentsEye.mjs`; include the rebuilt bundle with source changes. Tests import/spawn the bundle. Build uses `packages: 'external'`; npm runtime imports break standalone portability.
+- Edit `src/`, not generated `dist/agentsEye.mjs`; `npm run build` creates the ignored bundle for GitHub Releases. Never commit build output. Tests import/spawn this bundle. Build uses `packages: 'external'`; npm runtime imports break standalone portability.
 - `src/index.ts` is public exports + guarded CLI entrypoint; `src/inspector/main.ts` owns command/browser/run lifecycle; `src/inspector/inspect-page.ts` aggregates CDP/probes/interactions then redacts/sanitizes.
 - Browser-evaluated functions in `src/probes/` run via `.toString()`: no imported runtime helpers or captured module variables; pass config explicitly.
 - Preserve public exports and JSON compatibility. Emitters use `any`; align output tests, `src/types/report.ts` and `references/schema-reference.md` when changing telemetry.
@@ -22,15 +22,15 @@
 
 - Build checks `package.json.version` against `TOOL_VERSION` in `src/config/constants.ts`; docs tests require this Project header and both README version badges to match, and check the focus/flag/SSRF guidance below.
 - `SKILL.md` must stay <=16,384 bytes. Keep relative links valid, including when only `SKILL.md`, `agentsEye.mjs` and `references/` are copied. `docs/` is ignored/not packaged.
-- CLI examples use `node agentsEye.mjs`, not package runners. No numeric token estimates or absolute security guarantees.
+- Installed-skill CLI examples use `node agentsEye.mjs`; from repo root use `node dist/agentsEye.mjs` after building, not package runners. Release ZIPs contain `agentsEye.mjs` from `dist/`, `SKILL.md` and `references/` together in `agents-eye/`; install the extracted folder. No numeric token estimates or absolute security guarantees.
 
 ## Inspector pitfalls
 
-- Use `node agentsEye.mjs <url> --temp`; `show`/`diff` find temp runs automatically. `--ephemeral` deletes runs on exit, preventing follow-up queries/diffs.
-- Clean only task IDs with `node agentsEye.mjs clean <id>`; broad clean modes include shared OS-temp/legacy roots. Bare `clean` deletes nothing and exits `2`.
+- Use `node dist/agentsEye.mjs <url> --temp`; `show`/`diff` find temp runs automatically. `--ephemeral` deletes runs on exit, preventing follow-up queries/diffs.
+- Clean only task IDs with `node dist/agentsEye.mjs clean <id>`; broad clean modes include shared OS-temp/legacy roots. Bare `clean` deletes nothing and exits `2`.
 - Exit `0`/`report.ok === true` means inspection completed, not a clean page. Inspect `issues`, `network.failures`, `errors.uncaught`. Exit `1`: runtime/DNS failure; `2`: usage/SSRF-policy rejection.
-- For web bugfixes, use before/after runs and `node agentsEye.mjs diff <before-id> <after-id>`; require `summary.newErrors === 0` and `summary.newIssues === 0`, and check the original defect.
-- Avoid `--full` stdout; use `--focus` or `node agentsEye.mjs show <id> <dotted.path>`. Slices available: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`, `interactive`.
+- For web bugfixes, use before/after runs and `node dist/agentsEye.mjs diff <before-id> <after-id>`; require `summary.newErrors === 0` and `summary.newIssues === 0`, and check the original defect.
+- Avoid `--full` stdout; use `--focus` or `node dist/agentsEye.mjs show <id> <dotted.path>`. Slices available: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`, `interactive`.
 - `--depth` (0–100) limits tree display with `--focus interactive --compact`, not DOM traversal (`--max-depth`) or collected items. `--no-max-output` removes only the serialization cap, not summary/collection limits; it does not enable `--full`.
 - `--browser-arg` is repeatable and affects newly launched Chromium only, never `--cdp`; preserve its dangerous-switch denylist.
 - In PowerShell quote refs (`--click '@e1'`) or use bare `e1`; unquoted `@e1` is splatting.

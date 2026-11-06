@@ -4,13 +4,14 @@
   "description": "Zero-dependency browser runtime inspector CLI and skill for autonomous AI agents and developers",
   "type": "module",
   "bin": {
-    "agentseye": "agentsEye.mjs"
+    "agentseye": "dist/agentsEye.mjs"
   },
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
@@ -37,7 +38,7 @@
   },
   "homepage": "https://github.com/herehossein/agentsEye",
   "files": [
-    "agentsEye.mjs",
+    "dist/agentsEye.mjs",
     "SKILL.md",
     "references/",
     "README.md",

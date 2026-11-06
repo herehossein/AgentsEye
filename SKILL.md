@@ -6,9 +6,11 @@ description: >-
 
 # agentsEye — Agent Skill Specification
 
-Zero-dependency Chrome DevTools Protocol (CDP) runtime engine for autonomous AI coding agents. Functions as the runtime "eyes" and sensory feedback loop of an AI agent paired with a developer: inspecting local dev servers, discovering silent runtime crashes, diagnosing layout faults, and verifying bugfixes without burning model context.
+Zero-dependency Chrome DevTools Protocol (CDP) engine: diagnose web runtime bugs and verify fixes with offline diffs.
 
 Works universally across all browser stacks: **React, Next.js, Vue, Nuxt, Svelte, Angular, vanilla HTML/JS, Astro, Solid, Flutter Web, Wasm**.
+
+Download the skill ZIP from [GitHub Releases](https://github.com/herehossein/agentsEye/releases/latest), extract it, and install the complete `agents-eye/` folder.
 
 ---
 

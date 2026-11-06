@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { findBrowser, diffReports } from '../../agentsEye.mjs';
+import { findBrowser, diffReports } from '../../dist/agentsEye.mjs';
 
-const SCRIPT_PATH = path.resolve('agentsEye.mjs');
+const SCRIPT_PATH = path.resolve('dist/agentsEye.mjs');
 
 function hasBrowser() {
   try {

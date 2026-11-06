@@ -1,6 +1,5 @@
 import esbuild from 'esbuild';
 import fs from 'node:fs';
-import path from 'node:path';
 
 async function build() {
   // SSOT Quality Gate: Verify package.json version matches src/config/constants.ts TOOL_VERSION
@@ -15,13 +14,14 @@ async function build() {
     process.exit(1);
   }
 
+  const outfile = 'dist/agentsEye.mjs';
   await esbuild.build({
     entryPoints: ['src/index.ts'],
     bundle: true,
     platform: 'node',
     format: 'esm',
     target: 'node22',
-    outfile: 'agentsEye.mjs',
+    outfile,
     minify: false,
     keepNames: false,
     banner: {
@@ -31,14 +31,14 @@ async function build() {
   });
 
   // Ensure exactly one shebang line at line 1
-  let content = fs.readFileSync('agentsEye.mjs', 'utf8');
+  let content = fs.readFileSync(outfile, 'utf8');
   const lines = content.split(/\r?\n/);
   while (lines.length > 0 && lines[0].startsWith('#!')) {
     lines.shift();
   }
   content = '#!/usr/bin/env node\n' + lines.join('\n');
-  fs.writeFileSync('agentsEye.mjs', content, 'utf8');
-  console.log('Build complete: agentsEye.mjs');
+  fs.writeFileSync(outfile, content, 'utf8');
+  console.log(`Build complete: ${outfile}`);
 }
 
 build().catch((err) => {
