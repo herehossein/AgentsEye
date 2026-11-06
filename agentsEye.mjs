@@ -5647,9 +5647,9 @@ function inPageProbe(config) {
       if (value) vars[name] = value.slice(0, 300);
     }
     return {
+      ...vars,
       count: Object.keys(vars).length,
       vars,
-      ...vars,
       truncated: names.size >= limit
     };
   };
@@ -5696,10 +5696,10 @@ function inPageProbe(config) {
         record[key] = value;
       }
       return {
+        ...record,
         available: true,
         count: storage2.length,
         entries,
-        ...record,
         truncated: storage2.length > entries.length
       };
     } catch (error) {

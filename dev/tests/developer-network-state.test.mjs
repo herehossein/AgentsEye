@@ -143,6 +143,7 @@ test('2. Local and Session Storage Inspection', async (t) => {
   <h1>Storage Test Page</h1>
   <script>
     localStorage.setItem('user_theme', 'dark');
+    localStorage.setItem('entries', 'evil-overwrite');
     sessionStorage.setItem('wizard_step', '2');
   </script>
 </body>
@@ -174,6 +175,8 @@ test('2. Local and Session Storage Inspection', async (t) => {
     const localVal = storage.localStorage.user_theme ??
       storage.localStorage.entries?.find((e) => e.key === 'user_theme')?.value;
     assert.equal(localVal, 'dark', `Expected localStorage to contain { user_theme: 'dark' }, got ${localVal}`);
+    assert.ok(Array.isArray(storage.localStorage.entries), 'localStorage.entries must remain an array even when page has a key named entries');
+    assert.equal(storage.localStorage.available, true);
 
     const sessionVal = storage.sessionStorage.wizard_step ??
       storage.sessionStorage.entries?.find((e) => e.key === 'wizard_step')?.value;

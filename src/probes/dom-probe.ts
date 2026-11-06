@@ -1098,9 +1098,9 @@ export function inPageProbe(config) {
       if (value) vars[name] = value.slice(0, 300);
     }
     return {
+      ...vars,
       count: Object.keys(vars).length,
       vars,
-      ...vars,
       truncated: names.size >= limit,
     };
   };
@@ -1152,10 +1152,10 @@ export function inPageProbe(config) {
         record[key] = value;
       }
       return {
+        ...record,
         available: true,
         count: storage.length,
         entries,
-        ...record,
         truncated: storage.length > entries.length,
       };
     } catch (error) {
