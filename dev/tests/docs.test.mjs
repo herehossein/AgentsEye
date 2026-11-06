@@ -129,9 +129,11 @@ test('English and Persian READMEs install the complete skill from a Release ZIP'
   }
 });
 
-test('bilingual READMEs keep three core workflows, a current lifecycle and five scenarios', () => {
+test('bilingual READMEs introduce the skill with three workflows, three steps and five scenarios', () => {
   for (const readme of ['README.md', 'README.fa.md']) {
     const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
+    const header = content.split(/^## [1۱]\./m)[0];
+    assert.match(header, /agent skill|اسکیل/, `${readme} must introduce the tool as an agent skill`);
     const intro = content.split(/^## [1۱]\./m)[1]?.split(/^## /m)[0];
     assert.ok(intro, `${readme} must have the introductory section`);
     assert.equal((intro.match(/^- /gm) || []).length, 3, `${readme} must highlight three core workflows`);
@@ -139,13 +141,13 @@ test('bilingual READMEs keep three core workflows, a current lifecycle and five 
 
     const lifecycle = content.split(/^## [2۲]\./m)[1]?.split(/^## /m)[0];
     assert.ok(lifecycle, `${readme} must have the lifecycle section`);
-    for (const term of [
-      '--temp', '--focus interactive --compact', '--interactive-scope', '--delta', '--no-css-vars',
-      'interactive.items[15]', 'summary.newErrors === 0', 'summary.newIssues === 0',
-      '--matrix', 'matrix.snapshots',
-    ]) {
-      assert.ok(lifecycle.includes(term), `${readme} lifecycle must document ${term}`);
-    }
+    assert.equal((lifecycle.match(/^\|[ \t]+\*\*[1-3۱-۳]\./gm) || []).length, 3, `${readme} must explain three workflow steps`);
+    assert.match(lifecycle, /^> /m, `${readme} must include a natural-language request to the assistant`);
+    assert.doesNotMatch(
+      lifecycle,
+      /--[a-z]|node (?:dist\/)?agentsEye\.mjs|(?:summary|interactive|network|matrix)\.[a-z]/,
+      `${readme} basic workflow must not require CLI flags or internal report fields`,
+    );
 
     const scenarios = content.split(/^### (?:Example Interactions|نمونه سناریوهای تعامل).*$/m)[1]?.split(/^## /m)[0];
     assert.ok(scenarios, `${readme} must have the interaction scenarios`);
@@ -154,6 +156,34 @@ test('bilingual READMEs keep three core workflows, a current lifecycle and five 
       [1, 2, 3, 4, 5],
       `${readme} must have exactly five numbered scenarios`,
     );
+  }
+});
+
+test('bilingual READMEs keep advanced commands and report fields separate from basic usage', () => {
+  for (const readme of ['README.md', 'README.fa.md']) {
+    const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
+    const quickStart = content.split(/^## [6۶]\./m)[1]?.split(/^## /m)[0];
+    assert.ok(quickStart, `${readme} must have the getting-started section`);
+    const basicUsage = quickStart.replace(/<details>[\s\S]*?<\/details>/g, '');
+    assert.ok(basicUsage.includes('node agentsEye.mjs http://localhost:3000 --format text --temp'));
+    assert.doesNotMatch(basicUsage, /report\.ok|summary\.new(?:Errors|Issues)|network\.failures|matrix\.snapshots/);
+    assert.deepEqual(
+      [...basicUsage.matchAll(/^\| \*\*`([012])`\*\*/gm)].map(([, code]) => Number(code)),
+      [0, 1, 2],
+      `${readme} must explain the three inspection exit codes in a readable table`,
+    );
+    for (const term of ['report.ok === true', 'summary.newErrors === 0', 'summary.newIssues === 0', 'matrix.snapshots']) {
+      assert.ok(quickStart.includes(term), `${readme} must retain advanced guidance for ${term}`);
+    }
+
+    const logging = content.split(/^## [8۸]\./m)[1]?.split(/^## /m)[0];
+    assert.ok(logging, `${readme} must have the logging section`);
+    const basicLogging = logging.replace(/<details>[\s\S]*?<\/details>/g, '');
+    assert.match(basicLogging, /^> /m, `${readme} logging must start with a request the user can give an assistant`);
+    assert.doesNotMatch(basicLogging, /console\.log|--console-filter|\bSPA\b|lifecycle|لایف‌سایکل/);
+    assert.match(basicLogging, /only the messages it added|فقط پیام‌هایی را که خودش اضافه کرده/);
+    assert.match(basicLogging, /passwords.*tokens.*cookies.*user data|رمز عبور.*توکن.*کوکی.*اطلاعات کاربران/);
+    assert.ok(logging.includes('[AGENT_DEBUG_TAG]'), `${readme} must retain the developer logging example`);
   }
 });
 
@@ -170,24 +200,35 @@ test('bilingual READMEs state runtime boundaries and keep command tables intact'
   assert.ok(locale, 'CLI reference must document the locale override');
   assert.match(locale, /Emulation\.setLocaleOverride.*Does not change.*Accept-Language.*RTL/);
 
+  const commandsByLanguage = [];
   for (const readme of ['README.md', 'README.fa.md']) {
     const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
     assert.ok(content.includes('report.ok === true'), `${readme} must explain inspection success`);
     assert.ok(content.includes('network.failures'), `${readme} must require separate network review`);
-    assert.match(content, /Private and loopback targets[^\r\n]*allowed|اهداف خصوصی و لوپ‌بک[^\r\n]*مجاز/);
-    assert.match(content, /not a pixel-diff|نه مقایسهٔ پیکسلی/);
-    assert.match(content, /not a no-write mode|حالت بدون نوشتن روی دیسک نیست/);
+    assert.match(content, /private-network pages[^\r\n]*allowed|سایت‌های شبکهٔ خصوصی[^\r\n]*مجاز/);
+    assert.match(content, /does not compare screenshots pixel by pixel|تصاویر را پیکسل‌به‌پیکسل[^\r\n]*مقایسه نمی‌کند/);
+    assert.match(content, /Files are still written first, then deletion is attempted|فایل‌ها ابتدا نوشته می‌شوند[^\r\n]*حذف/);
+    assert.match(content, /--temp[^\r\n]*does not delete|--temp[^\r\n]*حذف نمی‌کند/);
+    assert.match(content, /may delete reports from other projects|ممکن است گزارش‌های پروژه‌های دیگر را حذف/);
+    assert.match(content, /Screenshots are not masked|اطلاعات داخل تصاویر پوشانده نمی‌شود/);
+    assert.match(content, /not a security sandbox|جایگزین محیط آزمایشی جداگانه نیست/);
     for (const term of ['--allow-remote-cdp', '--allow-destructive', 'Canvas/WebGL', 'WCAG']) {
       assert.ok(content.includes(term), `${readme} must document the boundary for ${term}`);
     }
+    const commands = [];
     for (const line of content.split(/\r?\n/).filter((line) => line.startsWith('|'))) {
       assert.equal(
         (line.match(/(?<!\\)\|/g) || []).length,
         4,
         `${readme} must keep three-column tables; unexpected cell separator in: ${line}`,
       );
+      const command = line.match(/`(node agentsEye\.mjs [^`]+)`/)?.[1];
+      if (command) commands.push(command);
     }
+    assert.equal(commands.length, 22, `${readme} must retain the complete command recipe table`);
+    commandsByLanguage.push(commands);
   }
+  assert.deepEqual(commandsByLanguage[0], commandsByLanguage[1], 'English and Persian command examples must match');
 });
 
 test('skill works when SKILL.md, agentsEye.mjs and references/ are copied alone to a temp folder', () => {
