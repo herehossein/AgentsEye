@@ -213,7 +213,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     }
 
     if (options.actions.length > 0 && !options.full && !options.focus) {
-      if (options.format !== 'json' || !options.delta) {
+      if (options.format === 'text' && !options.delta) {
         for (const act of report.interactions?.actions || []) {
           if (act.status === 'executed' || act.status === 'performed') {
             process.stdout.write(`✓ Executed ${act.type} on ${formatActionTarget(act)}\n`);
@@ -237,10 +237,6 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
             '',
         );
         process.stdout.write(serializeOutput(delta, options));
-        if (!report.ok) process.exitCode = 1;
-        return;
-      }
-      if (options.format !== 'json') {
         if (!report.ok) process.exitCode = 1;
         return;
       }

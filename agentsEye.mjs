@@ -7279,7 +7279,7 @@ Cleaned ${result.count} run directories.
       );
     }
     if (options.actions.length > 0 && !options.full && !options.focus) {
-      if (options.format !== "json" || !options.delta) {
+      if (options.format === "text" && !options.delta) {
         for (const act of report.interactions?.actions || []) {
           if (act.status === "executed" || act.status === "performed") {
             process.stdout.write(`\u2713 Executed ${act.type} on ${formatActionTarget2(act)}
@@ -7300,10 +7300,6 @@ Cleaned ${result.count} run directories.
           report.interactions?.afterSnapshot?.interactiveTreeText ?? report.interactiveTreeText ?? ""
         );
         process.stdout.write(serializeOutput(delta, options));
-        if (!report.ok) process.exitCode = 1;
-        return;
-      }
-      if (options.format !== "json") {
         if (!report.ok) process.exitCode = 1;
         return;
       }
