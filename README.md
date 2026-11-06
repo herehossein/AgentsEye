@@ -1,6 +1,8 @@
+<div align="center">
+
 # agentsEye 👁️
 
-> **The zero-dependency browser runtime inspector and visual verification engine for AI coding agents.**
+**A standalone browser-runtime inspector for AI coding agents and developers: structured diagnostics, targeted interactions, and before/after comparison—with zero runtime npm dependencies.**
 
 [![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -9,221 +11,225 @@
 
 [English](README.md) | [فارسی](README.fa.md)
 
----
+</div>
 
-## Table of Contents
+<details>
+<summary><strong>Table of Contents</strong></summary>
 
 - [1. Why agentsEye?](#1-why-agentseye)
 - [2. The Full Development Lifecycle (Dev → Debug → Verify)](#2-the-full-development-lifecycle-dev--debug--verify)
 - [3. How It Works](#3-how-it-works)
-- [4. Key Superpowers](#4-key-superpowers)
+- [4. Key Capabilities](#4-key-capabilities)
 - [5. How to Use as an AI Agent Skill](#5-how-to-use-as-an-ai-agent-skill)
 - [6. Quick Start & Common Recipes](#6-quick-start--common-recipes)
-- [7. Keeping Your Disk Clean](#7-keeping-your-disk-clean)
+- [7. Saved Runs & Cleanup](#7-saved-runs--cleanup)
 - [8. Log-Driven Debugging for AI Coding Agents](#8-log-driven-debugging-for-ai-coding-agents)
 - [9. Layout Shift vs Intentional Animations (CLS vs Motion)](#9-layout-shift-vs-intentional-animations-cls-vs-motion)
 - [10. Safety and Limitations](#10-safety-and-limitations)
 - [11. Development & Architecture](#11-development--architecture)
 - [License](#license)
 
----
+</details>
 
-### 1. Why agentsEye?
+## 1. Why agentsEye?
 
-When a developer pairs with an AI coding assistant (Claude Code, Google Antigravity, Cursor, Windsurf) to build or debug web applications, a fundamental gap emerges: **the AI agent is completely blind to runtime reality**.
+AI coding assistants can read and edit source code, but need browser evidence to understand what the application actually does. **agentsEye provides that feedback through three core workflows:**
 
-The agent can edit source files and suggest component architectures, but it cannot see what actually happens when that code executes inside the browser:
+- **Runtime crash diagnosis:** Capture uncaught JavaScript exceptions and console logs—including hydration errors reported by the application—and filter tagged logs to investigate state and lifecycle bugs.
 
-- Did a rogue container or flexbox property break the **responsive layout with horizontal scroll on mobile**?
-- Did React, Vue, or Next.js throw an **uncaught hydration exception, blank screen, or silent crash**?
-- Did a background `fetch()` call fail with **HTTP 404 or 500**, or fail silently on missing headers?
-- Is an interactive modal or popup actually visible, or is it trapped with `display: none` or bad `z-index`?
-- Did an unmounted modal leave `overflow: hidden` on `<body>`, **completely freezing page scroll**?
-- Did an applied code tweak fix the issue, or did it introduce visual and runtime regressions elsewhere?
+- **Network & API diagnosis:** Identify failed requests, HTTP 4xx/5xx responses and slow endpoints, including protected routes inspected with origin-scoped headers.
 
-Attempts to bridge this gap typically fail for two reasons:
+- **Interaction and bugfix verification:** Exercise menus, tabs and modals with scoped semantic refs, then compare saved before/after runs for new errors and issues.
 
-1. **Dumping raw HTML or full DOM trees**: Squeezes thousands of lines into the agent's context window, burning tokens while still completely missing computed styles, viewport overflow, uncaught client exceptions, hydration mismatches, and failed API calls.
-2. **Installing heavy test frameworks (Playwright, Puppeteer)**: Requires multi-megabyte dependencies, dedicated browser binary downloads, complex boilerplate scripts, and high cold-start overhead that slows down agile AI pair programming.
+The engine runs from one `.mjs` file using Node.js 22+ and an installed Chromium browser, independently of your frontend framework. It combines browser events and page probes into focused JSON or plain text, with saved reports and screenshots for follow-up review. Capture once, then query the evidence offline instead of repeatedly dumping the whole page.
 
-**agentsEye is the agent's runtime eyes and sensory feedback loop.** Connecting directly to installed Chromium browsers (Google Chrome, Microsoft Edge, Brave, Chromium) via the native Chrome DevTools Protocol (CDP) with **zero external dependencies** and single-file execution, agentsEye inspects running web pages and local dev servers. It extracts precise structural diagnostics, layout faults, network statuses, and console errors into a token-budgeted summary that agents and humans can act on instantly.
+## 2. The Full Development Lifecycle (Dev → Debug → Verify)
 
-#### Completely Framework & Stack Agnostic
+Use an evidence-first loop: **capture → reproduce → fix → compare**.
 
-agentsEye is not coupled to any specific library or ecosystem. If it compiles or renders into a browser window, agentsEye inspects it:
+| Phase | Current workflow | Expected result |
+| :--- | :--- | :--- |
+| **1. Observe & baseline** | Save a run with `--temp`; start with the summary, then use `--focus interactive --compact` for control names, input types and refs. Add `--no-css-vars` when design tokens are irrelevant. | A saved baseline and a focused, actionable catalog. |
+| **2. Reproduce & diagnose** | Filter console logs and inspect network failures; isolate computed CSS with `--selector`/`--style-props`. Use fresh refs with `--interactive-scope`, chained actions and `--delta`; `--explore` tests disclosure toggles only. | Runtime evidence for a targeted source-code fix. |
+| **3. Verify & review** | Repeat the same viewport and actions, then run `node agentsEye.mjs diff <before-id> <after-id>`. Drill down offline with `node agentsEye.mjs show <run-id> interactive.items[15]`. | Check `summary.newErrors === 0` and `summary.newIssues === 0`; review layout/style changes, `network.failures`, and resolution of the original defect. |
 
-- **Component Frameworks**: React, Next.js, Remix, Vue, Nuxt, Svelte, SvelteKit, Angular, Solid, Astro.
-- **Mobile-on-Web & Native**: React Native for Web, Ionic, Capacitor.
-- **Compiled Web**: Flutter Web (CanvasKit / HTML renderer), WebAssembly (Wasm) frontends, Blazor.
-- **Classic Web**: Vanilla HTML5, modern JavaScript, CSS Grid/Flexbox, server-rendered templates.
+`--matrix` captures a viewport series; review `matrix.snapshots` separately. One before/after diff compares the primary snapshot, not every breakpoint. Keep `--temp` runs until follow-up queries/diffs finish, then clean only those run IDs.
 
----
-
-### 2. The Full Development Lifecycle (Dev → Debug → Verify)
-
-agentsEye provides a closed-loop engineering workflow for developers and coding agents:
-
-| Lifecycle Phase              | What agentsEye Inspects                                                                                                                                                                                                                                                                                                                                            | Practical Value for Developers & Agents                                                                                                       |
-| :--------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. Explore & Build**       | • Live DOM hierarchy & computed styles<br/>• Outgoing API requests & HTTP methods<br/>• Running Chromium processes via CDP (`--cdp`)<br/>• Headings outline (`h1`–`h6`) & landmarks<br/>• Web storage (`localStorage`, `sessionStorage`)                                                                                                                           | Understands runtime page structure, local state, and data flow without reading thousands of lines of raw HTML or paying cold-start penalties. |
-| **2. Diagnose & Debug**      | • Uncaught JS exceptions, hydration errors & `console.error`<br/>• Failed network requests (4xx/5xx) & missing headers<br/>• Targeted components (`--selector "#modal"`) & `hiddenReason`<br/>• Elements overflowing mobile viewports<br/>• Scroll-lock traps (`overflow: hidden` on `<body>`)<br/>• Interactive actions & state triggers (`--click`, `--explore`) | Pinpoints the exact CSS selector, faulty script, frozen scroll trap, or failing endpoint in seconds.                                          |
-| **3. Verify & Quality Gate** | • Structural before/after diffing (`agentsEye diff`)<br/>• Cross-device multi-breakpoint checks (`--matrix`)<br/>• Layout shifts (CLS) & bounding box deltas<br/>• Regression gate: confirms `newErrors === 0` and `newIssues === 0`                                                                                                                               | Objectively validates that a bugfix worked across all viewports and introduced zero side-effects or new errors.                               |
-
----
-
-### 3. How It Works
+## 3. How It Works
 
 ```mermaid
 flowchart LR
     A["Target URL<br/>(Local dev server or live web page)"] --> B["Chromium Engine<br/>(Direct native CDP connection)"]
-    B --> C["In-Page Probes<br/>(Layout, DOM, Network, Storage, Console)"]
-    C --> D["Fast Terminal Output<br/>(Readable plain text or compact JSON)"]
-    C --> E["Saved Telemetry Runs<br/>(Telemetry and metadata)"]
-    E --> F["Offline Before/After Diff<br/>(Verify code fixes without opening a browser)"]
+    B --> C["CDP Events + Page Probes<br/>(DOM, CSS, Network, Console, Storage, Performance)"]
+    C --> D["Focused CLI Output<br/>(JSON or readable plain text)"]
+    C --> E["Saved Runs<br/>(JSON reports and screenshots)"]
+    E --> F["Offline show / diff<br/>(Query evidence and review changes)"]
 ```
 
----
+## 4. Key Capabilities
 
-### 4. Key Superpowers
+| Capability | What it does | Practical value |
+| :--- | :--- | :--- |
+| **Standalone CDP engine** | One `.mjs` file using native Node.js 22+ APIs and an installed Chrome, Edge, Brave, or Chromium browser. | No runtime npm packages or additional browser download required. |
+| **Combined runtime evidence** | Collects DOM/computed CSS, request statuses and timings, JavaScript/console errors, performance observations, and screenshots. | Connects UI symptoms with browser-side evidence that build logs alone cannot provide. |
+| **Agent-focused output** | JSON or plain text, targeted `--focus` slices, compact interactive catalogs, and interactive `--delta` output. | Keeps inspection focused instead of repeatedly sending full DOM dumps to the agent. |
+| **Scoped semantic interactions** | Click, hover, scroll, and keyboard actions using CSS selectors or catalog refs such as `e1`; `--interactive-scope` narrows discovery. | Targets controls by their names and roles. Refs are snapshot-specific and can become stale after DOM changes. |
+| **Offline regression review** | `show` queries saved JSON; `diff` uses heuristic DOM matching to compare bounds, styles, and newly observed errors/issues. | Reuses captured evidence without launching a browser; differences still need review. |
+| **Responsive snapshots** | `--matrix` samples mobile and Tailwind breakpoints; `--viewports` selects a custom series. Captures a screenshot per viewport. | Supports cross-breakpoint review in Chromium, not testing every physical device or browser. |
+| **Layout, form & accessibility signals** | Bounds, visibility reasons, scroll-lock risks, touch-target/input-font warnings, sampled text contrast, and opt-in Chromium AX data (`--a11y`). | Provides CSS paths and usability signals—not a complete accessibility audit. |
+| **Attached Chromium & scoped headers** | `--cdp` uses a fresh incognito context/tab; `--header` values apply only to the exact initial origin. | Reuses a running browser process without reusing its signed-in tabs; supports header-authenticated routes. |
+| **Best-effort safeguards** | Recognized credential masking, prompt-injection heuristics, and interaction policy checks. | Reduces known risks; page data remains untrusted. See the [security model](references/security-model.md). |
 
-| Superpower                                      | What It Does                                                                                                                                                                                                         | Why It Matters                                                                                                                                                             |
-| :---------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Zero Dependencies & Zero Setup**              | Runs on native Node.js 22+ using native Chrome DevTools Protocol (CDP) over WebSocket directly.                                                                                                                      | No `npm install`, no Puppeteer/Playwright setup, no framework overhead. Single-file execution.                                                                             |
-| **Three-Layer Runtime Observability**           | Captures live DOM/computed layout, network transit (4xx/5xx failures & slow endpoints), and runtime console (uncaught exceptions & errors) in a single unified snapshot.                                             | Unveils silent runtime failures, broken API integrations, and hydration crashes that build-time tools miss.                                                                |
-| **Autonomous Regression Quality Gate (`diff`)** | Deterministically diffs two saved runs offline without opening Chromium.                                                                                                                                             | Validates that a bugfix resolved the issue without introducing new console errors or layout regressions (`newErrors === 0`).                                               |
-| **Interactive State Exploration**               | Dispatches pointer clicks, hovers, scroll deltas, and keyboard events using CSS selectors or stable semantic refs (`--click @e1`, `--hover @e2`, `--scroll @e3`), and scopes containers (`--interactive-scope`).     | Goes beyond static snapshots to test live interactions, state transitions, modals, and dynamic menus.                                                                      |
-| **Token-Budgeted Context Probes**               | Emits a tightly structured summary tailored for LLMs (`--summary-only`, `--focus <slice>`, `show <id> <path>`).                                                                                                      | Drastically reduces context consumption compared to dumping raw HTML trees, keeping agent reasoning focused and fast.                                                      |
-| **Multi-Device Responsive Matrix (`--matrix`)** | Sequentially audits mobile-first (`375px`) and standard Tailwind breakpoints (`sm`: 640px, `md`: 768px, `lg`: 1024px, `xl`: 1280px, `2xl`: 1536px) in a single run. Also supports custom viewports (`--viewport <WxH | preset>`, `--viewports <list>`).                                                                                                                                           | Catches cross-breakpoint layout breakages and responsive discrepancies across devices automatically. |
-| **Deep Layout & Usability Diagnostics**         | Detects viewport overflow leaks, body scroll-lock traps (`overflow: hidden`), touch target sizes, and form constraints (e.g. iOS auto-zoom on inputs < 16px).                                                        | Pinpoints the exact CSS selectors causing layout overflow or usability traps with precise bounding boxes.                                                                  |
-| **Running Chromium Attachment (`--cdp`)**       | Connects to an already running Chromium browser process via `--cdp http://127.0.0.1:9222`.                                                                                                                           | Eliminates browser cold-start launch overhead; operates within a clean, isolated incognito context (`Target.createBrowserContext`). Use `--header` for origin-scoped auth. |
-| **Universal Stack Support**                     | Inspects React, Next.js, Vue, Nuxt, Svelte, Angular, vanilla JS, Astro, Flutter Web, and WebAssembly (Wasm).                                                                                                         | Operates at the browser runtime level, completely agnostic of frontend libraries or build tooling.                                                                         |
-| **Pragmatic Defensive Hygiene**                 | Built-in safeguards: heuristic prompt injection screening, credential masking across headers/storage, download suppression, and isolated temp profiles.                                                              | Keeps autonomous agent executions clean, contained, and protected against accidental leaks or instruction tampering.                                                       |
+## 5. How to Use as an AI Agent Skill
 
----
+The skill package combines the executable with `SKILL.md` and focused `references/` guides. Install it in an AI assistant that supports local agent skills so the assistant can follow the inspection workflow as well as run the CLI.
 
-### 5. How to Use as an AI Agent Skill
-
-Equip your AI coding assistant (**Claude Code**, **Google Antigravity**, **Cursor**, **Windsurf**, etc.) with `agentsEye`.
-
-#### Install from the Release ZIP
+### Install from the Release ZIP
 
 1. Open the [latest GitHub Release](https://github.com/herehossein/agentsEye/releases/latest) and download the **skill `.zip` package** from **Assets**.
+
 2. Extract the ZIP. It includes **all required files**: `agentsEye.mjs`, `SKILL.md`, and the complete `references/` directory.
+
 3. Move the extracted skill folder to one of the installation locations below as `agents-eye/`. Keep all its contents together; `SKILL.md` must be directly inside that folder:
 
-```text
-📁 agents-eye/
-├── 📄 agentsEye.mjs       # Standalone CLI engine (no npm packages required)
-├── 📄 SKILL.md            # Standardized instructions and decision tree for agents
-└── 📁 references/         # In-depth technical guides (layout shifts, log debugging)
-```
+   ```text
+   📁 agents-eye/
+   ├── 📄 agentsEye.mjs       # Standalone CLI engine (no npm packages required)
+   ├── 📄 SKILL.md            # Standardized instructions and decision tree for agents
+   └── 📁 references/         # In-depth technical guides (layout shifts, log debugging)
+   ```
 
-#### Installation Locations:
+### Installation Locations:
 
-- **Claude Code**: `.claude/skills/agents-eye/`
-- **Google Antigravity / Gemini CLI**: `.agent/skills/agents-eye/` or `~/.gemini/antigravity-cli/skills/agents-eye/`
-- **Cursor / Custom Setup**: Your workspace skills directory.
+- **Claude Code**: `.claude/skills/agents-eye/` (project) or `~/.claude/skills/agents-eye/` (user).
 
-#### Example Interactions (Tackling Complex Frontend Scenarios):
+- **Antigravity IDE/CLI**: `.agents/skills/agents-eye/` (workspace). Antigravity CLI also supports `~/.gemini/antigravity-cli/skills/agents-eye/` (user).
+
+- **Gemini CLI**: `.gemini/skills/agents-eye/` (workspace) or `~/.gemini/skills/agents-eye/` (user).
+
+- **Cursor**: `.cursor/skills/agents-eye/` (project) or `~/.cursor/skills/agents-eye/` (user).
+
+- **Other skill-capable assistants**: Use the skill location documented for your assistant's version; trust/reload the skill if required.
+
+### Example Interactions:
 
 Ask your assistant:
 
-1. **Silent Hydration Crashes & Blank Screens:**  
-   _"The project builds cleanly and server logs show no errors, but the browser renders a completely blank screen after hydration. What failed?"_  
-   → Instead of guessing across hundreds of components, the agent runs `node agentsEye.mjs http://localhost:3000 --focus console --temp` to capture the client-side uncaught exception, hydration mismatch trace, and the exact source file.
+1. **Hydration and async-render crashes:**
 
-2. **Scroll-Lock Traps & Frozen Documents:**  
-   _"The user dismissed the modal or mobile drawer, but the entire page remains frozen and cannot be scrolled; there are no errors in the console."_  
-   → The agent runs `node agentsEye.mjs <url> --focus issues --temp` to inspect `page.scrollLock`. It pinpoints that the unmounted component failed to clean up `overflow: hidden` or fixed positioning on `<body>`, and writes the cleanup logic.
+   > _"The build passes, but the UI crashes after loading. Find the browser-side failure."_
 
-3. **Dynamic Interactions & Trapped Drawers:**  
-   _"Clicking the drawer toggle button doesn't reveal the side drawer. Is the click handler failing or is the drawer trapped behind another layer?"_  
-   → The agent runs `node agentsEye.mjs <url> --click "#drawer-toggle" --selector "#drawer" --temp` to dispatch a native click and inspect post-action DOM deltas, bounding boxes, and the exact `hiddenReason` (e.g. `pointer-events: none` or bad `z-index`). _Note: In accordance with interaction safety, buttons matching destructive terms (e.g. `delete`, `pay`, `checkout`, `submit`) require `--allow-destructive` on safe dev servers; navigation links (`<a href>`) and native form submit buttons are hard-blocked from clicking._
+   → Inspect `--focus console` with `--console-level error,warn` for exceptions and hydration traces.
 
-4. **Eliminating Cold-Start Overhead with Running Chromium & Scoped Auth:**  
-   _"We have an already running Chromium instance on port 9222, and we need to inspect a protected internal route without waiting for a cold browser launch. Can you inspect it?"_  
-   → The agent attaches instantly via `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --header "Authorization: Bearer <token>" --focus network --temp`. It creates a clean, isolated incognito context with zero cold-start delay, scopes the auth token strictly to the target origin, and diagnoses the failing 4xx/5xx network endpoints.
+2. **Protected-route API failures:**
 
-5. **Cross-Breakpoint Zero-Regression Quality Gate:**  
-   _"I just refactored the global grid system and hero section. Verify that mobile, tablet, and desktop layouts remain intact without introducing new errors."_  
-   → The agent captures a baseline run (`<before-id>`), applies the refactoring, captures a multi-viewport run with `--matrix` (`<after-id>`), and runs `node agentsEye.mjs diff <before-id> <after-id>` to objectively verify `summary.newErrors === 0` and zero unwanted layout shifts.
+   > _"Reproduce this 401/500 response and identify the failing endpoint."_
 
-6. **Diagnosing Layout Shifts (CLS) vs Intentional Motion:**  
-   _"During dynamic content loading, the page layout jumps erratically and Cumulative Layout Shift (CLS) spikes. Which element is responsible?"_  
-   → The agent inspects `node agentsEye.mjs <url> --focus perf --temp`, identifies bounding box shifts caused by missing placeholder dimensions (`aspect-ratio` or `width/height`), and fixes layout stability without touching intentional UI animations.
+   → Use `--focus network --compact` and origin-scoped `--header` values. Optional `--cdp` creates a fresh isolated context, not a signed-in tab.
 
----
+3. **State and lifecycle races:**
 
-### 6. Quick Start & Common Recipes
+   > _"Trace why authentication state resets after a component remount."_
 
-#### Prerequisites
+   → Add temporary `[AUTH_TRACE]` logs, filter with `--console-filter '[AUTH_TRACE]'`, and inspect live or offline via `show`; remove the logs after the fix.
+
+4. **Scoped interaction debugging:**
+
+   > _"Inside this dialog, switch tabs, close it with Escape and explain any skipped action."_
+
+   → Read a fresh catalog with `--interactive-scope` and `--focus interactive --compact`; keep the same scope for `--click e1 --key Escape --delta`, choosing the ref from that catalog. Inspect `interactions.actions` for skip reasons.
+
+5. **Multi-viewport regression checks:**
+
+   > _"Compare matched before/after runs and review the other breakpoints."_
+
+   → Repeat the same viewport/actions, run `node agentsEye.mjs diff <before-id> <after-id>`, and check both regression counters and the original defect. Use `--matrix` to review `matrix.snapshots` separately.
+
+Use interactions only on trusted applications; the [interaction safety gates](references/interactive-refs-guide.md) still apply.
+
+## 6. Quick Start & Common Recipes
+
+### Prerequisites
 
 - **Node.js**: Version `22.0.0` or higher.
-- **Browser**: An installed Chromium-based browser (Google Chrome, Microsoft Edge, Brave, or Chromium).
+- **Browser**: An installed Chromium-based browser (Google Chrome, Microsoft Edge, Brave, or Chromium), or an existing Chromium CDP endpoint for `--cdp`.
 - **Verified Platform**: Verified on Windows 11 with Node 22+. Linux/macOS: expected to work, not yet verified.
 
-#### Common CLI Recipes
+<details>
+<summary><strong>Common CLI Recipes</strong></summary>
 
 Run these examples from the installed folder containing `agentsEye.mjs`. In a source checkout, run `npm run build` first and use `node dist/agentsEye.mjs` from the repository root instead.
 
-| Need                            | Command                                                                                                        | Explanation                                                                                                                |
-| :------------------------------ | :------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------- |
-| **Quick Health Check**          | `node agentsEye.mjs http://localhost:3000 --temp`                                                              | Fast summary of page layout, errors, headings, and vitals.                                                                 |
-| **Clean Plain Text**            | `node agentsEye.mjs http://localhost:3000 --format text`                                                       | Human-readable terminal output instead of JSON.                                                                            |
-| **App Crash / JS Errors**       | `node agentsEye.mjs <url> --focus console --temp`                                                              | Lists uncaught runtime exceptions, hydration errors, and `console.error` traces.                                           |
-| **Network & API Failures**      | `node agentsEye.mjs <url> --focus network --temp`                                                              | Lists broken endpoints (4xx/5xx), failed fetches, and slowest assets.                                                      |
-| **Inspect Specific Element**    | `node agentsEye.mjs <url> --selector "#login-modal" --temp`                                                    | Inspects computed styles, bounding box, and exact `hiddenReason`.                                                          |
-| **Exact Computed CSS**          | `node agentsEye.mjs <url> --selector "#modal" --style-props "display,position,z-index,backdrop-filter" --temp` | Disables style compaction to extract exact computed CSS values.                                                            |
-| **Interactive Click Test**      | `node agentsEye.mjs <url> --click "#menu-button" --temp`                                                       | Simulates user click and captures post-action DOM and layout changes.                                                      |
-| **Semantic Ref Interaction**    | `node agentsEye.mjs <url> --click @e1 --hover @e2 --scroll @e3 --temp`                                         | Targets actionable elements using stable 1-based semantic ref tokens (`@e1`, `@e2`, ...) instead of fragile CSS selectors. |
-| **Subtree Ref Scoping**         | `node agentsEye.mjs <url> --interactive-scope "#modal" --click @e1 --temp`                                     | Scopes semantic ref allocation strictly inside a specific container or dialog subtree.                                     |
-| **Interactive Catalog**         | `node agentsEye.mjs <url> --focus interactive --temp`                                                          | Inspects full catalog of interactive elements with refs, accessible names, and bounds.                                     |
-| **Chained Action Sequence**     | `node agentsEye.mjs <url> --click "#menu" --key Escape --scroll 0,500 --temp`                                  | Sequences up to 50 clicks, hovers, scrolls, and keyboard inputs in one run.                                                |
-| **Explore Interactive UI**      | `node agentsEye.mjs <url> --explore --temp`                                                                    | Auto-discovers and tests disclosure elements (menus, accordions, tabs).                                                    |
-| **Wait for Dynamic SPA**        | `node agentsEye.mjs <url> --wait-for "#root" --temp`                                                           | Waits for dynamic SPA component to render before taking snapshot.                                                          |
-| **Dark Mode & Contrast**        | `node agentsEye.mjs <url> --color-scheme dark --focus issues --temp`                                           | Emulates dark theme and audits WCAG text contrast issues.                                                                  |
-| **RTL & Localization**          | `node agentsEye.mjs <url> --locale fa-IR --timezone Asia/Tehran --temp`                                        | Emulates Persian locale, timezone, and right-to-left layout dynamics.                                                      |
-| **Attach to Running Browser**   | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --temp`                                                  | Connects to running Chromium over CDP, eliminating launch overhead (isolated incognito context).                           |
-| **Offline Regex Console Query** | `node agentsEye.mjs show <run-id> console --console-filter "/\\[AUTH\\]                                        | error/i"`                                                                                                                  | Surgically queries console logs offline with regular expressions without opening browser. |
-| **Mobile Overflow Check**       | `node agentsEye.mjs <url> --focus issues --temp`                                                               | Mobile-first default (375x667) highlights elements overflowing mobile viewport with exact CSS selectors.                   |
-| **All-Screen Matrix**           | `node agentsEye.mjs <url> --matrix --temp`                                                                     | Sequentially audits mobile (`375px`) and standard Tailwind breakpoints (`sm`..`2xl`).                                      |
-| **Verify Bugfix (Diff)**        | `node agentsEye.mjs diff <before-id> <after-id>`                                                               | Zero-browser deterministic diff proving zero new errors or layout shifts.                                                  |
-| **Inspect Storage**             | `node agentsEye.mjs <url> --focus storage --temp`                                                              | Reads `localStorage` and `sessionStorage` key-values safely with redaction.                                                |
-| **One-Off Ephemeral Run**       | `node agentsEye.mjs <url> --ephemeral --summary-only`                                                          | Runs inspection and leaves zero files on disk after completion.                                                            |
+| Need | Command | Explanation |
+| :--- | :--- | :--- |
+| **Quick Inspection** | `node agentsEye.mjs http://localhost:3000 --temp` | Summary of captured layout, errors, headings, and performance signals. |
+| **Plain Text Output** | `node agentsEye.mjs http://localhost:3000 --format text --temp` | Human-readable terminal output instead of JSON. |
+| **App Crash / JS Errors** | `node agentsEye.mjs <url> --focus console --temp` | Browser-reported exceptions and console errors, including reported hydration failures. |
+| **Network & API Failures** | `node agentsEye.mjs <url> --focus network --compact --temp` | Failed requests, HTTP 4xx/5xx responses, and the slowest captured requests. |
+| **Inspect Specific Element** | `node agentsEye.mjs <url> --selector "#login-modal" --temp` | Computed styles, bounds, and rendering/visibility reasons for the selected subtree. |
+| **Exact Computed CSS** | `node agentsEye.mjs <url> --selector "#modal" --style-props "display,position,z-index,backdrop-filter" --temp` | Retains the requested computed properties instead of compacting default styles. |
+| **Interactive Click Test** | `node agentsEye.mjs <url> --click "#menu-button" --temp` | Performs a guarded click and records post-action evidence or a skip reason. |
+| **Semantic Ref Interaction** | `node agentsEye.mjs <url> --click e1 --hover e2 --scroll e3 --temp` | Use refs chosen from a fresh catalog, not persistent identifiers across runs. Bare refs also avoid PowerShell splatting. |
+| **Subtree Ref Scoping** | `node agentsEye.mjs <url> --interactive-scope "#modal" --click e1 --temp` | Narrows ref allocation to the chosen subtree; choose the ref from that same scope. |
+| **Interactive Catalog** | `node agentsEye.mjs <url> --focus interactive --compact --temp` | Refs, accessible names, input types, and bounds within collection limits. |
+| **Chained Action Sequence** | `node agentsEye.mjs <url> --click "#menu" --key Escape --scroll 0,500 --temp` | Sequences up to 50 clicks, hovers, scrolls, and keyboard actions in one run. |
+| **Explore Disclosure UI** | `node agentsEye.mjs <url> --explore --temp` | Conservatively explores disclosure candidates, not arbitrary buttons or a complete user journey. |
+| **Wait for a Selector** | `node agentsEye.mjs <url> --wait-for "#results" --temp` | Waits for selector existence, not visibility or full app readiness; warns on timeout. |
+| **Dark Mode & Contrast** | `node agentsEye.mjs <url> --color-scheme dark --focus issues --temp` | Emulates `prefers-color-scheme` and reports heuristic solid-color text contrast warnings. |
+| **Locale & Timezone** | `node agentsEye.mjs <url> --locale fa-IR --timezone Asia/Tehran --temp` | Emulates locale-sensitive formatting and timezone; does not translate the app or force RTL. |
+| **Attach to Running Browser** | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --temp` | Reuses the browser process in a fresh incognito context, not an existing signed-in tab. |
+| **Offline Console Regex** | `node agentsEye.mjs show <run-id> console --console-filter "/\[AUTH\].*error/i"` | Finds captured authentication-error logs offline without reopening the browser. |
+| **Mobile Overflow Check** | `node agentsEye.mjs <url> --focus issues --temp` | Uses the mobile-first 375x667 default and reports sampled overflowing elements. |
+| **Viewport Matrix** | `node agentsEye.mjs <url> --matrix --temp` | Samples mobile and the standard Tailwind breakpoints (`sm` through `2xl`). |
+| **Review Bugfix (Diff)** | `node agentsEye.mjs diff <before-id> <after-id>` | Offline structural/style and error/issue comparison; review the differences and the original defect. |
+| **Inspect Storage** | `node agentsEye.mjs <url> --focus storage --temp` | Opts into storage entries with best-effort sensitive-value redaction. |
+| **One-Off Ephemeral Run** | `node agentsEye.mjs <url> --ephemeral --summary-only` | Writes artifacts, then attempts to delete the run directory on exit; no follow-up `show`/`diff`. |
 
----
+</details>
 
-### 7. Keeping Your Disk Clean
+> [!IMPORTANT]
+> Exit `0` / `report.ok === true` means inspection completed, not that the page is error-free. Check `issues`, `network.failures`, `errors.uncaught`, `console.errors`, and `warnings`. Exit `1` indicates an operational failure (including DNS); exit `2` indicates invalid usage or preflight SSRF-policy rejection.
 
-agentsEye stores diagnostic runs in `.agentsEye/runs/`. You have full control over cleanup:
+## 7. Saved Runs & Cleanup
+
+Runs are stored in `.agentsEye/runs/`, or OS temporary storage with `--temp`. `show` and `diff` find saved temp runs automatically. Prefer cleaning only your task's run IDs; bare `clean` deletes nothing and exits `2`.
 
 - **Clean specific runs**:
-  ```bash
-  node agentsEye.mjs clean <run-id-1> <run-id-2>
-  ```
+
+   ```bash
+   node agentsEye.mjs clean <run-id-1> <run-id-2>
+   ```
+
+- **Broad cleanup**: `--older-than` and `--all` also search shared OS-temp and legacy roots and may remove other projects' runs. Use them only when that scope is intended.
+
 - **Clean runs older than a duration** (e.g. 1 hour, 2 days):
-  ```bash
-  node agentsEye.mjs clean --older-than 1h
-  ```
+
+   ```bash
+   node agentsEye.mjs clean --older-than 1h
+   ```
+
 - **Clean all runs**:
-  ```bash
-  node agentsEye.mjs clean --all
-  ```
-- **Run without saving files**:
-  ```bash
-  node agentsEye.mjs <url> --ephemeral
-  ```
 
----
+   ```bash
+   node agentsEye.mjs clean --all
+   ```
 
-### 8. Log-Driven Debugging for AI Coding Agents
+- **Run, then discard its artifacts**:
 
-When diagnosing dynamic lifecycle timing or complex state in modern SPAs, dumping full pages repeatedly is wasteful. Use the **Log-Driven Debugging protocol**:
+   ```bash
+   node agentsEye.mjs <url> --ephemeral
+   ```
 
-1. Inject temporary tagged log statements in your source code:
+> `--ephemeral` is not a no-write mode: files are created first, then cleanup is attempted. Explicit `--out` and `--screenshot` exports are not removed. Keep saved runs when you need follow-up queries or comparisons.
+
+## 8. Log-Driven Debugging for AI Coding Agents
+
+When diagnosing lifecycle timing or complex state in SPAs, repeated full-page dumps can obscure the signal. Use a **log-driven debugging workflow**:
+
+1. Add temporary tagged phase or boolean logs in your source code—not tokens, cookies, or user records:
 
    ```javascript
-   console.log('[AGENT_DEBUG_TAG] Auth state:', userStatus);
+   console.log('[AGENT_DEBUG_TAG]', { phase: 'session-restored' });
    ```
 
 2. Run agentsEye with targeted log filtering:
@@ -234,59 +240,69 @@ When diagnosing dynamic lifecycle timing or complex state in modern SPAs, dumpin
 
 3. Read the exact lifecycle logs without noise from framework logs or third-party libraries.
 
-4. Surgically remove the tagged log statements once the bug is resolved.
+4. Remove the temporary logs once the bug is resolved.
 
 Consult the [Log-Driven Debugging Guide](references/log-driven-debugging.md) for details.
 
----
+## 9. Layout Shift vs Intentional Animations (CLS vs Motion)
 
-### 9. Layout Shift vs Intentional Animations (CLS vs Motion)
+Modern web apps use intentional motion (marquee tickers, slide-ins, accordion expansions). CLS and bounding-box changes are different signals; neither alone classifies motion as a defect:
 
-Modern web apps use intentional motion (marquee tickers, slide-ins, accordion expansions). Cumulative Layout Shift (CLS) does not automatically indicate a defect:
+### Intentional Motion (Expected):
 
-- **Intentional Motion (Expected)**:
-  - Marquee logos and news tickers sliding across the screen.
-  - Interactive accordions, drawers, and modal transitions.
-  - GPU-accelerated CSS animations (`transform`, `opacity`) within bounded containers.
-  - _Rule_: Never disable intentional animations solely to lower a CLS score.
-- **Real Layout Shift Bugs (To Fix)**:
-  - Missing image/video dimensions (`width`, `height`, `aspect-ratio`) causing layout jumps.
-  - Dynamic content injected into document flow without placeholder dimensions.
-  - Transitions animating layout-triggering properties (`top`, `margin`, `height`).
+- Marquee logos and news tickers sliding across the screen.
+- Interactive accordions, drawers, and modal transitions.
+- CSS animations (`transform`, `opacity`) within bounded containers.
+- _Rule_: Never disable intentional animations solely to lower a CLS score.
+
+### Real Layout Shift Bugs (To Fix):
+
+- Missing image/video dimensions (`width`, `height`, `aspect-ratio`) causing layout jumps.
+- Dynamic content injected into document flow without placeholder dimensions.
+- Unintended displacement of surrounding content from layout-affecting transitions (`top`, `margin`, `height`).
 
 Consult the [Layout Shift Guide](references/layout-shift-guide.md) for details.
+
 Consult the [Interactive Refs Guide](references/interactive-refs-guide.md) for semantic ref locators, scoping, and interaction safety.
 
----
+## 10. Safety and Limitations
 
-### 10. Safety and Limitations
+### Implemented safeguards:
 
-**Mitigated Safeguards**:
+- Newly launched Chromium uses a disposable profile and a loopback debugging port. CDP attachments use a fresh incognito context/tab; remote endpoints require `--allow-remote-cdp`.
 
-- Isolated temporary browser profile cleaned up upon exit.
-- DevTools debugging port bound strictly to localhost (`127.0.0.1`).
-- URL and SSRF preflight rejecting local cloud metadata, RFC 1918 private subnets, and link-local ranges (with documented boundaries).
-- Best-effort credential and token redaction across headers, storage, and telemetry.
-- Passive and read-only by default (no clicks, form submissions, or navigation unless explicitly requested).
-- Interaction safety guards: sensitive/destructive keywords (e.g. `delete`, `pay`, `checkout`, `submit`) require `--allow-destructive`; navigation links (`<a href>`) and native form submit buttons are hard-blocked.
-- Heuristic indirect prompt injection detection and neutralization.
+- Target preflight rejects known cloud metadata and IPv4 link-local addresses. Private and loopback targets remain allowed for development; IPv6 and request-guard boundaries are documented in the [security model](references/security-model.md).
 
-**Known Limitations & Unmitigated Risks**:
+- Passive by default: no requested clicks or keystrokes. The tool still loads the page, executes probes, and dismisses browser dialogs.
 
-- No DNS rebinding protection or redirect address pinning; subresources and redirects are resolved by the browser.
-- Heuristic injection scanning does not catch paraphrased or semantic prompt injections.
-- Screenshots capture raw page pixels and are not redacted.
-- Third-party scripts executing in the page may modify state or attempt network activity.
-- Other local processes on the system may be able to connect to the exposed Chromium debug port while the browser is running.
+- Click guards reject navigation/link controls, form submission/reset controls, file/editable targets, and failed actionability checks. `--allow-destructive` relaxes only the English/Persian keyword filter, not structural safeguards.
+
+- Custom `--header` values apply only to the exact initial URL origin; matching header names are stripped from intercepted cross-origin requests.
+
+- Best-effort recognized-credential redaction, heuristic prompt-injection sanitization, and download-denial requests reduce known risks without guaranteeing isolation.
+
+### Observation boundaries and remaining risks:
+
+- `diff` is a heuristic structural comparison, not a pixel-diff or network-failure comparison. Zero new-error/issue counters do not prove that all defects are resolved; review the original bug, network failures, and layout/style differences.
+
+- Reports cover the observed time window and configured collection limits. Late async failures may be missed; inspect `warnings` and truncation fields before judging completeness. Accessibility and contrast signals are not a full WCAG audit.
+
+- Inspection is framework-independent at the browser level, not framework-component introspection. DOM probes cannot traverse closed shadow roots or cross-origin frame documents, or inspect controls drawn inside Canvas/WebGL. Screenshots and browser-level telemetry can still help.
+
+- Chromium viewport/media emulation is not verification in Safari/Firefox or on physical mobile devices. `--locale` does not translate the application or set its RTL direction.
+
+- DNS addresses are not pinned; there is no DNS-rebinding guarantee. Page scripts and requested interactions may mutate state or initiate network activity, and injection heuristics can miss attacks.
+
+- Screenshots are unredacted. Other local processes may connect to the exposed debug port. Cleanup is attempted, but OS permissions or file locks can prevent complete removal.
 
 > [!WARNING]
-> _Page content is untrusted input. Inspect untrusted sites only in an isolated environment; this is not an SSRF sandbox._
+> _Page, console, storage, and derived report data remain untrusted even after sanitization. Inspect hostile sites only in an isolated environment with an appropriate network policy; this is not an SSRF sandbox._
 
----
-
-### 11. Development & Architecture
+## 11. Development & Architecture
 
 The repository uses a modular TypeScript architecture in `src/`, bundled via `esbuild` into the zero-dependency standalone `dist/agentsEye.mjs`. The generated `dist/` directory is ignored by Git. For contributions, edit `src/`, build locally, and commit source changes—not the compiled bundle.
+
+The runtime needs Node.js 22+; the locked development tooling requires Node.js `^22.13.0 || >=24`.
 
 ```bash
 # Install development tooling (devDependencies only; runtime has zero dependencies)
@@ -310,8 +326,6 @@ npm test
 ```
 
 **Manual release:** After validation, run `npm run build` from the release's tagged source. Place `dist/agentsEye.mjs` as `agentsEye.mjs`, `SKILL.md`, and the complete `references/` directory together inside an `agents-eye/` folder. Package that folder as a `.zip` and attach it to the GitHub Release; users only need to download, extract, and install this package.
-
----
 
 ## License
 

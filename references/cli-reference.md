@@ -69,7 +69,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--color-scheme` | `light \| dark` | System default | Emulates `prefers-color-scheme` CSS media feature. |
 | `--reduced-motion` | `reduce \| no-preference` | System default | Emulates `prefers-reduced-motion` CSS media feature. |
 | `--timezone` | `<IANA_ID>` | System default | Overrides timezone emulation (e.g., `America/New_York`, `Asia/Tehran`). |
-| `--locale` | `<bcp47>` | System default | Overrides browser UI and HTTP `Accept-Language` locale (e.g. `en-US`, `fa-IR`). |
+| `--locale` | `<bcp47>` | System default | Overrides the host ICU locale for locale-sensitive formatting via `Emulation.setLocaleOverride` (e.g. `en-US`, `fa-IR`). Does not change browser UI language, HTTP `Accept-Language`, or document RTL direction. |
 
 ### C. Network & Authentication
 

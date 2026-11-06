@@ -8,6 +8,7 @@ import {
   TOOL_NAME,
   TOOL_VERSION,
   SCHEMA_VERSION,
+  diffReports,
   interactionSafety,
   minimalSummary,
   validateResolvedTargetUrl,
@@ -125,6 +126,67 @@ test('English and Persian READMEs install the complete skill from a Release ZIP'
       /raw\.githubusercontent\.com\/herehossein\/agentsEye\/[^/\s]+\/(?:dist\/)?agentsEye\.mjs/,
       `${readme} must not install a bundle from the source tree`,
     );
+  }
+});
+
+test('bilingual READMEs keep three core workflows, a current lifecycle and five scenarios', () => {
+  for (const readme of ['README.md', 'README.fa.md']) {
+    const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
+    const intro = content.split(/^## [1۱]\./m)[1]?.split(/^## /m)[0];
+    assert.ok(intro, `${readme} must have the introductory section`);
+    assert.equal((intro.match(/^- /gm) || []).length, 3, `${readme} must highlight three core workflows`);
+    assert.doesNotMatch(intro, /overflow|سرریز|اسکرول افقی/i);
+
+    const lifecycle = content.split(/^## [2۲]\./m)[1]?.split(/^## /m)[0];
+    assert.ok(lifecycle, `${readme} must have the lifecycle section`);
+    for (const term of [
+      '--temp', '--focus interactive --compact', '--interactive-scope', '--delta', '--no-css-vars',
+      'interactive.items[15]', 'summary.newErrors === 0', 'summary.newIssues === 0',
+      '--matrix', 'matrix.snapshots',
+    ]) {
+      assert.ok(lifecycle.includes(term), `${readme} lifecycle must document ${term}`);
+    }
+
+    const scenarios = content.split(/^### (?:Example Interactions|نمونه سناریوهای تعامل).*$/m)[1]?.split(/^## /m)[0];
+    assert.ok(scenarios, `${readme} must have the interaction scenarios`);
+    assert.deepEqual(
+      [...scenarios.matchAll(/^(\d+)\. \*\*/gm)].map(([, number]) => Number(number)),
+      [1, 2, 3, 4, 5],
+      `${readme} must have exactly five numbered scenarios`,
+    );
+  }
+});
+
+test('bilingual READMEs state runtime boundaries and keep command tables intact', () => {
+  const networkOnlyDiff = diffReports(
+    { network: { failures: [] } },
+    { network: { failures: [{ status: 500 }] } },
+  );
+  assert.equal(networkOnlyDiff.summary.newErrors, 0, 'The diff error counter is not a network-failure gate');
+  assert.equal(networkOnlyDiff.summary.newIssues, 0);
+
+  const cli = fs.readFileSync(path.join(REPO_ROOT, 'references/cli-reference.md'), 'utf8');
+  const locale = cli.split(/\r?\n/).find((line) => line.startsWith('| `--locale`'));
+  assert.ok(locale, 'CLI reference must document the locale override');
+  assert.match(locale, /Emulation\.setLocaleOverride.*Does not change.*Accept-Language.*RTL/);
+
+  for (const readme of ['README.md', 'README.fa.md']) {
+    const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
+    assert.ok(content.includes('report.ok === true'), `${readme} must explain inspection success`);
+    assert.ok(content.includes('network.failures'), `${readme} must require separate network review`);
+    assert.match(content, /Private and loopback targets[^\r\n]*allowed|اهداف خصوصی و لوپ‌بک[^\r\n]*مجاز/);
+    assert.match(content, /not a pixel-diff|نه مقایسهٔ پیکسلی/);
+    assert.match(content, /not a no-write mode|حالت بدون نوشتن روی دیسک نیست/);
+    for (const term of ['--allow-remote-cdp', '--allow-destructive', 'Canvas/WebGL', 'WCAG']) {
+      assert.ok(content.includes(term), `${readme} must document the boundary for ${term}`);
+    }
+    for (const line of content.split(/\r?\n/).filter((line) => line.startsWith('|'))) {
+      assert.equal(
+        (line.match(/(?<!\\)\|/g) || []).length,
+        4,
+        `${readme} must keep three-column tables; unexpected cell separator in: ${line}`,
+      );
+    }
   }
 });
 
