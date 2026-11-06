@@ -3002,7 +3002,8 @@ function outputView(report, options = {}) {
       return minimalSummary(safeReport);
     }
     return minimalSummary(safeReport);
-  } catch {
+  } catch (error) {
+    if (error instanceof UsageError) throw error;
     return minimalSummary(safeReport);
   }
 }

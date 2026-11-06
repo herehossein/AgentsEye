@@ -560,7 +560,8 @@ export function outputView(report: any, options: any = {}): any {
       return minimalSummary(safeReport);
     }
     return minimalSummary(safeReport);
-  } catch {
+  } catch (error) {
+    if (error instanceof UsageError) throw error;
     return minimalSummary(safeReport);
   }
 }

@@ -313,6 +313,22 @@ test('outputView: invalid view or missing data does not throw unhandled errors',
   });
 });
 
+test('outputView: re-throws UsageError on invalid focus slice or malformed query', () => {
+  const report = sampleReport();
+  assert.throws(
+    () => outputView(report, { view: 'focus', focus: 'invalid_slice' }),
+    /Unknown focus slice/
+  );
+  assert.throws(
+    () => outputView(report, { view: 'query', query: '__proto__.polluted' }),
+    /Queries are safe dot-separated property paths/
+  );
+  assert.throws(
+    () => outputView(report, { view: 'query', query: 'non.existent.path' }),
+    /No saved property/
+  );
+});
+
 // ============================================================================
 // 3. SERIALIZATION: serializeOutput
 // ============================================================================
