@@ -44,7 +44,7 @@ export function parseViewport(value: any): ViewportConfig {
   const match = /^(\d+)x(\d+)$/i.exec(trimmed);
   if (!match) {
     throw new UsageError(
-      '--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl)',
+      '--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl, desktop, tablet)',
     );
   }
   const width = parseInteger(match[1], '--viewport width', { min: 1, max: 20_000 });
@@ -112,7 +112,9 @@ export function validateElementLocator(val: any, flag: string): string {
     throw new UsageError(`${flag} expects a non-empty selector or @eN locator`);
   }
   if (trimmed.startsWith('--')) {
-    throw new UsageError(`${flag} expects a selector or @eN locator, received flag: ${trimmed}`);
+    throw new UsageError(
+      `${flag} expects a selector or @eN locator, received flag: ${trimmed}. (Tip: in PowerShell, use bare "e1" or quote "@e1" to prevent variable splatting)`,
+    );
   }
   if (/^e\d+$/i.test(trimmed)) {
     return `@${trimmed.toLowerCase()}`;
@@ -396,6 +398,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         break;
       case 'viewport': {
         const v = parseViewport(take());
+        options.explicitViewport = true;
         options.viewport.width = v.width;
         options.viewport.height = v.height;
         if (!options.explicitMobile && v.mobile !== undefined) {
@@ -405,6 +408,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       }
       case 'width': {
         const w = parseInteger(take(), '--width', { min: 1, max: 20_000 });
+        options.explicitWidth = true;
         options.viewport.width = w;
         if (!options.explicitMobile) {
           options.viewport.mobile = w < 768;
@@ -412,6 +416,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         break;
       }
       case 'height':
+        options.explicitHeight = true;
         options.viewport.height = parseInteger(take(), '--height', { min: 1, max: 20_000 });
         break;
       case 'dpr': {
@@ -430,6 +435,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case 'no-mobile':
         options.viewport.mobile = false;
         options.explicitMobile = true;
+        if (!options.explicitViewport && !options.explicitWidth) {
+          options.viewport.width = 1280;
+        }
+        if (!options.explicitViewport && !options.explicitHeight) {
+          options.viewport.height = 800;
+        }
         break;
       case 'viewports': {
         const raw = take();

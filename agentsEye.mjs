@@ -32,7 +32,9 @@ var TAILWIND_VIEWPORTS = Object.freeze({
   md: Object.freeze({ width: 768, height: 1024, dpr: 1, mobile: false }),
   lg: Object.freeze({ width: 1024, height: 768, dpr: 1, mobile: false }),
   xl: Object.freeze({ width: 1280, height: 800, dpr: 1, mobile: false }),
-  "2xl": Object.freeze({ width: 1536, height: 960, dpr: 1, mobile: false })
+  "2xl": Object.freeze({ width: 1536, height: 960, dpr: 1, mobile: false }),
+  desktop: Object.freeze({ width: 1280, height: 800, dpr: 1, mobile: false }),
+  tablet: Object.freeze({ width: 768, height: 1024, dpr: 1, mobile: false })
 });
 var MATRIX_VIEWPORTS = Object.freeze([
   { ...TAILWIND_VIEWPORTS.mobile },
@@ -573,7 +575,7 @@ function parseViewport(value) {
   const match = /^(\d+)x(\d+)$/i.exec(trimmed);
   if (!match) {
     throw new UsageError(
-      "--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl)"
+      "--viewport expects WIDTHxHEIGHT (e.g. 375x667) or preset (mobile, sm, md, lg, xl, 2xl, desktop, tablet)"
     );
   }
   const width = parseInteger(match[1], "--viewport width", { min: 1, max: 2e4 });
@@ -629,7 +631,9 @@ function validateElementLocator(val, flag) {
     throw new UsageError(`${flag} expects a non-empty selector or @eN locator`);
   }
   if (trimmed.startsWith("--")) {
-    throw new UsageError(`${flag} expects a selector or @eN locator, received flag: ${trimmed}`);
+    throw new UsageError(
+      `${flag} expects a selector or @eN locator, received flag: ${trimmed}. (Tip: in PowerShell, use bare "e1" or quote "@e1" to prevent variable splatting)`
+    );
   }
   if (/^e\d+$/i.test(trimmed)) {
     return `@${trimmed.toLowerCase()}`;
@@ -820,6 +824,7 @@ function parseArgs(argv) {
         break;
       case "viewport": {
         const v = parseViewport(take());
+        options.explicitViewport = true;
         options.viewport.width = v.width;
         options.viewport.height = v.height;
         if (!options.explicitMobile && v.mobile !== void 0) {
@@ -829,6 +834,7 @@ function parseArgs(argv) {
       }
       case "width": {
         const w = parseInteger(take(), "--width", { min: 1, max: 2e4 });
+        options.explicitWidth = true;
         options.viewport.width = w;
         if (!options.explicitMobile) {
           options.viewport.mobile = w < 768;
@@ -836,6 +842,7 @@ function parseArgs(argv) {
         break;
       }
       case "height":
+        options.explicitHeight = true;
         options.viewport.height = parseInteger(take(), "--height", { min: 1, max: 2e4 });
         break;
       case "dpr": {
@@ -854,6 +861,12 @@ function parseArgs(argv) {
       case "no-mobile":
         options.viewport.mobile = false;
         options.explicitMobile = true;
+        if (!options.explicitViewport && !options.explicitWidth) {
+          options.viewport.width = 1280;
+        }
+        if (!options.explicitViewport && !options.explicitHeight) {
+          options.viewport.height = 800;
+        }
         break;
       case "viewports": {
         const raw = take();
@@ -2685,7 +2698,16 @@ function minimalSummary(report) {
   };
   if (report.dom?.selector) summary.dom = report.dom;
   if (report.cssVars && (report.cssVars.count > 0 || Object.keys(report.cssVars.vars || {}).length > 0)) {
-    summary.cssVars = report.cssVars;
+    const varEntries = Object.entries(report.cssVars.vars || {});
+    if (varEntries.length > 25) {
+      summary.cssVars = {
+        count: report.cssVars.count || varEntries.length,
+        vars: Object.fromEntries(varEntries.slice(0, 15)),
+        truncated: true
+      };
+    } else {
+      summary.cssVars = report.cssVars;
+    }
   }
   if (report.matrix) {
     summary.matrix = {
@@ -2717,13 +2739,17 @@ function minimalSummary(report) {
   if (report.interactive?.items) {
     const rawItems = report.interactive.items;
     const total = rawItems.length;
-    const renderedItems = rawItems.filter((i) => i.rendered !== false).slice(0, DEFAULT_SUMMARY_INTERACTIVE_LIMIT);
+    const renderedItems = rawItems.filter((i) => i.rendered !== false);
+    const actionable = renderedItems.filter((i) => i.tag !== "a" && i.role !== "link");
+    const links = renderedItems.filter((i) => i.tag === "a" || i.role === "link");
+    const prioritized = [...actionable, ...links].slice(0, DEFAULT_SUMMARY_INTERACTIVE_LIMIT);
     summary.interactive = {
       total,
-      showing: renderedItems.length,
-      items: renderedItems.map((i) => ({
+      showing: prioritized.length,
+      items: prioritized.map((i) => ({
         ref: i.ref,
         tag: i.tag,
+        type: i.type || void 0,
         role: i.role || void 0,
         name: shortText(i.accessibleName || i.name || "", 40),
         href: i.href ? shortText(i.href, 60) : void 0
@@ -2748,6 +2774,11 @@ function minimalSummary(report) {
       summary.headings.items = summary.headings.items.slice(0, 5);
       summary.headings.outline = summary.headings.outline.slice(0, 5);
       if (summary.headingsOutline) summary.headingsOutline = summary.headings.outline;
+    }
+    if (summary.cssVars?.vars) {
+      const entries = Object.entries(summary.cssVars.vars).slice(0, 5);
+      summary.cssVars.vars = Object.fromEntries(entries);
+      summary.cssVars.truncated = true;
     }
     summary.performance = compactDiagnostic(vitals);
     summary.warnings = summary.warnings.slice(0, 2);
@@ -2784,8 +2815,13 @@ function focusReport(report, slice, options = {}) {
       return { ...base, forms: report.forms };
     case "dom":
       return { ...base, dom: report.dom?.selector ? report.dom : compactDom(report.dom) };
-    case "network":
+    case "network": {
+      if (options.compact) {
+        const { requests: _requests, ...pruned } = report.network ?? {};
+        return { ...base, network: pruned };
+      }
       return { ...base, network: report.network };
+    }
     case "perf":
       return { ...base, performance: report.performance };
     case "storage":
@@ -2858,6 +2894,30 @@ function focusReport(report, slice, options = {}) {
 function queryReport(report, query, options = {}) {
   if (!query) return minimalSummary(report);
   if (FOCUS_SLICES.includes(query)) return focusReport(report, query, options);
+  const qStr = String(query);
+  if (qStr === "headingsOutline" || qStr === "headings.outline") {
+    if (Array.isArray(report.headingsOutline)) {
+      return {
+        ok: report.ok,
+        run: report.run,
+        query,
+        data: report.headingsOutline,
+        errors: report.errors,
+        dialogs: report.dialogs
+      };
+    }
+    if (Array.isArray(report.headings?.items)) {
+      const outline = report.headings.items.map((h) => `h${h.level}: ${h.text || "(empty)"}`);
+      return {
+        ok: report.ok,
+        run: report.run,
+        query,
+        data: outline,
+        errors: report.errors,
+        dialogs: report.dialogs
+      };
+    }
+  }
   const parts = String(query).split(".");
   if (parts.some(
     (part) => !/^[a-zA-Z0-9_-]+$/.test(part) || ["__proto__", "constructor", "prototype"].includes(part)
@@ -4127,12 +4187,18 @@ async function preparePage(cdp, options, warnings) {
   }
   return installRequestGuard(cdp, options, warnings);
 }
-async function waitForLoad(state, options) {
+async function waitForLoad(state, options, warnings) {
   const deadline = Date.now() + options.timeoutMs;
   while (!state.loadFired && Date.now() < deadline) {
     await sleep(50);
   }
   if (!state.loadFired) {
+    if (state.mainFrameId && warnings) {
+      warnings.push(
+        `Navigation load event timed out after ${options.timeoutMs}ms; proceeding with available DOM`
+      );
+      return;
+    }
     throw new InspectorError(
       `Navigation did not reach the load event within ${options.timeoutMs}ms`,
       "NAVIGATION_TIMEOUT"
@@ -4839,8 +4905,22 @@ function inPageProbe(config) {
     const title = el.getAttribute("title");
     if (title) return cut(title, limit);
     if (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) {
+      if (el.labels && el.labels.length) {
+        const lbl = textOf(el.labels[0]);
+        if (norm(lbl)) return cut(lbl, limit);
+      }
+      const parentLabel = typeof el.closest === "function" ? el.closest("label") : null;
+      if (parentLabel) {
+        const pLbl = textOf(parentLabel);
+        if (norm(pLbl)) return cut(pLbl, limit);
+      }
       const placeholder = el.getAttribute("placeholder");
       if (placeholder) return cut(placeholder, limit);
+      const val = el.getAttribute("value");
+      if (["button", "submit", "reset"].includes(el.type) && val) return cut(val, limit);
+      const name = el.getAttribute("name");
+      if (name) return cut(name, limit);
+      if (el.id) return cut(el.id, limit);
     }
     return cut(textOf(el), limit);
   };
@@ -5330,8 +5410,10 @@ function inPageProbe(config) {
       const style = styleOf(el);
       const rect = rectOf(el);
       const label = el.labels && el.labels.length ? cut(textOf(el.labels[0]), config.textLimit) : null;
+      const existingRef = el.getAttribute("data-agentseye-ref");
       return {
         ...scopeOf(el),
+        ref: existingRef ? `@${existingRef}` : null,
         validation: {
           valid: el.validity?.valid ?? null,
           message: el.validationMessage || null,
@@ -5436,7 +5518,7 @@ function inPageProbe(config) {
         depth: d,
         disabled: Boolean(el.disabled) || el.getAttribute("aria-disabled") === "true" || el.getAttribute("disabled") != null,
         rendered: true,
-        smallTouchTarget: !el.disabled && el.getAttribute("aria-disabled") !== "true" && !(el.tagName === "A" && el.closest("p") && styleValue(style, "display") === "inline") && !["text", "password", "email", "number", "tel", "url", "search"].includes(el.type) && el.tagName !== "TEXTAREA" && isInteractive(el) && (width < 44 || height < 44),
+        smallTouchTarget: !el.disabled && el.getAttribute("aria-disabled") !== "true" && !(el.tagName === "A" && el.closest("p") && styleValue(style, "display") === "inline") && !["text", "password", "email", "number", "tel", "url", "search"].includes(el.type) && el.tagName !== "TEXTAREA" && isInteractive(el) && !(width <= 1 && height <= 1) && (width < 44 || height < 44),
         fontSize: styleValue(style, "font-size"),
         rect,
         cssPath: cssPath(el)
@@ -5709,8 +5791,8 @@ function inPageProbe(config) {
   };
   const landmarks = collectLandmarks();
   const headings = collectHeadings();
-  const forms = collectForms();
   const interactive = collectInteractive();
+  const forms = collectForms();
   const images = collectImages();
   const duplicateIds = collectDuplicateIds();
   const cssVars = collectCssVars();
@@ -6626,7 +6708,7 @@ async function inspectPage(cdp, options, browserInfo) {
       }
     }
     state.mainFrameId = navigation.frameId || state.mainFrameId;
-    await waitForLoad(state, options);
+    await waitForLoad(state, options, warnings);
     if (options.waitFor) {
       const found = await waitForSelector(cdp, options.waitFor, options);
       if (!found) warnings.push(`Selector did not appear before timeout: ${options.waitFor}`);
@@ -6766,6 +6848,7 @@ async function inspectPage(cdp, options, browserInfo) {
       dom: probe.dom,
       landmarks: probe.landmarks,
       headings: probe.headings,
+      headingsOutline: probe.headings?.items?.map((h) => `h${h.level}: ${h.text || "(empty)"}`) ?? [],
       forms: probe.forms,
       interactive: probe.interactive,
       interactiveTreeText: probe.interactive?.items ? formatInteractiveTreeText(probe.interactive.items) : "",
@@ -6885,7 +6968,7 @@ Target:
   --disable-cache               Disable the browser HTTP cache
 
 Viewport / emulation:
-  --viewport <WxH|preset>       Emulated viewport (default ${DEFAULTS.viewport.width}x${DEFAULTS.viewport.height}; presets: mobile, sm, md, lg, xl, 2xl)
+  --viewport <WxH|preset>       Emulated viewport (default ${DEFAULTS.viewport.width}x${DEFAULTS.viewport.height}; presets: mobile, sm, md, lg, xl, 2xl, desktop, tablet)
   --width <px> --height <px>    Individual viewport dimensions
   --dpr <n>                     Device pixel ratio (default 1)
   --mobile                      Mobile emulation flag (default true for mobile-first auditing)
@@ -6937,10 +7020,12 @@ Data:
   --block <url-pattern>         Block a URL pattern (repeatable, opt-in interception)
 
 Interactions (opt-in; can cause application side effects):
-  --click <css>                 Native click after safety and hit-test checks
-  --hover <css>                 Native pointer hover
-  --scroll <X,Y>               Native wheel deltas, e.g. 0,600
-  --key <name>                 Safe navigation key, Tab, Escape, Enter or Space
+  --click <sel|@eN|eN>          Native click after safety and hit-test checks
+  --hover <sel|@eN|eN>          Native pointer hover
+  --scroll <X,Y|sel|@eN|eN>     Native wheel deltas or scroll into view
+  --key <name>                  Safe navigation key, Tab, Escape, Enter or Space
+  --interactive-scope <css>     Scope interactive elements collection to selector
+  --depth <n>                   Cap interactive tree hierarchy depth
   --explore                     Conservatively click toggles/tabs and record diffs
   --max-explore <n>             Exploration click cap (default 8, maximum 50)
   --allow-destructive           Disable destructive-label blacklist only
@@ -7360,6 +7445,7 @@ export {
   truncateOutput,
   validateBrowserArg,
   validateCdpEndpoint,
+  validateElementLocator,
   validateResolvedHostname,
   validateResolvedTargetUrl,
   validateRunId,

@@ -265,8 +265,22 @@ export function inPageProbe(config) {
     const title = el.getAttribute('title');
     if (title) return cut(title, limit);
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) {
+      if (el.labels && el.labels.length) {
+        const lbl = textOf(el.labels[0]);
+        if (norm(lbl)) return cut(lbl, limit);
+      }
+      const parentLabel = typeof el.closest === 'function' ? el.closest('label') : null;
+      if (parentLabel) {
+        const pLbl = textOf(parentLabel);
+        if (norm(pLbl)) return cut(pLbl, limit);
+      }
       const placeholder = el.getAttribute('placeholder');
       if (placeholder) return cut(placeholder, limit);
+      const val = el.getAttribute('value');
+      if (['button', 'submit', 'reset'].includes(el.type) && val) return cut(val, limit);
+      const name = el.getAttribute('name');
+      if (name) return cut(name, limit);
+      if (el.id) return cut(el.id, limit);
     }
     return cut(textOf(el), limit);
   };
@@ -835,8 +849,10 @@ export function inPageProbe(config) {
       const rect = rectOf(el);
       const label =
         el.labels && el.labels.length ? cut(textOf(el.labels[0]), config.textLimit) : null;
+      const existingRef = el.getAttribute('data-agentseye-ref');
       return {
         ...scopeOf(el),
+        ref: existingRef ? `@${existingRef}` : null,
         validation: {
           valid: el.validity?.valid ?? null,
           message: el.validationMessage || null,
@@ -982,6 +998,7 @@ export function inPageProbe(config) {
           !['text', 'password', 'email', 'number', 'tel', 'url', 'search'].includes(el.type) &&
           el.tagName !== 'TEXTAREA' &&
           isInteractive(el) &&
+          !(width <= 1 && height <= 1) &&
           (width < 44 || height < 44),
         fontSize: styleValue(style, 'font-size'),
         rect,
@@ -1297,8 +1314,8 @@ export function inPageProbe(config) {
 
   const landmarks = collectLandmarks();
   const headings = collectHeadings();
-  const forms = collectForms();
   const interactive = collectInteractive();
+  const forms = collectForms();
   const images = collectImages();
   const duplicateIds = collectDuplicateIds();
   const cssVars = collectCssVars();

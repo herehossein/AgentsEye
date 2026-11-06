@@ -33,7 +33,7 @@ Target:
   --disable-cache               Disable the browser HTTP cache
 
 Viewport / emulation:
-  --viewport <WxH|preset>       Emulated viewport (default ${DEFAULTS.viewport.width}x${DEFAULTS.viewport.height}; presets: mobile, sm, md, lg, xl, 2xl)
+  --viewport <WxH|preset>       Emulated viewport (default ${DEFAULTS.viewport.width}x${DEFAULTS.viewport.height}; presets: mobile, sm, md, lg, xl, 2xl, desktop, tablet)
   --width <px> --height <px>    Individual viewport dimensions
   --dpr <n>                     Device pixel ratio (default 1)
   --mobile                      Mobile emulation flag (default true for mobile-first auditing)
@@ -85,10 +85,12 @@ Data:
   --block <url-pattern>         Block a URL pattern (repeatable, opt-in interception)
 
 Interactions (opt-in; can cause application side effects):
-  --click <css>                 Native click after safety and hit-test checks
-  --hover <css>                 Native pointer hover
-  --scroll <X,Y>               Native wheel deltas, e.g. 0,600
-  --key <name>                 Safe navigation key, Tab, Escape, Enter or Space
+  --click <sel|@eN|eN>          Native click after safety and hit-test checks
+  --hover <sel|@eN|eN>          Native pointer hover
+  --scroll <X,Y|sel|@eN|eN>     Native wheel deltas or scroll into view
+  --key <name>                  Safe navigation key, Tab, Escape, Enter or Space
+  --interactive-scope <css>     Scope interactive elements collection to selector
+  --depth <n>                   Cap interactive tree hierarchy depth
   --explore                     Conservatively click toggles/tabs and record diffs
   --max-explore <n>             Exploration click cap (default 8, maximum 50)
   --allow-destructive           Disable destructive-label blacklist only

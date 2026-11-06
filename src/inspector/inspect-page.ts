@@ -54,7 +54,7 @@ export async function inspectPage(cdp: CdpClient, options: any, browserInfo?: an
       }
     }
     state.mainFrameId = navigation.frameId || state.mainFrameId;
-    await waitForLoad(state, options);
+    await waitForLoad(state, options, warnings);
 
     if (options.waitFor) {
       const found = await waitForSelector(cdp, options.waitFor, options);
@@ -209,6 +209,8 @@ export async function inspectPage(cdp: CdpClient, options: any, browserInfo?: an
       dom: probe.dom,
       landmarks: probe.landmarks,
       headings: probe.headings,
+      headingsOutline:
+        probe.headings?.items?.map((h: any) => `h${h.level}: ${h.text || '(empty)'}`) ?? [],
       forms: probe.forms,
       interactive: probe.interactive,
       interactiveTreeText: probe.interactive?.items

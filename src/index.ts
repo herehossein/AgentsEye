@@ -17,7 +17,7 @@ import {
   TOOL_VERSION,
 } from './config/constants.js';
 
-import { parseArgs, parseViewport } from './cli/parser.js';
+import { parseArgs, parseViewport, validateElementLocator } from './cli/parser.js';
 
 import {
   compactDom,
@@ -96,6 +96,7 @@ import { main } from './inspector/main.js';
 export {
   parseArgs,
   parseViewport,
+  validateElementLocator,
   selectSections,
   redactReport,
   redactString,

@@ -265,7 +265,16 @@ export function minimalSummary(report: any): any {
     report.cssVars &&
     (report.cssVars.count > 0 || Object.keys(report.cssVars.vars || {}).length > 0)
   ) {
-    summary.cssVars = report.cssVars;
+    const varEntries = Object.entries(report.cssVars.vars || {});
+    if (varEntries.length > 25) {
+      summary.cssVars = {
+        count: report.cssVars.count || varEntries.length,
+        vars: Object.fromEntries(varEntries.slice(0, 15)),
+        truncated: true,
+      };
+    } else {
+      summary.cssVars = report.cssVars;
+    }
   }
   if (report.matrix) {
     summary.matrix = {
@@ -297,15 +306,17 @@ export function minimalSummary(report: any): any {
   if (report.interactive?.items) {
     const rawItems = report.interactive.items;
     const total = rawItems.length;
-    const renderedItems = rawItems
-      .filter((i: any) => i.rendered !== false)
-      .slice(0, DEFAULT_SUMMARY_INTERACTIVE_LIMIT);
+    const renderedItems = rawItems.filter((i: any) => i.rendered !== false);
+    const actionable = renderedItems.filter((i: any) => i.tag !== 'a' && i.role !== 'link');
+    const links = renderedItems.filter((i: any) => i.tag === 'a' || i.role === 'link');
+    const prioritized = [...actionable, ...links].slice(0, DEFAULT_SUMMARY_INTERACTIVE_LIMIT);
     summary.interactive = {
       total,
-      showing: renderedItems.length,
-      items: renderedItems.map((i: any) => ({
+      showing: prioritized.length,
+      items: prioritized.map((i: any) => ({
         ref: i.ref,
         tag: i.tag,
+        type: i.type || undefined,
         role: i.role || undefined,
         name: shortText(i.accessibleName || i.name || '', 40),
         href: i.href ? shortText(i.href, 60) : undefined,
@@ -332,6 +343,11 @@ export function minimalSummary(report: any): any {
       summary.headings.items = summary.headings.items.slice(0, 5);
       summary.headings.outline = summary.headings.outline.slice(0, 5);
       if (summary.headingsOutline) summary.headingsOutline = summary.headings.outline;
+    }
+    if (summary.cssVars?.vars) {
+      const entries = Object.entries(summary.cssVars.vars).slice(0, 5);
+      summary.cssVars.vars = Object.fromEntries(entries);
+      summary.cssVars.truncated = true;
     }
     summary.performance = compactDiagnostic(vitals);
     summary.warnings = summary.warnings.slice(0, 2);
@@ -369,8 +385,13 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
       return { ...base, forms: report.forms };
     case 'dom':
       return { ...base, dom: report.dom?.selector ? report.dom : compactDom(report.dom) };
-    case 'network':
+    case 'network': {
+      if (options.compact) {
+        const { requests: _requests, ...pruned } = report.network ?? {};
+        return { ...base, network: pruned };
+      }
       return { ...base, network: report.network };
+    }
     case 'perf':
       return { ...base, performance: report.performance };
     case 'storage':
@@ -449,6 +470,30 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
 export function queryReport(report: any, query: unknown, options: any = {}): any {
   if (!query) return minimalSummary(report);
   if (FOCUS_SLICES.includes(query as any)) return focusReport(report, query as string, options);
+  const qStr = String(query);
+  if (qStr === 'headingsOutline' || qStr === 'headings.outline') {
+    if (Array.isArray(report.headingsOutline)) {
+      return {
+        ok: report.ok,
+        run: report.run,
+        query,
+        data: report.headingsOutline,
+        errors: report.errors,
+        dialogs: report.dialogs,
+      };
+    }
+    if (Array.isArray(report.headings?.items)) {
+      const outline = report.headings.items.map((h: any) => `h${h.level}: ${h.text || '(empty)'}`);
+      return {
+        ok: report.ok,
+        run: report.run,
+        query,
+        data: outline,
+        errors: report.errors,
+        dialogs: report.dialogs,
+      };
+    }
+  }
   const parts = String(query).split('.');
   if (
     parts.some(

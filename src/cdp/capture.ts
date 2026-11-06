@@ -489,12 +489,19 @@ export async function preparePage(
 export async function waitForLoad(
   state: CaptureState,
   options: { timeoutMs: number },
+  warnings?: string[],
 ): Promise<void> {
   const deadline = Date.now() + options.timeoutMs;
   while (!state.loadFired && Date.now() < deadline) {
     await sleep(50);
   }
   if (!state.loadFired) {
+    if (state.mainFrameId && warnings) {
+      warnings.push(
+        `Navigation load event timed out after ${options.timeoutMs}ms; proceeding with available DOM`,
+      );
+      return;
+    }
     throw new InspectorError(
       `Navigation did not reach the load event within ${options.timeoutMs}ms`,
       'NAVIGATION_TIMEOUT',

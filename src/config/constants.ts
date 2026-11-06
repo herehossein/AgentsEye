@@ -30,6 +30,8 @@ export const TAILWIND_VIEWPORTS = Object.freeze({
   lg: Object.freeze({ width: 1024, height: 768, dpr: 1, mobile: false }),
   xl: Object.freeze({ width: 1280, height: 800, dpr: 1, mobile: false }),
   '2xl': Object.freeze({ width: 1536, height: 960, dpr: 1, mobile: false }),
+  desktop: Object.freeze({ width: 1280, height: 800, dpr: 1, mobile: false }),
+  tablet: Object.freeze({ width: 768, height: 1024, dpr: 1, mobile: false }),
 });
 
 export const MATRIX_VIEWPORTS = Object.freeze([
