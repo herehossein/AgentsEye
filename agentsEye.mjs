@@ -1695,10 +1695,20 @@ function computeUnifiedTextDiff(beforeText, afterText, _contextRadius = 3) {
   };
 }
 function diffInteractiveSnapshots(beforeItems = [], afterItems = [], beforeTreeText = "", afterTreeText = "") {
-  const beforeMap = /* @__PURE__ */ new Map();
-  const afterMap = /* @__PURE__ */ new Map();
-  for (const item of beforeItems) if (item.ref) beforeMap.set(item.ref, item);
-  for (const item of afterItems) if (item.ref) afterMap.set(item.ref, item);
+  const buildCompositeMap = (items) => {
+    const map = /* @__PURE__ */ new Map();
+    const occurrences = /* @__PURE__ */ new Map();
+    for (const item of items) {
+      if (!item) continue;
+      const baseKey = `${item.cssPath ?? ""}|${item.tag ?? ""}|${item.role ?? ""}|${item.name ?? ""}`;
+      const count = occurrences.get(baseKey) ?? 0;
+      occurrences.set(baseKey, count + 1);
+      map.set(`${baseKey}#${count}`, item);
+    }
+    return map;
+  };
+  const beforeMap = buildCompositeMap(beforeItems);
+  const afterMap = buildCompositeMap(afterItems);
   if (beforeTreeText && afterTreeText && beforeTreeText === afterTreeText) {
     return {
       kind: "unchanged",
@@ -1714,29 +1724,39 @@ function diffInteractiveSnapshots(beforeItems = [], afterItems = [], beforeTreeT
   let additions = 0;
   let removals = 0;
   let replacements = 0;
-  for (const [ref, item] of beforeMap.entries()) {
-    if (!afterMap.has(ref)) {
-      changes.push({ op: "remove", ref, role: item.role, name: item.name });
+  for (const [key, item] of beforeMap.entries()) {
+    if (!afterMap.has(key)) {
+      changes.push({
+        op: "remove",
+        ref: item.ref,
+        role: item.role,
+        name: item.name,
+        tag: item.tag,
+        selector: item.cssPath
+      });
       removals++;
     }
   }
-  for (const [ref, afterItem] of afterMap.entries()) {
-    const beforeItem = beforeMap.get(ref);
+  for (const [key, afterItem] of afterMap.entries()) {
+    const beforeItem = beforeMap.get(key);
     if (!beforeItem) {
       changes.push({
         op: "add",
-        ref,
+        ref: afterItem.ref,
         role: afterItem.role,
         name: afterItem.name,
-        tag: afterItem.tag
+        tag: afterItem.tag,
+        selector: afterItem.cssPath
       });
       additions++;
     } else if (beforeItem.role !== afterItem.role || beforeItem.name !== afterItem.name || beforeItem.disabled !== afterItem.disabled || beforeItem.checked !== afterItem.checked) {
       changes.push({
         op: "replace",
-        ref,
+        ref: afterItem.ref || beforeItem.ref,
         role: afterItem.role,
-        name: afterItem.name
+        name: afterItem.name,
+        tag: afterItem.tag,
+        selector: afterItem.cssPath
       });
       replacements++;
     }

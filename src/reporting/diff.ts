@@ -242,11 +242,21 @@ export function diffInteractiveSnapshots(
   beforeTreeText = '',
   afterTreeText = '',
 ): InteractiveDelta {
-  const beforeMap = new Map<string, any>();
-  const afterMap = new Map<string, any>();
+  const buildCompositeMap = (items: any[]) => {
+    const map = new Map<string, any>();
+    const occurrences = new Map<string, number>();
+    for (const item of items) {
+      if (!item) continue;
+      const baseKey = `${item.cssPath ?? ''}|${item.tag ?? ''}|${item.role ?? ''}|${item.name ?? ''}`;
+      const count = occurrences.get(baseKey) ?? 0;
+      occurrences.set(baseKey, count + 1);
+      map.set(`${baseKey}#${count}`, item);
+    }
+    return map;
+  };
 
-  for (const item of beforeItems) if (item.ref) beforeMap.set(item.ref, item);
-  for (const item of afterItems) if (item.ref) afterMap.set(item.ref, item);
+  const beforeMap = buildCompositeMap(beforeItems);
+  const afterMap = buildCompositeMap(afterItems);
 
   if (beforeTreeText && afterTreeText && beforeTreeText === afterTreeText) {
     return {
@@ -265,22 +275,30 @@ export function diffInteractiveSnapshots(
   let removals = 0;
   let replacements = 0;
 
-  for (const [ref, item] of beforeMap.entries()) {
-    if (!afterMap.has(ref)) {
-      changes.push({ op: 'remove', ref, role: item.role, name: item.name });
+  for (const [key, item] of beforeMap.entries()) {
+    if (!afterMap.has(key)) {
+      changes.push({
+        op: 'remove',
+        ref: item.ref,
+        role: item.role,
+        name: item.name,
+        tag: item.tag,
+        selector: item.cssPath,
+      });
       removals++;
     }
   }
 
-  for (const [ref, afterItem] of afterMap.entries()) {
-    const beforeItem = beforeMap.get(ref);
+  for (const [key, afterItem] of afterMap.entries()) {
+    const beforeItem = beforeMap.get(key);
     if (!beforeItem) {
       changes.push({
         op: 'add',
-        ref,
+        ref: afterItem.ref,
         role: afterItem.role,
         name: afterItem.name,
         tag: afterItem.tag,
+        selector: afterItem.cssPath,
       });
       additions++;
     } else if (
@@ -291,9 +309,11 @@ export function diffInteractiveSnapshots(
     ) {
       changes.push({
         op: 'replace',
-        ref,
+        ref: afterItem.ref || beforeItem.ref,
         role: afterItem.role,
         name: afterItem.name,
+        tag: afterItem.tag,
+        selector: afterItem.cssPath,
       });
       replacements++;
     }

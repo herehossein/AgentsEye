@@ -174,3 +174,26 @@ test('computeUnifiedTextDiff: detects duplicate line additions and line reorderi
   assert.equal(resSwap.changed, true);
   assert.ok(resSwap.additions > 0 || resSwap.removals > 0);
 });
+
+test('diffInteractiveSnapshots: stable composite key avoids false replacements on ref shift', () => {
+  const beforeItems = [
+    { ref: '@e1', tag: 'button', role: 'button', name: 'Submit', cssPath: '#btn-submit' },
+    { ref: '@e2', tag: 'a', role: 'link', name: 'Help', cssPath: '#link-help' },
+  ];
+  // A new element is prepended at the top, shifting Submit to @e2 and Help to @e3
+  const afterItems = [
+    { ref: '@e1', tag: 'button', role: 'button', name: 'Banner Promo', cssPath: '#promo-banner' },
+    { ref: '@e2', tag: 'button', role: 'button', name: 'Submit', cssPath: '#btn-submit' },
+    { ref: '@e3', tag: 'a', role: 'link', name: 'Help', cssPath: '#link-help' },
+  ];
+
+  const delta = diffInteractiveSnapshots(beforeItems, afterItems, '', '');
+  assert.equal(delta.additions, 1);
+  assert.equal(delta.removals, 0);
+  assert.equal(delta.replacements, 0);
+  assert.equal(delta.unchanged, 2);
+  assert.equal(delta.changes.length, 1);
+  assert.equal(delta.changes[0].op, 'add');
+  assert.equal(delta.changes[0].ref, '@e1');
+  assert.equal(delta.changes[0].name, 'Banner Promo');
+});
