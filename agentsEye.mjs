@@ -2926,9 +2926,10 @@ function focusReport(report, slice, options = {}) {
 }
 function queryReport(report, query, options = {}) {
   if (!query) return minimalSummary(report);
-  if (FOCUS_SLICES.includes(query)) return focusReport(report, query, options);
-  const qStr = String(query);
-  if (qStr === "headingsOutline" || qStr === "headings.outline") {
+  const normalizedQuery = String(query).replace(/\[\s*(?:['"]?)([a-zA-Z0-9_-]+)(?:['"]?)\s*\]/g, ".$1").replace(/^\./, "");
+  if (FOCUS_SLICES.includes(normalizedQuery))
+    return focusReport(report, normalizedQuery, options);
+  if (normalizedQuery === "headingsOutline" || normalizedQuery === "headings.outline") {
     if (Array.isArray(report.headingsOutline)) {
       return {
         ok: report.ok,
@@ -2951,7 +2952,7 @@ function queryReport(report, query, options = {}) {
       };
     }
   }
-  const parts = String(query).split(".");
+  const parts = normalizedQuery.split(".");
   if (parts.some(
     (part) => !/^[a-zA-Z0-9_-]+$/.test(part) || ["__proto__", "constructor", "prototype"].includes(part)
   )) {

@@ -469,9 +469,12 @@ export function focusReport(report: any, slice: string, options: any = {}): any 
 
 export function queryReport(report: any, query: unknown, options: any = {}): any {
   if (!query) return minimalSummary(report);
-  if (FOCUS_SLICES.includes(query as any)) return focusReport(report, query as string, options);
-  const qStr = String(query);
-  if (qStr === 'headingsOutline' || qStr === 'headings.outline') {
+  const normalizedQuery = String(query)
+    .replace(/\[\s*(?:['"]?)([a-zA-Z0-9_-]+)(?:['"]?)\s*\]/g, '.$1')
+    .replace(/^\./, '');
+  if (FOCUS_SLICES.includes(normalizedQuery as any))
+    return focusReport(report, normalizedQuery as string, options);
+  if (normalizedQuery === 'headingsOutline' || normalizedQuery === 'headings.outline') {
     if (Array.isArray(report.headingsOutline)) {
       return {
         ok: report.ok,
@@ -494,7 +497,7 @@ export function queryReport(report: any, query: unknown, options: any = {}): any
       };
     }
   }
-  const parts = String(query).split('.');
+  const parts = normalizedQuery.split('.');
   if (
     parts.some(
       (part) =>

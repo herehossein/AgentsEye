@@ -127,6 +127,31 @@ test('queryReport: queries safe nested properties', () => {
   assert.equal(res2.data[0].status, 500);
 });
 
+test('queryReport: supports bracket array indexing like interactive.items[15]', () => {
+  const dummyReport = {
+    ok: true,
+    run: { id: 'test-run' },
+    interactive: {
+      items: [
+        { ref: '@e1', tag: 'button', name: 'First' },
+        { ref: '@e2', tag: 'a', name: 'Second' },
+      ],
+    },
+    errors: { uncaught: [] },
+    dialogs: { count: 0 },
+  };
+
+  const resBracket = queryReport(dummyReport, 'interactive.items[1]');
+  assert.equal(resBracket.ok, true);
+  assert.equal(resBracket.data.name, 'Second');
+
+  const resNested = queryReport(dummyReport, 'interactive.items[0].name');
+  assert.equal(resNested.data, 'First');
+
+  const resDot = queryReport(dummyReport, 'interactive.items.1');
+  assert.equal(resDot.data.name, 'Second');
+});
+
 test('queryReport: blocks prototype pollution and property traversal attacks', () => {
   const dummyReport = { ok: true, run: { id: 'test-run' }, target: { title: 'Test' } };
 
