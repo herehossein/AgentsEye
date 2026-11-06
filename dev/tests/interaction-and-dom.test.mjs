@@ -672,6 +672,10 @@ function createMockElement(tag, attrs = {}, children = []) {
     tagName: tag.toUpperCase(),
     children,
     childNodes: children,
+    childElementCount: children.length,
+    get attributes() {
+      return Array.from(attrMap.entries()).map(([name, value]) => ({ name, value }));
+    },
     closest: () => null,
     getAttribute: (k) => attrMap.get(k) ?? null,
     hasAttribute: (k) => attrMap.has(k),
@@ -761,6 +765,64 @@ test('inPageProbe assigns sequential @e1..@eN refs to all interactive elements',
     assert.equal(reg.map.get('1'), btn1);
     assert.equal(reg.map.get('@e2'), link1);
     assert.equal(reg.map.get('@e3'), tab1);
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.__agentsEyeRefsV1 = prevRefs;
+  }
+});
+
+test('inPageProbe filters out data-agentseye-ref from element attributes in dom tree', () => {
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevRefs = globalThis.__agentsEyeRefsV1;
+
+  try {
+    const btn = createMockElement('button', {
+      id: 'pre-tagged',
+      'data-agentseye-ref': 'e99',
+      class: 'btn',
+    });
+    const body = createMockElement('body', {}, [btn]);
+    const html = createMockElement('html', {}, [body]);
+
+    const mockDoc = {
+      documentElement: html,
+      body,
+      title: 'Probe Leak Test',
+      readyState: 'complete',
+      contentType: 'text/html',
+      characterSet: 'UTF-8',
+      compatMode: 'CSS1Compat',
+      querySelector: () => null,
+    };
+
+    const mockWin = {
+      location: { href: 'http://localhost/test' },
+      innerWidth: 1024,
+      innerHeight: 768,
+      scrollX: 0,
+      scrollY: 0,
+      getComputedStyle: () => ({
+        getPropertyValue: (p) => (p === 'visibility' ? 'visible' : p === 'display' ? 'block' : ''),
+        visibility: 'visible',
+        display: 'block',
+        opacity: '1',
+        cursor: 'default',
+      }),
+    };
+
+    globalThis.document = mockDoc;
+    globalThis.window = mockWin;
+
+    const config = makeProbeConfig({ styleProps: [], maxDepth: 10 });
+    const report = inPageProbe(config);
+
+    const btnDomNode = report.dom?.tree?.children?.[0]?.children?.[0];
+    assert.ok(btnDomNode);
+    assert.equal(btnDomNode.attributes?.id, 'pre-tagged');
+    assert.equal(btnDomNode.attributes?.['data-agentseye-ref'], undefined);
+    assert.equal(btnDomNode.attributeCount, 2); // 'id' and 'class' (not counting data-agentseye-ref)
   } finally {
     globalThis.document = prevDoc;
     globalThis.window = prevWin;

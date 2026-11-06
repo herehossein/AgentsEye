@@ -5018,7 +5018,10 @@ function inPageProbe(config) {
     const attributes = {};
     let count = 0;
     const limit = config.attributeLimit;
-    for (const attribute of Array.from(el.attributes || [])) {
+    const validAttributes = Array.from(el.attributes || []).filter(
+      (attribute) => attribute.name !== "data-agentseye-ref"
+    );
+    for (const attribute of validAttributes) {
       if (count >= limit) break;
       if (attribute.name === "value" && ["INPUT", "TEXTAREA", "SELECT", "OPTION"].includes(el.tagName)) {
         attributes[attribute.name] = isSensitiveControl(el) ? "[REDACTED]" : cut(attribute.value, Math.max(config.textLimit * 2, 240));
@@ -5029,8 +5032,8 @@ function inPageProbe(config) {
     }
     return {
       attributes: Object.keys(attributes).length ? attributes : void 0,
-      attributeCount: (el.attributes || []).length,
-      attributesTruncated: (el.attributes || []).length > count
+      attributeCount: validAttributes.length,
+      attributesTruncated: validAttributes.length > count
     };
   };
   const isInteractive = (el) => /^(BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY|OPTION|LABEL)$/.test(el.tagName) || el.tagName === "A" && el.hasAttribute("href") || [

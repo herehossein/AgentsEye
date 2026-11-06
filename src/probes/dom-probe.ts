@@ -372,11 +372,14 @@ export function inPageProbe(config) {
     );
   };
 
-  const attributesOf = (el) => {
-    const attributes = {};
+  const attributesOf = (el: any) => {
+    const attributes: Record<string, string> = {};
     let count = 0;
     const limit = config.attributeLimit;
-    for (const attribute of Array.from(el.attributes || [])) {
+    const validAttributes = Array.from((el.attributes || []) as any[]).filter(
+      (attribute: any) => attribute.name !== 'data-agentseye-ref',
+    );
+    for (const attribute of validAttributes) {
       if (count >= limit) break;
       if (
         attribute.name === 'value' &&
@@ -392,8 +395,8 @@ export function inPageProbe(config) {
     }
     return {
       attributes: Object.keys(attributes).length ? attributes : undefined,
-      attributeCount: (el.attributes || []).length,
-      attributesTruncated: (el.attributes || []).length > count,
+      attributeCount: validAttributes.length,
+      attributesTruncated: validAttributes.length > count,
     };
   };
 
