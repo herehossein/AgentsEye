@@ -4032,6 +4032,20 @@ async function installRequestGuard(cdp, options, warnings) {
   const targetParsed = validateTargetUrl(options.url);
   const origin = targetParsed.origin;
   const isInitialTargetPrivate = isPrivateHost(targetParsed.hostname);
+  const validatedOrigins = /* @__PURE__ */ new Map();
+  const validateCachedOrigin = (targetUrl) => {
+    const originKey = targetUrl.origin;
+    let promise = validatedOrigins.get(originKey);
+    if (!promise) {
+      promise = validateResolvedTargetUrl(targetUrl.toString(), { timeoutMs: options.timeoutMs }).then(() => {
+      }).catch((err) => {
+        validatedOrigins.delete(originKey);
+        throw err;
+      });
+      validatedOrigins.set(originKey, promise);
+    }
+    return promise;
+  };
   const customNames = new Set(customHeaders.map((header) => header.name.toLowerCase()));
   if (customNames.has("host") || customNames.has(":authority")) {
     throw new UsageError("--header may not override routing headers");
@@ -4052,7 +4066,7 @@ async function installRequestGuard(cdp, options, warnings) {
       try {
         url = new URL(params.request?.url);
         if (url.protocol === "http:" || url.protocol === "https:") {
-          await validateResolvedTargetUrl(url.toString(), { timeoutMs: options.timeoutMs });
+          await validateCachedOrigin(url);
           if (!isInitialTargetPrivate && isPrivateHost(url.hostname)) {
             warnings.push(`Blocked navigation to private host ${url.hostname} from public origin.`);
             await failRequest(requestId);
