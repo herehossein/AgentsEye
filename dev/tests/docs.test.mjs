@@ -4,7 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
-import { TOOL_NAME, TOOL_VERSION, SCHEMA_VERSION } from '../../agentsEye.mjs';
+import {
+  TOOL_NAME,
+  TOOL_VERSION,
+  SCHEMA_VERSION,
+  interactionSafety,
+  minimalSummary,
+  validateResolvedTargetUrl,
+} from '../../agentsEye.mjs';
 
 const REPO_ROOT = path.resolve('.');
 
@@ -93,6 +100,12 @@ test('skill works when SKILL.md, agentsEye.mjs and references/ are copied alone 
     fs.copyFileSync(path.join(REPO_ROOT, 'agentsEye.mjs'), path.join(tmpDir, 'agentsEye.mjs'));
     fs.cpSync(path.join(REPO_ROOT, 'references'), path.join(tmpDir, 'references'), { recursive: true });
 
+    assert.deepEqual(
+      checkLinks(path.join(tmpDir, 'references/schema-reference.md')),
+      [],
+      'Standalone schema references must not depend on development-only files',
+    );
+
     const res = spawnSync(process.execPath, [path.join(tmpDir, 'agentsEye.mjs'), '--help'], {
       cwd: tmpDir,
       encoding: 'utf8',
@@ -169,4 +182,207 @@ test('SSOT: version in package.json, CLI flags, badges, and docs matches TOOL_VE
     TOOL_VERSION,
     `AGENTS.md project header (${projectMatch[1]}) must match TOOL_VERSION (${TOOL_VERSION})`
   );
+});
+
+test('interactive refs guide documents the exact common safety skip reasons', () => {
+  const guide = fs.readFileSync(path.join(REPO_ROOT, 'references/interactive-refs-guide.md'), 'utf8');
+  for (const target of [{ navigation: true }, { submission: true }, { name: 'Delete account' }]) {
+    const reason = interactionSafety({ connected: true, visible: true, ...target });
+    assert.ok(guide.includes(`- \`${reason}\``), `Guide is missing the exact skip reason: ${reason}`);
+  }
+});
+
+test('interactive refs guide summary example matches public minimalSummary output', () => {
+  const guide = fs.readFileSync(path.join(REPO_ROOT, 'references/interactive-refs-guide.md'), 'utf8');
+  const example = JSON.parse(guide.match(/```json\s+([\s\S]*?)```/)[1]);
+  const report = {
+    ok: true,
+    target: { requestedUrl: 'https://example.com/' },
+    interactive: {
+      items: [
+        {
+          ref: '@e1', tag: 'button', role: 'button', accessibleName: 'Open Navigation',
+          name: 'Fallback label', smallTouchTarget: true,
+          rect: {
+            viewport: { top: 12, right: 56, bottom: 52, left: 16, width: 40, height: 40 },
+            document: { top: 12, right: 56, bottom: 52, left: 16, width: 40, height: 40 },
+          },
+        },
+        { ref: '@e2', tag: 'input', type: 'text', name: 'Search query' },
+        { ref: '@e3', tag: 'a', role: 'link', name: 'Pricing', href: 'https://example.com/pricing' },
+      ],
+    },
+  };
+  const summary = JSON.parse(JSON.stringify(minimalSummary(report)));
+  assert.deepEqual(example.interactive, summary.interactive);
+});
+
+test('CLI reference and agent manual document interactive focus and requested flag effects', () => {
+  const cli = fs.readFileSync(path.join(REPO_ROOT, 'references/cli-reference.md'), 'utf8');
+  const agents = fs.readFileSync(path.join(REPO_ROOT, 'AGENTS.md'), 'utf8');
+  const slices = cli.split('## 4. Output Slices')[1].split('## 5.')[0];
+  assert.ok(slices.includes('`interactive`'), 'Output slices table must include interactive');
+  assert.match(agents, /Slices available:[^\r\n]*`interactive`/);
+  for (const [flag, effect] of [
+    ['--depth', /Integer.*0.*100.*compact interactive tree display.*not DOM traversal/i],
+    ['--no-max-output', /Disables stdout serialization.*Does not remove summary sampling or collection limits/i],
+    ['--browser-arg', /Repeatable.*newly launched Chromium.*No effect with `--cdp`/i],
+  ]) {
+    const row = cli.split(/\r?\n/).find((line) => line.startsWith(`| \`${flag}\``));
+    assert.ok(row, `CLI flag table is missing ${flag}`);
+    assert.match(row, effect, `${flag} must explain its effect and limitations`);
+    assert.ok(agents.includes(`\`${flag}`), `Agent manual is missing ${flag}`);
+  }
+});
+
+test('schema reference documents current telemetry fields and rectangle shapes', () => {
+  const schema = fs.readFileSync(path.join(REPO_ROOT, 'references/schema-reference.md'), 'utf8');
+  const fields = (block) => [...block.matchAll(/\b(\w+)\s*:/g)].map(([, name]) => name).sort();
+  const coordinates = ['bottom', 'height', 'left', 'right', 'top', 'width'];
+  for (const [section, expected, obsolete] of [
+    [
+      'metrics',
+      [
+        'innerWidth', 'innerHeight', 'documentClientWidth', 'documentClientHeight',
+        'documentScrollWidth', 'documentScrollHeight',
+      ],
+      ['scrollWidth', 'scrollHeight', 'clientWidth', 'clientHeight'],
+    ],
+    [
+      'scrollLock',
+      ['htmlOverflowX', 'htmlOverflowY', 'bodyOverflowX', 'bodyOverflowY', 'locked', 'trapRisk'],
+      ['overflowY', 'position', 'contentHeight', 'viewportHeight'],
+    ],
+    [
+      'stats',
+      ['nodes', 'elementNodes', 'textNodes', 'visibleElements', 'hiddenElements', 'maxDepthReached'],
+      ['totalNodes', 'maxDepth', 'textBytes'],
+    ],
+  ]) {
+    const block = schema.match(new RegExp(`\\b${section}:\\s*\\{([^{}]*)`))[1];
+    const actual = fields(block);
+    for (const name of expected) assert.ok(actual.includes(name), `${section} is missing ${name}`);
+    for (const name of obsolete) assert.ok(!actual.includes(name), `${section} still documents obsolete ${name}`);
+  }
+  for (const name of ['documentClientWidth', 'documentClientHeight', 'documentScrollWidth', 'documentScrollHeight']) {
+    assert.ok(new RegExp(`${name}:\\s*number\\s*\\|\\s*null`).test(schema), `${name} must allow null`);
+  }
+  const overflowRect = schema.match(/overflowElements:\s*Array<\{[^{}]*rect:\s*\{([^{}]*)\}/)?.[1];
+  assert.ok(overflowRect, 'Overflow findings must document a flat viewport rectangle');
+  assert.deepEqual(fields(overflowRect), coordinates);
+  const interactive = schema.match(/export interface InteractiveItem\s*\{([\s\S]*?)^\}/m)?.[1];
+  const headings = schema.match(/\bheadings:\s*\{[\s\S]*?items:\s*Array<\{([\s\S]*?)\}>;/)?.[1];
+  for (const [name, block] of [['InteractiveItem', interactive], ['headings.items', headings]]) {
+    assert.ok(block, `${name} definition is missing`);
+    const rect = block.match(/\brect\??:\s*\{\s*viewport:\s*\{([^{}]*)\};\s*document:\s*\{([^{}]*)\};\s*\}(?:\s*\|\s*null)?/);
+    assert.ok(rect, `${name}.rect must document both coordinate spaces`);
+    assert.deepEqual(fields(rect[1]), coordinates);
+    assert.deepEqual(fields(rect[2]), coordinates);
+    if (name === 'headings.items') assert.match(rect[0], /\}\s*\|\s*null$/);
+  }
+  const diffSchema = schema.split('export interface DiffReport')[1];
+  for (const name of ['before', 'after']) {
+    const box = diffSchema.match(new RegExp(`\\b${name}:\\s*\\{([^{}]*)\\}`))[1];
+    assert.deepEqual(fields(box), coordinates);
+  }
+});
+
+test('CLI and security references distinguish SSRF policy rejection from DNS failure', async () => {
+  await assert.rejects(
+    () => validateResolvedTargetUrl('http://169.254.169.254/'),
+    { name: 'UsageError', exitCode: 2 },
+  );
+  await assert.rejects(
+    () => validateResolvedTargetUrl('https://example.test/', {
+      lookup: async () => { throw new Error('DNS unavailable'); },
+    }),
+    { name: 'InspectorError', code: 'DNS_LOOKUP_FAILED', exitCode: 1 },
+  );
+  const cli = fs.readFileSync(path.join(REPO_ROOT, 'references/cli-reference.md'), 'utf8');
+  const runtime = cli.split(/\r?\n/).find((line) => line.startsWith('| **`1`**'));
+  const usage = cli.split(/\r?\n/).find((line) => line.startsWith('| **`2`**'));
+  assert.ok(
+    runtime?.includes('`InspectorError`') && runtime.includes('DNS'),
+    'Exit 1 must describe DNS operational InspectorError failures',
+  );
+  assert.ok(
+    usage?.includes('`UsageError`') && /preflight.*SSRF/i.test(usage),
+    'Exit 2 must include preflight SSRF UsageError',
+  );
+  const runtimeBranch = cli.split(/\r?\n/).find((line) => /--\s*"1"\s*-->/.test(line));
+  const usageBranch = cli.split(/\r?\n/).find((line) => /--\s*"2"\s*-->/.test(line));
+  assert.ok(
+    runtimeBranch?.includes('InspectorError') && runtimeBranch.includes('DNS'),
+    'CLI diagram must classify DNS failures as InspectorError / exit 1',
+  );
+  assert.ok(
+    usageBranch?.includes('UsageError') && usageBranch.includes('SSRF'),
+    'CLI diagram must classify preflight SSRF rejection as UsageError / exit 2',
+  );
+  const security = fs.readFileSync(path.join(REPO_ROOT, 'references/security-model.md'), 'utf8');
+  const blockedBranch = security.split(/\r?\n/).find((line) => line.includes('|Blocked IP / Metadata|'));
+  assert.ok(
+    blockedBranch?.includes('UsageError') && /\b2\b/.test(blockedBranch),
+    'Security diagram must report UsageError / exit 2',
+  );
+  const dns = security.split('### A. Preflight DNS')[1].split('### B.')[0];
+  const prohibited = security.split('### B. Prohibited IP')[1].split('| Category')[0];
+  assert.ok(
+    dns.includes('`InspectorError`') && dns.includes('exit code `1`'),
+    'DNS failures must remain runtime errors even during preflight',
+  );
+  assert.ok(
+    prohibited.includes('`UsageError`') && prohibited.includes('exit code `2`'),
+    'Blocked metadata addresses must be documented as usage errors',
+  );
+});
+
+test('interactive refs guide blacklist examples are blocked by public interactionSafety', () => {
+  const guide = fs.readFileSync(path.join(REPO_ROOT, 'references/interactive-refs-guide.md'), 'utf8');
+  const rows = guide.split(/\r?\n/).filter((line) => /^- \*\*(?:English|Persian)\*\*:/.test(line));
+  assert.equal(rows.length, 2, 'Guide must list English and Persian blacklist examples');
+  for (const row of rows) {
+    const examples = [...row.matchAll(/`([^`]+)`/g)];
+    assert.ok(examples.length, 'Each blacklist row must include examples');
+    for (const [, name] of examples) {
+      assert.equal(
+        interactionSafety({ connected: true, visible: true, name }),
+        'Potentially destructive action blocked by text safety policy',
+        `Guide claims "${name}" is blocked by the keyword policy`,
+      );
+    }
+  }
+});
+
+test('security docs distinguish blocked metadata from allowed private and IPv6 targets', async () => {
+  for (const url of ['http://10.0.0.1/', 'http://[fe80::1]/', 'http://[::ffff:192.168.1.1]/']) {
+    await assert.doesNotReject(
+      () => validateResolvedTargetUrl(url),
+      `${url} is allowed by target preflight`,
+    );
+  }
+  const security = fs.readFileSync(path.join(REPO_ROOT, 'references/security-model.md'), 'utf8');
+  const prohibited = security.split('### B. Prohibited IP')[1].split('### C.')[0];
+  assert.doesNotMatch(prohibited, /fe80::\/10/, 'IPv6 link-local is not a prohibited target range');
+  for (const file of ['references/security-model.md', 'AGENTS.md']) {
+    const content = fs.readFileSync(path.join(REPO_ROOT, file), 'utf8');
+    assert.match(
+      content,
+      /private and loopback targets[^\r\n]*allowed/i,
+      `${file} must describe allowed development targets`,
+    );
+    assert.match(
+      content,
+      /not blanket-block[^\r\n]*IPv6 link-local[^\r\n]*non-metadata IPv4-mapped IPv6/i,
+      `${file} must distinguish allowed IPv6 targets from blocked metadata`,
+    );
+  }
+});
+
+test('CLI header reference distinguishes same-origin assets from cross-origin requests', () => {
+  const cli = fs.readFileSync(path.join(REPO_ROOT, 'references/cli-reference.md'), 'utf8');
+  const header = cli.split(/\r?\n/).find((line) => line.startsWith('| `--header`'));
+  assert.ok(header, 'CLI reference must document custom headers');
+  assert.match(header, /same-origin assets/i);
+  assert.match(header, /matching header names are stripped on cross-origin requests/i);
 });

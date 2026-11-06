@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import {
   parseArgs,
   parseViewport,
@@ -18,6 +20,45 @@ import {
   DEFAULT_SUMMARY_INTERACTIVE_LIMIT,
   FOCUS_SLICES,
 } from '../../agentsEye.mjs';
+
+test('CLI --help: documents supported flag effects and limitations', () => {
+  const result = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('../../agentsEye.mjs', import.meta.url)), '--help'],
+    { encoding: 'utf8', timeout: 10000 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+
+  const entries = result.stdout.split(/\r?\n(?= {2}\S)/);
+  assert.match(
+    entries.find((text) => text.startsWith('  - Document interception')) ?? '',
+    /Document interception is on by default; --header\/--block extend it to all request types/i,
+  );
+
+  for (const [flag, meanings] of [
+    ['--block', [/all request types/i]],
+    ['--browser-arg', [
+      /<arg>/, /repeatable/i, /newly launched Chromium only/i,
+      /not used with --cdp/i, /denylisted.*rejected/i,
+    ]],
+    ['--no-max-output', [
+      /disables only the stdout.*cap/i, /summary sampling and collection limits remain/i,
+      /does not enable --full/i,
+    ]],
+    ['--depth', [
+      /<n>/, /integer.*0-100/i, /compact interactive tree display/i,
+      /--focus interactive --compact/, /not DOM traversal.*--max-depth/i,
+      /collected interactive\.items remain unchanged/i,
+    ]],
+  ]) {
+    const entry = entries.find((text) => text.startsWith(`  ${flag} `));
+    assert.ok(entry, `--help must list ${flag}`);
+    for (const meaning of meanings) {
+      assert.match(entry.replace(/\s+/g, ' '), meaning, `--help must explain ${flag} accurately`);
+    }
+  }
+});
 
 test('parseArgs: valid flags and viewport parsing', () => {
   const options = parseArgs(['http://example.com', '--viewport', '375x812', '--focus', 'issues', '--quiet']);

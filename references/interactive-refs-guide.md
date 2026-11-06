@@ -93,23 +93,27 @@ Default CLI runs emit a compact summary with metadata and the top visible intera
 ```json
 {
   "interactive": {
-    "total": 34,
-    "showing": 12,
+    "total": 3,
+    "showing": 3,
     "items": [
       {
         "ref": "@e1",
         "tag": "button",
         "role": "button",
-        "name": "Open Navigation",
-        "rect": { "x": 16, "y": 12, "width": 40, "height": 40 },
-        "smallTouchTarget": true
+        "name": "Open Navigation"
       },
       {
         "ref": "@e2",
+        "tag": "input",
+        "type": "text",
+        "name": "Search query"
+      },
+      {
+        "ref": "@e3",
         "tag": "a",
         "role": "link",
         "name": "Pricing",
-        "rect": { "x": 80, "y": 16, "width": 64, "height": 32 }
+        "href": "https://example.com/pricing"
       }
     ]
   }
@@ -158,9 +162,11 @@ The following controls are strictly blocked from automated clicks:
 - **Obscured Elements**: Elements failing `document.elementFromPoint(x, y)` hit-testing (e.g., covered by an overlay or backdrop).
 
 ### Destructive Keyword Blacklist
-Interactive elements with labels matching destructive terms in English or Persian are skipped by default (`status: 'skipped'`):
-- **English**: `delete`, `remove`, `pay`, `order`, `checkout`, `logout`, `cancel`, `terminate`, `destroy`, `purge`, `reset`, `submit`, `confirm`, `save`.
-- **Persian**: `حذف`, `پرداخت`, `خرید`, `سفارش`, `خروج`, `لغو`, `انصراف`, `تایید`, `ارسال`, `ذخیره`.
+Interactive elements whose normalized labels or related attributes match the keyword policy are skipped by default (`status: 'skipped'`). Blocked examples include:
+- **English**: `delete`, `remove`, `pay`, `order`, `checkout`, `logout`, `cancel subscription`, `cancel membership`, `cancel plan`, `cancel account`, `destroy`, `purge`, `reset`, `submit`, `confirm`, `save`.
+- **Persian**: `حذف`, `پرداخت`, `خرید`, `سفارش`, `خروج`, `لغو`, `تایید`, `ارسال`, `ذخیره`.
+
+This is a text heuristic, not a guarantee about an action's effects. Standalone `cancel`, `terminate`, and `انصراف` do not match the keyword gate; structural safeguards still apply.
 
 ### Safe Dev Server Override (`--allow-destructive`)
 On controlled development servers, pass `--allow-destructive` to relax keyword filtering for labels like "Save" or "Submit". Even with this flag enabled, **hard structural blocks (navigation links and form submit buttons) remain permanently enforced**.
@@ -171,9 +177,9 @@ When an interaction is skipped, `interactions.actions` records the exact reason:
 node agentsEye.mjs show <run-id> interactions.actions
 ```
 Common skip reasons:
-- `Click blocked: navigation links (<a href> or role="link") cannot be clicked automatically`
-- `Click blocked: form submission controls cannot be clicked automatically`
-- `Click skipped: matches destructive keyword (pass --allow-destructive to permit)`
+- `Links and navigation controls are never clicked`
+- `Form submission/reset controls are never clicked`
+- `Potentially destructive action blocked by text safety policy`
 - `Element ref @eN not found or stale`
 - `Target is covered or failed hit testing` (indicates an overlay or z-index issue)
 

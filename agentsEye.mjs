@@ -7016,6 +7016,8 @@ Target:
   --cdp <http-url|ws-url>       Attach to an existing Chromium CDP endpoint
   --allow-remote-cdp            Allow a non-loopback --cdp endpoint (unsafe)
   --browser <path|command>      Chromium browser executable
+  --browser-arg <arg>           Repeatable startup argument for newly launched Chromium only;
+                                not used with --cdp; denylisted dangerous switches are rejected
   --headed                      Run with a visible browser window
   --no-sandbox                  Pass --no-sandbox to Chromium (unsafe)
   --ignore-certificate-errors   Accept invalid TLS certificates (unsafe)
@@ -7034,7 +7036,7 @@ Viewport / emulation:
   --reduced-motion <reduce|no-preference>
   --timezone <IANA>             Override timezone (e.g. Asia/Tehran)
   --locale <bcp47>              Override locale (e.g. fa-IR)
-  --header "Name: Value"        Extra request header (repeatable; values are never logged)
+  --header "Name: Value"        Extra request header (repeatable; exact-origin scoped)
 
 Loading / waiting:
   --timeout <ms>                Navigation and probe timeout (default ${DEFAULTS.timeoutMs})
@@ -7047,7 +7049,7 @@ DOM / styles:
   --selector <css>              Inspect this subtree (default: documentElement)
   --all-matches                 Inspect every match of --selector (root: "roots")
   --max-nodes <n>               Node cap (default ${DEFAULTS.maxNodes})
-  --max-depth <n>               Depth cap (default ${DEFAULTS.maxDepth})
+  --max-depth <n>               DOM traversal depth cap (default ${DEFAULTS.maxDepth})
   --text-limit <n>              Per-node text cap (default ${DEFAULTS.textLimit})
   --attribute-limit <n>         Per-node attribute cap (default ${DEFAULTS.attributeLimit})
   --style-props <list|none>     Comma-separated CSS properties (camelCase accepted);
@@ -7072,7 +7074,7 @@ Data:
   --sanitize-injections <neutralize|warn|none>
                                 Indirect Prompt Injection defense mode (default: neutralize)
   --no-sanitize-injections      Disable prompt injection sanitization (unsafe)
-  --block <url-pattern>         Block a URL pattern (repeatable, opt-in interception)
+  --block <url-pattern>         Block a URL pattern (repeatable; intercepts all request types)
 
 Interactions (opt-in; can cause application side effects):
   --click <sel|@eN|eN>          Native click after safety and hit-test checks
@@ -7080,7 +7082,6 @@ Interactions (opt-in; can cause application side effects):
   --scroll <X,Y|sel|@eN|eN>     Native wheel deltas or scroll into view
   --key <name>                  Safe navigation key, Tab, Escape, Enter or Space
   --interactive-scope <css>     Scope interactive elements collection to selector
-  --depth <n>                   Cap interactive tree hierarchy depth
   --explore                     Conservatively click toggles/tabs and record diffs
   --max-explore <n>             Exploration click cap (default 8, maximum 50)
   --allow-destructive           Disable destructive-label blacklist only
@@ -7094,8 +7095,13 @@ Output:
   --focus <slice>              issues|forms|dom|network|perf|console|storage|interactive
   --console-filter <pattern>   Filter console entries by substring or tag
   --compact, -c                 Prune structural wrappers from interactive tree
+  --depth <n>                   Compact interactive tree display depth (integer 0-100; default unset)
+                                (--focus interactive --compact); not DOM traversal (--max-depth);
+                                collected interactive.items remain unchanged
   --delta                       Emit snapshot delta or unchanged state
   --max-output <n>              Cap stdout character budget (default ${DEFAULTS.maxOutput})
+  --no-max-output               Disables only the stdout serialization cap;
+                                summary sampling and collection limits remain; does not enable --full
   --content-boundaries          Encapsulate page text in CSPRNG nonces
   --full                       Emit the comprehensive report to stdout
   --format <json|text>          JSON (compact by default) or clean human-readable plain text
@@ -7133,12 +7139,15 @@ Output schema (v${SCHEMA_VERSION}): a single JSON object with
 Security notes:
   - Passive/read-only by default; JavaScript dialogs are dismissed.
   - Explicit interaction flags authorize inputs and may cause side effects.
-  - DNS preflight blocks cloud metadata/link-local destinations, but is not DNS
-    pinning. Use network isolation for hostile pages or SSRF-sensitive testing.
-  - --header is exact-origin scoped; --block/header enable interception.
+  - DNS preflight blocks known cloud metadata and IPv4 link-local destinations,
+    but is not DNS pinning. Use network isolation for hostile pages or SSRF-sensitive testing.
+  - Document interception is on by default; --header/--block extend it to all request types.
+  - --header custom values are exact-origin scoped to the initial target.
   - --cdp creates an isolated incognito target and rejects page WebSockets.
-  - Every run saves redacted artifacts below .agentsEye/runs/. Screenshots
-    are page pixels and are not redacted. Cross-origin frames are not expanded.
+  - Artifacts default to .agentsEye/runs/; --temp uses the OS temp directory,
+    and --ephemeral purges the run directory after output. JSON redaction
+    follows --redact. Screenshots are unredacted page pixels.
+    Cross-origin frames are not expanded.
 `
   );
 }

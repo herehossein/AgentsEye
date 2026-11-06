@@ -47,6 +47,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--cdp` | `<http-or-ws-url>` | `null` | Attaches to an existing Chromium DevTools Protocol endpoint (e.g. `http://127.0.0.1:9222`) into an isolated incognito target without touching user cookies. |
 | `--allow-remote-cdp`| boolean | `false` | Permits non-loopback endpoints for `--cdp`. *(Unsafe: transmits unencrypted CDP over network).* |
 | `--browser` | `<path\|command>` | Auto-detected | Explicit path or command for Chromium, Google Chrome, Microsoft Edge, or Brave. |
+| `--browser-arg` | `<arg>` | `[]` | Repeatable: pass one additional startup argument per occurrence to newly launched Chromium (also `--browser-arg=<arg>`). No effect with `--cdp`. Denylisted dangerous switches are rejected; see the [security model](security-model.md). |
 | `--headed` | boolean | `false` | Launches Chromium with a visible graphical window instead of headless mode. |
 | `--no-sandbox` | boolean | `false` | Passes `--no-sandbox` to Chromium. Useful in root Docker environments. *(Unsafe).* |
 | `--ignore-certificate-errors` | boolean | `false` | Accepts invalid or self-signed TLS/SSL certificates. *(Unsafe).* |
@@ -74,7 +75,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 
 | Flag | Argument | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--header` | `"Name: Value"` | `null` | Custom HTTP request header. **Repeatable**. Uses CDP Fetch interception scoped **strictly to exact target origin**; custom headers are never forwarded to 3rd-party domains or CDN assets. |
+| `--header` | `"Name: Value"` | `null` | Custom HTTP request header. **Repeatable**. For intercepted requests, custom values are added only when the URL origin matches the initial target (scheme, hostname, port), including same-origin assets; matching header names are stripped on cross-origin requests, including CDNs. |
 | `--no-network` | boolean | `false` | Disables network request telemetry retention (network quiet window is still observed). |
 | `--block` | `<pattern>` | `null` | Blocks URLs matching wildcard glob pattern (e.g. `*analytics*`). Repeatable. |
 
@@ -135,8 +136,10 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--temp` | boolean | `false` | Stores run artifacts in OS temporary directory (`%TEMP%/.agentsEye/runs/`) instead of workspace `.agentsEye/runs/`. |
 | `--ephemeral` | boolean | `false` | Automatically deletes the run directory immediately after producing stdout. |
 | `--compact`, `-c` | boolean | `false` | Prunes empty non-interactive structural wrappers from interactive element tree representation. |
+| `--depth` | `<n>` | `null` (unset) | Integer from `0` to `100` inclusive. Limits compact interactive tree display (`--focus interactive --compact`), not DOM traversal (`--max-depth`) or collected JSON `interactive.items`. |
 | `--delta` | boolean | `false` | Computes and emits an ultra-compact interactive delta between consecutive snapshots (or offline via `diff` / `show`), returning `{ kind: "unchanged" }` when DOM state is unchanged. |
 | `--max-output` | `<n>` | `12000` | Character budget cap for stdout serialization with continuation guidance hint. |
+| `--no-max-output` | boolean | `false` | Disables stdout serialization truncation (default cap: `12000` characters). Does not remove summary sampling or collection limits and does not enable `--full`. |
 | `--content-boundaries` | boolean | `false` | Encapsulates untrusted page content inside CSPRNG nonce boundaries to safeguard against indirect prompt injection. |
 | `--focus` | `<slice>` | `null` | Emits a focused slice directly to stdout. Allowed: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`, `interactive`. |
 | `--console-filter` | `<pattern>` | `null` | Filters console entries by case-insensitive substring or `/regex/flags` pattern (e.g. `'[AGENT_DEBUG_TAG]'` or `/\/api\/error/i`). Works live with `--focus console` and offline via `show`. |
@@ -181,6 +184,7 @@ When you need deeper details on a specific subsystem without context window blow
 | **`perf`** | Core Web Vitals (LCP, CLS, FCP, FID, INP), timing milestones (navigation, paint timings), DOM node count. | Auditing frontend performance regressions and layout stability. |
 | **`console`** | Console entries matching optional `--console-filter` and `--console-level`, console error/warn/log counts. | Targeted log-driven agent debugging, inspecting injected debug tags, and filtering out framework noise. |
 | **`storage`** | Extracted key-values from `localStorage` and `sessionStorage` (with sensitive value redaction), entry counts, and storage availability. | Inspecting client-side session state, auth tokens, cached filters, and storage quota bugs. |
+| **`interactive`** | Interactive collection (`count`, `items`, `truncated`), including semantic refs, names, roles, control state, links, rectangles, and CSS paths; `tree` is added with `--compact`. | Finding `@eN` targets and inspecting controls without performing interactions. |
 
 ---
 
@@ -215,8 +219,8 @@ node agentsEye.mjs show 2026-10-23T17-45-12-849Z-a9f2 performance.page.webVitals
 flowchart TD
     A["CLI Execution Finished"] --> B{"Process Exit Code"}
     B -- "0" --> C["Success: Parse minimalSummary JSON<br/>Check layout.horizontalOverflow, issues, errors"]
-    B -- "1" --> D["Runtime Error: DNS failure, timeout, or SSRF block<br/>Check stderr for InspectorError"]
-    B -- "2" --> E["Usage Error: Invalid flag, missing URL, bad syntax<br/>Check command line arguments"]
+    B -- "1" --> D["Runtime Error (InspectorError): DNS failure, timeout, or browser failure<br/>Check stdout diagnostic and stderr"]
+    B -- "2" --> E["Usage / Preflight Error (UsageError): Invalid input or SSRF rejection<br/>Check arguments and target URL"]
     B -- "130" --> F["Interrupted: SIGINT (Ctrl+C)"]
     B -- "143" --> G["Terminated: SIGTERM"]
 ```
@@ -224,7 +228,7 @@ flowchart TD
 | Exit Code | Classification | Cause & Handling |
 | :---: | :--- | :--- |
 | **`0`** | **Success** | The inspection ran to completion. **Important**: Detected layout issues (`horizontal-document-overflow`), console errors, or network 404s are recorded as structured data inside the JSON output; they do *not* trigger a non-zero exit code. |
-| **`1`** | **Runtime Failure** | Target server is unreachable, DNS preflight lookup failed, target hit SSRF metadata blocklist, navigation timed out, or Chromium process crashed. Stderr contains diagnostic JSON with error code. |
-| **`2`** | **Usage Error** | Invalid command-line arguments provided (e.g. malformed `--viewport`, unsupported focus slice, or missing target URL). Stderr details the syntax requirement. |
+| **`1`** | **Runtime Failure** | `InspectorError`: DNS lookup failure, timeout, or no valid DNS addresses (`DNS_LOOKUP_FAILED` / `DNS_TIMEOUT`), even during preflight before browser launch; unreachable target, navigation timeout, probe failure, or Chromium crash. In JSON mode, diagnostic JSON is written to stdout; stderr contains a plain error message. |
+| **`2`** | **Usage & Preflight Error** | `UsageError`: Invalid flags, malformed or missing target URL, unsupported focus slice, or preflight SSRF policy rejection (including metadata targets or blocked DNS answers). Stderr contains a plain error message; preflight rejection also emits diagnostic JSON on stdout in JSON mode. |
 | **`130`** | **SIGINT** | Process was interrupted by user or orchestrator signal (`Ctrl+C`). Cleanup routines safely terminated Chromium child processes and released file locks. |
 | **`143`** | **SIGTERM** | Process was terminated by operating system or container manager (`SIGTERM`). Disposable browser profiles cleaned up. |

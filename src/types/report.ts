@@ -25,18 +25,33 @@ export interface SecurityAudit {
 export interface NetworkEntry {
   url: string;
   method: string;
-  status: number;
-  statusText?: string;
-  type?: string;
-  durationMs: number;
-  transferSize?: number;
+  status: number | null;
+  statusText?: string | null;
+  resourceType?: string;
+  durationMs: number | null;
+  encodedDataLength?: number | null;
   errorText?: string;
   failed?: boolean;
+}
+
+interface RectCoordinates {
+  top: number | null;
+  right: number | null;
+  bottom: number | null;
+  left: number | null;
+  width: number | null;
+  height: number | null;
+}
+
+interface ElementRect {
+  viewport: RectCoordinates;
+  document: RectCoordinates;
 }
 
 export interface InteractiveItem {
   ref: string;
   tag: string;
+  type?: string | null;
   role?: string | null;
   name?: string;
   accessibleName?: string;
@@ -46,14 +61,15 @@ export interface InteractiveItem {
   tabIndex?: number;
   disabled?: boolean;
   smallTouchTarget?: boolean;
-  fontSize?: string;
-  rect?: unknown;
+  fontSize?: string | null;
+  rect?: ElementRect;
   cssPath?: string;
   [key: string]: unknown;
 }
 
 export interface MinimalSummary {
   ok: boolean;
+  status: string | number;
   schemaVersion: '1.0';
   security: SecurityAudit;
   target: {
@@ -74,13 +90,16 @@ export interface MinimalSummary {
     mobile: boolean;
   };
   durationMs: number;
-  performance: {
-    lcp: number | null;
-    cls: number | null;
-    fcp: number | null;
-    fid: number | null;
-    inp: number | null;
-  };
+  performance:
+    | {
+        lcp: number | null;
+        cls: number | null;
+        fcp: number | null;
+        fid: number | null;
+        inp: number | null;
+      }
+    | { paints: unknown[]; navigationMs: number | null }
+    | null;
   layout: {
     horizontalOverflow: boolean;
     scrollTrap: boolean;
@@ -101,12 +120,12 @@ export interface MinimalSummary {
   errors: {
     uncaughtCount: number;
     logErrorCount: number;
-    uncaught: Array<{ text: string; url?: string; lineNumber?: number; stack?: string }>;
-    logErrors: Array<{ text: string; url?: string; lineNumber?: number }>;
+    uncaught: FullReport['errors']['uncaught'];
+    logErrors: FullReport['errors']['logErrors'];
   };
   dialogs: {
     count: number;
-    items: Array<{ type: string; message: string; defaultPrompt?: string }>;
+    items: FullReport['dialogs'];
   };
   landmarks: Record<string, { count: number; items?: string[] }>;
   interactive?: {
@@ -115,9 +134,9 @@ export interface MinimalSummary {
     items: Array<{
       ref: string;
       tag: string;
+      type?: string;
       role?: string;
       name: string;
-      rendered?: boolean;
       href?: string;
     }>;
   };
@@ -125,7 +144,7 @@ export interface MinimalSummary {
     count: number;
     items: Array<{ level: number; tag: string; text: string }>;
     outline: string[];
-  };
+  } | null;
   headingsOutline?: string[];
   dom?: {
     selector: string;
@@ -136,9 +155,10 @@ export interface MinimalSummary {
   cssVars?: {
     count: number;
     vars: Record<string, string>;
+    truncated?: boolean;
   };
   warnings: string[];
-  truncated?: boolean;
+  truncated?: Record<string, boolean | number>;
   matrix?: {
     viewports: Array<{
       viewport: { width: number; height: number };
@@ -156,32 +176,35 @@ export interface MinimalSummary {
 
 export interface DiffReport {
   ok: boolean;
-  before: string;
-  after: string;
-  generatedAt: string;
+  schemaVersion: '1.0';
+  before?: string;
+  after?: string;
   summary: {
+    added: number;
+    removed: number;
+    layoutChanged: number;
+    styleChanged: number;
     newErrors: number;
-    resolvedErrors: number;
     newIssues: number;
-    resolvedIssues: number;
-    layoutChanged: boolean;
-    domChanged: boolean;
   };
-  differences: {
-    errors?: {
-      new: unknown[];
-      resolved: unknown[];
-    };
-    issues?: {
-      new: unknown[];
-      resolved: unknown[];
-    };
-    page?: Record<string, unknown>;
-    dom?: Record<string, unknown>;
-    performance?: Record<string, unknown>;
-    network?: Record<string, unknown>;
-    [key: string]: unknown;
-  };
+  added: Array<{ key: string; selector?: string }>;
+  removed: Array<{ key: string; selector?: string }>;
+  layout: Array<{
+    key: string;
+    selector?: string;
+    before: RectCoordinates;
+    after: RectCoordinates;
+  }>;
+  styles: Array<{
+    key: string;
+    selector?: string;
+    changes: Record<string, { before: string | null; after: string | null }>;
+    rendered: { before?: boolean; after?: boolean };
+  }>;
+  newErrors: unknown[];
+  newIssues: unknown[];
+  truncated: boolean;
+  note: string;
 }
 
 export interface FullReport {
@@ -215,36 +238,39 @@ export interface FullReport {
     url: string;
     title: string;
     metrics: {
-      scrollWidth: number;
-      scrollHeight: number;
-      clientWidth: number;
-      clientHeight: number;
+      innerWidth: number;
+      innerHeight: number;
+      documentClientWidth: number | null;
+      documentClientHeight: number | null;
+      documentScrollWidth: number | null;
+      documentScrollHeight: number | null;
       horizontalOverflow: boolean;
       overflowElements: Array<{
         cssPath: string;
-        rect: { x: number; y: number; width: number; height: number };
+        rect: RectCoordinates;
       }>;
     };
     scrollLock: {
-      trapRisk: boolean;
-      overflowY: string;
-      position: string;
-      bodyOverflowY: string;
+      htmlOverflowX: string;
       htmlOverflowY: string;
-      contentHeight: number;
-      viewportHeight: number;
+      bodyOverflowX: string;
+      bodyOverflowY: string;
+      locked: boolean;
+      trapRisk: boolean;
     };
     navigator?: Record<string, unknown>;
     media?: Record<string, unknown>;
   };
   dom: {
-    selector: string;
+    selector: string | null;
     selectorMatched?: boolean;
     stats: {
-      totalNodes: number;
+      nodes: number;
       elementNodes: number;
-      maxDepth: number;
-      textBytes: number;
+      textNodes: number;
+      visibleElements: number;
+      hiddenElements: number;
+      maxDepthReached: number;
     };
     tree: unknown;
     truncated: boolean;
@@ -257,7 +283,7 @@ export interface FullReport {
       text: string;
       id?: string;
       cssPath: string;
-      rect: unknown | null;
+      rect: ElementRect | null;
     }>;
     truncated: boolean;
   };
@@ -277,7 +303,7 @@ export interface FullReport {
     items: unknown[];
     truncated: boolean;
   };
-  frames: Array<{ id: string; url: string; securityOrigin: string }>;
+  frames: Array<{ id: string; url: string | null; securityOrigin: string | null }>;
   network: {
     requests: NetworkEntry[];
     summary: {
@@ -287,8 +313,8 @@ export interface FullReport {
       byType: Record<string, number>;
       truncated: boolean;
     };
-    failures: Array<{ url: string; status: number; errorText?: string }>;
-    slowest: Array<{ url: string; durationMs: number; transferSize: number }>;
+    failures: NetworkEntry[];
+    slowest: Array<NetworkEntry & { durationMs: number }>;
   } | null;
   console: {
     entries: Array<{
@@ -302,15 +328,26 @@ export interface FullReport {
     truncated: boolean;
   } | null;
   errors: {
-    uncaught: Array<{ text: string; stack?: string; url?: string; lineNumber?: number }>;
-    logErrors: Array<{ text: string; url?: string; lineNumber?: number }>;
-    uncaughtCount: number;
-    logErrorCount: number;
+    uncaught: Array<{
+      text: string;
+      stack?: Array<{
+        functionName: string | null;
+        url: string | null;
+        lineNumber: number;
+        columnNumber: number;
+      }>;
+      url?: string | null;
+      lineNumber?: number | null;
+      columnNumber?: number | null;
+    }>;
+    logErrors: Array<{
+      text: string;
+      url?: string | null;
+      lineNumber?: number | null;
+      source?: string | null;
+    }>;
   };
-  dialogs: {
-    count: number;
-    items: Array<{ type: string; message: string; defaultPrompt?: string }>;
-  };
+  dialogs: Array<{ type: string | null; message: string; url?: string | null }>;
   a11y?: unknown;
   performance?: unknown;
   storage?: unknown;
@@ -318,7 +355,8 @@ export interface FullReport {
   cssVars?: {
     count: number;
     vars: Record<string, string>;
-  };
+    truncated?: boolean;
+  } | null;
   screenshots?: unknown;
   issues: IssueItem[];
   warnings: string[];
