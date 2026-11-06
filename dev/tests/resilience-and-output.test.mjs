@@ -594,3 +594,54 @@ test('serializeOutput: preserves closing END_AGENTSEYE_PAGE_CONTENT nonce marker
   assert.ok(out.includes('--- END_AGENTSEYE_PAGE_CONTENT nonce='), 'Must preserve closing boundary');
   assert.ok(out.includes('[truncated: showing 40 of'), 'Must include truncation notice');
 });
+
+test('formatText: formats diff report using selector or key', () => {
+  const diffReport = {
+    before: 'run-1',
+    after: 'run-2',
+    summary: { added: 1, removed: 1, layoutChanged: 1, styleChanged: 1 },
+    added: [{ key: 'button#btn-sub', selector: 'button#btn-sub' }],
+    removed: [{ key: 'a#link-old', selector: 'a#link-old' }],
+    layout: [{ key: 'div#box', selector: 'div#box' }],
+    styles: [{ key: 'span#badge', selector: 'span#badge' }],
+  };
+  const text = formatText(diffReport);
+  assert.match(text, /\+ button#btn-sub/);
+  assert.match(text, /- a#link-old/);
+  assert.match(text, /~ div#box/);
+  assert.match(text, /~ span#badge/);
+});
+
+test('formatText: formats forms and storage focus slices correctly', () => {
+  const formsSlice = {
+    target: { requestedUrl: 'https://example.com' },
+    forms: {
+      count: 2,
+      items: [
+        { tag: 'input', type: 'text', name: 'username', required: true, id: 'user-input' },
+        { tag: 'input', type: 'password', name: 'pwd', required: false, label: 'Password' },
+      ],
+    },
+  };
+  const formsText = formatText(formsSlice);
+  assert.match(formsText, /Control: \[input\] type="text" name="username" id="user-input"/);
+  assert.match(formsText, /Control: \[input\] type="password" name="pwd" label="Password"/);
+
+  const storageSlice = {
+    target: { requestedUrl: 'https://example.com' },
+    storage: {
+      localStorage: {
+        count: 1,
+        entries: [{ key: 'theme', value: 'dark' }],
+      },
+      sessionStorage: {
+        count: 1,
+        entries: [{ key: 'session_token', value: '[REDACTED]' }],
+      },
+    },
+  };
+  const storageText = formatText(storageSlice);
+  assert.match(storageText, /Storage: localStorage=1 sessionStorage=1/);
+  assert.match(storageText, /theme: dark/);
+  assert.match(storageText, /session_token: \[REDACTED\]/);
+});

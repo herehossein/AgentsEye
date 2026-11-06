@@ -1906,26 +1906,22 @@ function formatDiffText(report) {
   }
   if (report.added?.length) {
     push("Added elements:");
-    for (const el of report.added.slice(0, 20))
-      push(`  + ${el.tag || "node"}${el.id ? ` #${el.id}` : ""}`);
+    for (const el of report.added.slice(0, 20)) push(`  + ${el.selector || el.key || "node"}`);
     if (report.added.length > 20) push(`  \u2026 ${report.added.length - 20} more`);
   }
   if (report.removed?.length) {
     push("Removed elements:");
-    for (const el of report.removed.slice(0, 20))
-      push(`  - ${el.tag || "node"}${el.id ? ` #${el.id}` : ""}`);
+    for (const el of report.removed.slice(0, 20)) push(`  - ${el.selector || el.key || "node"}`);
     if (report.removed.length > 20) push(`  \u2026 ${report.removed.length - 20} more`);
   }
   if (report.layout?.length) {
     push("Layout changes:");
-    for (const l of report.layout.slice(0, 20))
-      push(`  ~ ${l.tag || "node"}${l.id ? ` #${l.id}` : ""}`);
+    for (const l of report.layout.slice(0, 20)) push(`  ~ ${l.selector || l.key || "node"}`);
     if (report.layout.length > 20) push(`  \u2026 ${report.layout.length - 20} more`);
   }
   if (report.styles?.length) {
     push("Style changes:");
-    for (const st of report.styles.slice(0, 20))
-      push(`  ~ ${st.tag || "node"}${st.id ? ` #${st.id}` : ""}`);
+    for (const st of report.styles.slice(0, 20)) push(`  ~ ${st.selector || st.key || "node"}`);
     if (report.styles.length > 20) push(`  \u2026 ${report.styles.length - 20} more`);
   }
   if (report.note) push(`Note: ${report.note}`);
@@ -2106,15 +2102,13 @@ function formatFocusSliceText(report, options = {}) {
     const forms = report.forms || {};
     push(`Forms: count=${forms.items?.length ?? forms.count ?? 0}`);
     if (forms.items?.length) {
-      for (const form of forms.items) {
+      for (const item of forms.items) {
+        const nameStr = item.name ? ` name="${item.name}"` : "";
+        const idStr = item.id ? ` id="${item.id}"` : "";
+        const labelStr = item.label ? ` label="${item.label}"` : "";
         push(
-          `  Form: action="${form.action || ""}" method="${form.method || "get"}" inputs=${form.inputs?.length ?? 0}`
+          `  Control: [${item.tag || "input"}] type="${item.type || "text"}"${nameStr}${idStr}${labelStr} required=${item.required ? "yes" : "no"}`
         );
-        for (const input of (form.inputs || []).slice(0, 10)) {
-          push(
-            `    Input: type="${input.type || "text"}" name="${input.name || ""}" required=${input.required ? "yes" : "no"}`
-          );
-        }
       }
     }
     if (forms.controls?.length) {
@@ -2198,6 +2192,25 @@ function formatFocusSliceText(report, options = {}) {
       const name = (item.name || item.accessibleName || "").slice(0, 40);
       push(`  ${ref} ${tagRole} ${name}`);
     }
+  } else if (report.storage !== void 0) {
+    const storage = report.storage || {};
+    const local = storage.localStorage || {};
+    const session = storage.sessionStorage || {};
+    push(
+      `Storage: localStorage=${local.count ?? local.entries?.length ?? 0} sessionStorage=${session.count ?? session.entries?.length ?? 0}`
+    );
+    if (local.entries?.length) {
+      push("  localStorage entries:");
+      for (const entry of local.entries.slice(0, 20)) {
+        push(`    ${entry.key}: ${entry.value ?? ""}`);
+      }
+    }
+    if (session.entries?.length) {
+      push("  sessionStorage entries:");
+      for (const entry of session.entries.slice(0, 20)) {
+        push(`    ${entry.key}: ${entry.value ?? ""}`);
+      }
+    }
   }
   return `${lines.join("\n")}
 `;
@@ -2239,7 +2252,7 @@ function formatText(report, options = {}) {
   if (report.before && report.after && report.summary) return formatDiffText(report);
   if (report.query && "data" in report) return formatQueryText(report);
   if (report.layout?.issueCounts !== void 0) return formatSummaryText(report);
-  if (report.issues !== void 0 && report.shifts !== void 0 && !report.page || report.forms !== void 0 && !report.page || report.dom !== void 0 && !report.page && !report.layout || report.network !== void 0 && !report.page && !report.layout || report.performance !== void 0 && !report.page && !report.layout || report.interactive !== void 0 && !report.page && !report.layout || report.console !== void 0 && report.issues === void 0 && !report.page && !report.layout) {
+  if (report.issues !== void 0 && report.shifts !== void 0 && !report.page || report.forms !== void 0 && !report.page || report.dom !== void 0 && !report.page && !report.layout || report.network !== void 0 && !report.page && !report.layout || report.performance !== void 0 && !report.page && !report.layout || report.interactive !== void 0 && !report.page && !report.layout || report.storage !== void 0 && !report.page && !report.layout || report.console !== void 0 && report.issues === void 0 && !report.page && !report.layout) {
     return formatFocusSliceText(report, options);
   }
   const lines = [];
