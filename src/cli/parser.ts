@@ -541,6 +541,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case 'css-vars':
         options.includeCssVars = true;
         break;
+      case 'no-css-vars':
+        options.includeCssVars = false;
+        break;
       case 'a11y':
         options.a11y = true;
         break;

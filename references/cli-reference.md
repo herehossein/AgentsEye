@@ -103,7 +103,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--no-shadow-dom` | boolean | `false` | Skips traversing open Shadow DOM roots. |
 | `--no-iframes` | boolean | `false` | Skips expanding same-origin iframe document trees. |
 | `--include-templates`| boolean | `false` | Traverses `<template>` fragment contents. |
-| `--css-vars` | boolean | `false` | Collects computed CSS custom properties (`--*`) on the root element. |
+| `--no-css-vars` | boolean | `false` | Disables collection of computed CSS custom properties (`--*`) on the root element (collected by default). |
 | `--interactive-scope`| `<css-selector>` | `null` | Scopes semantic ref allocation (`@e1`..`@eN`) and interactive element discovery to the specified container subtree. |
 | `--a11y` | boolean | `false` | Opt-in extraction of the full Chromium Accessibility (AX) tree. |
 | `--max-a11y-nodes` | `<n>` | `1000` | Cap on accessibility tree nodes returned. |

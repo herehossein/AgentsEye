@@ -326,6 +326,17 @@ test('parseArgs: accepts --depth flag and --no-max-output', () => {
   assert.throws(() => parseArgs(['http://example.com', '--depth', '-1']), /--depth expects an integer/);
 });
 
+test('parseArgs: defaults includeCssVars to true and supports --no-css-vars', () => {
+  const oDefault = parseArgs(['http://example.com']);
+  assert.equal(oDefault.includeCssVars, true);
+
+  const oNoCssVars = parseArgs(['http://example.com', '--no-css-vars']);
+  assert.equal(oNoCssVars.includeCssVars, false);
+
+  const oCssVars = parseArgs(['http://example.com', '--css-vars']);
+  assert.equal(oCssVars.includeCssVars, true);
+});
+
 test('minimalSummary: contains interactive object with total, showing, and ref items', () => {
   const dummyReport = {
     ok: true,

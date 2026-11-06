@@ -66,7 +66,7 @@ DOM / styles:
   --no-shadow-dom               Do not traverse open shadow roots
   --no-iframes                  Do not expand same-origin iframe DOMs
   --include-templates           Traverse <template> contents
-  --css-vars                    Collect CSS custom properties (opt-in)
+  --no-css-vars                 Do not collect CSS custom properties
   --a11y                        Collect the full accessibility tree (opt-in)
   --max-a11y-nodes <n>          Accessibility node cap (default ${DEFAULTS.maxA11y})
 
