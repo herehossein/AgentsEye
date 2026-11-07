@@ -138,9 +138,9 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 | `--compact`, `-c` | boolean | `false` | Prunes empty non-interactive structural wrappers from interactive element tree representation. |
 | `--depth` | `<n>` | `null` (unset) | Integer from `0` to `100` inclusive. Limits compact interactive tree display (`--focus interactive --compact`), not DOM traversal (`--max-depth`) or collected JSON `interactive.items`. |
 | `--delta` | boolean | `false` | Computes and emits an ultra-compact interactive delta between consecutive snapshots (or offline via `diff` / `show`), returning `{ kind: "unchanged" }` when DOM state is unchanged. |
-| `--max-output` | `<n>` | `12000` | Character budget cap for stdout serialization with continuation guidance hint. |
+| `--max-output` | `<n>` | `12000` | Limits the serialized character prefix; continuation hint and boundary framing are extra. Truncated JSON is not parseable; use narrow queries with `--no-max-output` or saved JSON. |
 | `--no-max-output` | boolean | `false` | Disables stdout serialization truncation (default cap: `12000` characters). Does not remove summary sampling or collection limits and does not enable `--full`. |
-| `--content-boundaries` | boolean | `false` | Encapsulates untrusted page content inside CSPRNG nonce boundaries to safeguard against indirect prompt injection. |
+| `--content-boundaries` | boolean | `false` | Adds textual CSPRNG nonce boundaries around untrusted output (not raw JSON). Framing does not make page content trusted. |
 | `--focus` | `<slice>` | `null` | Emits a focused slice directly to stdout. Allowed: `issues`, `forms`, `dom`, `network`, `perf`, `console`, `storage`, `interactive`. |
 | `--console-filter` | `<pattern>` | `null` | Filters console entries by case-insensitive substring or `/regex/flags` pattern (e.g. `'[AGENT_DEBUG_TAG]'` or `/\/api\/error/i`). Works live with `--focus console` and offline via `show`. |
 | `--console-level` | `<levels>` | `all` | Filters console entries by comma-separated levels: `error,warn,info,log,debug,all`. Works live and offline via `show`. |
@@ -163,7 +163,7 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 
 | Flag | Argument | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--storage` | boolean | `false` | Opt-in retention of `localStorage` and `sessionStorage` keys and values (subject to redaction). |
+| `--storage` | boolean | `false` | Opts into `localStorage` and `sessionStorage` values (subject to redaction). Default reports retain keys, counts and lengths with values masked. |
 | `--cookies` | boolean | `false` | Opt-in retention of cookie names and values (subject to redaction). |
 | `--redact` | `sensitive \| all \| none` | `sensitive` | Configures credential and PII sanitization across stdout, reports, and disk artifacts. |
 | `--sanitize-injections` | `neutralize \| warn \| none` | `neutralize` | Indirect Prompt Injection defense mode (`neutralize`: neutralizes LLM control tokens/delimiters and audits injection lures; `warn`: logs findings without neutralizing text; `none`: disables prompt injection sanitization). |

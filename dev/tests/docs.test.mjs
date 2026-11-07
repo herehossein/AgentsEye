@@ -54,9 +54,12 @@ test('every relative link in README.fa.md resolves to an existing file', () => {
   assert.deepEqual(broken, [], `Broken links in README.fa.md: ${JSON.stringify(broken)}`);
 });
 
-test('SKILL.md is <= 16 KB (16384 bytes)', () => {
-  const stat = fs.statSync(path.join(REPO_ROOT, 'SKILL.md'));
-  assert.ok(stat.size <= 16384, `SKILL.md size ${stat.size} exceeds 16384 bytes`);
+test('SKILL.md is <= 16 KB (16384 bytes) with LF and CRLF', () => {
+  const lf = fs.readFileSync(path.join(REPO_ROOT, 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+  for (const [ending, content] of [['LF', lf], ['CRLF', lf.replace(/\n/g, '\r\n')]]) {
+    const size = Buffer.byteLength(content, 'utf8');
+    assert.ok(size <= 16384, `SKILL.md ${ending} size ${size} exceeds 16384 bytes`);
+  }
 });
 
 test('no npx invocations remain in SKILL.md, README.md, README.fa.md, dist/agentsEye.mjs, package.json', () => {
@@ -253,6 +256,44 @@ test('skill preserves bounded evidence, action and verification guidance', () =>
   for (const [, block] of skill.matchAll(/```bash\s+([\s\S]*?)```/g)) {
     assert.doesNotMatch(block, /--(?:click|hover|scroll) @e\d/);
     assert.doesNotMatch(block, /clean --(?:older-than|all)/);
+  }
+});
+
+test('storage entry points distinguish default metadata from opt-in values', () => {
+  for (const [file, prefix] of [
+    ['SKILL.md', '- `storage`:'],
+    ['references/cli-reference.md', '| `--storage`'],
+  ]) {
+    const entry = fs.readFileSync(path.join(REPO_ROOT, file), 'utf8')
+      .split(/\r?\n/).find((line) => line.startsWith(prefix));
+    assert.ok(entry, `${file} must describe storage collection`);
+    const defaults = entry.match(/\bdefault\b[^.\r\n]*/i)?.[0];
+    assert.ok(defaults, `${file} must disclose default storage metadata`);
+    for (const field of ['keys', 'counts', 'lengths']) {
+      assert.match(defaults, new RegExp(`\\b${field}\\b`, 'i'), `${file} must disclose default ${field}`);
+    }
+    assert.match(defaults, /values[^.]*mask|mask[^.]*values/i, `${file} must distinguish masked values from empty storage`);
+    assert.match(entry, /(?:opts? into|opt-in)[^.]*values[^.]*redact/i, `${file} must explain opt-in values remain subject to redaction`);
+  }
+});
+
+test('output entry points explain preview caps and JSON recovery', () => {
+  const help = spawnSync(process.execPath, [path.join(REPO_ROOT, 'dist/agentsEye.mjs'), '--help'], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  });
+  assert.equal(help.status, 0, help.stderr);
+  for (const [name, content] of [
+    ['SKILL.md', fs.readFileSync(path.join(REPO_ROOT, 'SKILL.md'), 'utf8')],
+    ['CLI reference', fs.readFileSync(path.join(REPO_ROOT, 'references/cli-reference.md'), 'utf8')],
+    ['CLI --help', help.stdout],
+  ]) {
+    assert.match(content, /--max-output[^\r\n]*prefix/i, `${name} must identify the capped prefix`);
+    assert.match(content, /hint[^\r\n]*framing[^\r\n]*extra/i, `${name} must disclose output overhead`);
+    assert.match(content, /truncated JSON[^\r\n]*not parseable/i, `${name} must warn before parsing previews`);
+    assert.match(content, /(?:boundaries|framing)[^\r\n]*not raw JSON/i, `${name} must distinguish textual framing`);
+    assert.ok(content.includes('--no-max-output'), `${name} must explain uncapped query recovery`);
+    assert.match(content, /saved JSON/i, `${name} must offer saved JSON as a recovery`);
   }
 });
 

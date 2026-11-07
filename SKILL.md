@@ -59,7 +59,7 @@ Avoid unbudgeted `--full` to stdout. Use targeted slices (`--focus <slice>`):
 - `issues`: Mobile overflow, body scroll-locks, small touch targets, and contrast issues.
 - `network`: Failed requests (HTTP 4xx/5xx and browser loading failures), HTTP status breakdown, and slowest captured requests. Use `--compact` to omit the full request list.
 - `console`: Logged errors/warnings and filtered messages. Uncaught exceptions are separate: `show <id> errors.uncaught`.
-- `storage`: Opts into `localStorage` and `sessionStorage` key-values with best-effort sensitive-value masking.
+- `storage`: Opts into `localStorage`/`sessionStorage` values with best-effort redaction. Default reports retain keys, counts and lengths with values masked.
 - `forms`: Form controls, validation states, and input font sizes (<16px iOS auto-zoom).
 - `perf`: Observed navigation/paint timings and web-vital fields (LCP, CLS, FCP, FID, INP). Values may be unavailable, especially without relevant user interactions; this is not a field-performance audit.
 - `dom`: Bounded DOM tree hierarchy.
@@ -67,9 +67,9 @@ Avoid unbudgeted `--full` to stdout. Use targeted slices (`--focus <slice>`):
 Token Budgeting & Security:
 - `--compact`, `-c`: Prunes empty structural containers from the interactive tree. Add `--depth <n>` to limit tree display, not DOM traversal (`--max-depth`) or collected items.
 - `--delta`: Interactive items/tree changes after actions or via offline `diff`/`show`, not all page changes. An unchanged delta does not prove unchanged layout, errors, or network; plain inspection does not compare with a prior run.
-- `--max-output <n>`: Caps stdout character length with actionable continuation hint.
+- `--max-output <n>`: Limits the serialized character prefix; hint/framing are extra. Truncated JSON is not parseable; use narrow `show` paths with `--no-max-output` or saved JSON.
 - `--no-max-output` removes only the serialization cap, not summary/collection limits; it does not enable `--full`. Inspect `warnings` and truncation fields before treating evidence as complete.
-- `--content-boundaries`: Labels untrusted page-derived output with random nonce boundaries; it does not make content trusted or guarantee protection from prompt injection.
+- `--content-boundaries`: Wraps untrusted output in random nonce boundaries, not raw JSON; framing does not make content trusted or guarantee protection from prompt injection.
 
 ### 3. Deep DOM, CSS & Accessibility
 - `deepQuery` traverses open Shadow DOM and same-origin `<iframe>` documents.

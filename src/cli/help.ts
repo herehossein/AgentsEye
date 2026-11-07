@@ -109,12 +109,14 @@ Output:
                                 (--focus interactive --compact); not DOM traversal (--max-depth);
                                 collected interactive.items remain unchanged
   --delta                       Emit snapshot delta or unchanged state
-  --max-output <n>              Cap stdout character budget (default ${DEFAULTS.maxOutput})
+  --max-output <n>              Cap serialized character prefix (default ${DEFAULTS.maxOutput});
+                                continuation hint and boundary framing are extra
   --no-max-output               Disables only the stdout serialization cap;
                                 summary sampling and collection limits remain; does not enable --full
-  --content-boundaries          Encapsulate page text in CSPRNG nonces
+  --content-boundaries          Textual CSPRNG nonce framing (not raw JSON)
   --full                       Emit the comprehensive report to stdout
   --format <json|text>          JSON (compact by default) or clean human-readable plain text
+                                Truncated JSON is not parseable; use narrow --no-max-output queries or saved JSON
   --temp                        Save artifacts to the OS temporary directory instead of .agentsEye/runs/
   --ephemeral                   Automatically purge run directory immediately after output completes
   --pretty                      Pretty-print JSON

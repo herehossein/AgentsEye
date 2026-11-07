@@ -282,8 +282,8 @@ export function formatFocusSliceText(report: any, options: any = {}): string {
       push('DOM Outline:');
       const walk = (node: any, depth = 0) => {
         if (!node || depth > 4) return;
-        const tag = node.tag || node.type || 'node';
-        const id = node.id ? `#${node.id}` : '';
+        const tag = node.node || node.tag || node.type || 'node';
+        const id = !node.node && node.id ? `#${node.id}` : '';
         push(`${'  '.repeat(depth)}${tag}${id}`);
         for (const child of (node.children || []).slice(0, 8)) walk(child, depth + 1);
       };
