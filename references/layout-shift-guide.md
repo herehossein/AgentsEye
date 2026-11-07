@@ -15,7 +15,7 @@ Modern web applications frequently include rich animations and dynamic motion. A
 ## Decision Rules for CLS & Motion
 
 1. **Never Remove or Mutilate Intentional UI Motion**:
-   - If an element has classes like `marquee`, `slider`, `carousel`, `ticker`, `animate-*`, `transition-*`, or `motion-*`, continuous or triggered motion is a deliberate design choice.
+   - Classes like `marquee`, `slider`, `carousel`, `ticker`, `animate-*`, `transition-*`, or `motion-*` are clues, not proof of intentional motion. Confirm the intended behavior from trusted source/design requirements and observed behavior.
    - Do not delete animations, disable marquees, or strip interactive transitions solely to lower a CLS score.
 
 2. **When to Fix Layout Shifts (Real Bugs)**:

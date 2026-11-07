@@ -8,12 +8,13 @@ Inject lightweight, uniquely prefixed logs directly into suspected code paths (e
 
 ```javascript
 // Example in user source code:
-console.log('[AGENT_DEBUG_TAG]', { stage: 'mount', activeTab, count });
-console.log('[AGENT_DEBUG_TAG]', { event: 'modal_toggle', isOpen, payload });
+console.log('[AGENT_DEBUG_TAG:menu-fix]', { stage: 'mount' });
+console.log('[AGENT_DEBUG_TAG:menu-fix]', { event: 'modal_toggle', isOpen });
 ```
 
-- Always use the exact tag prefix `[AGENT_DEBUG_TAG]` (or `[AGENT_DEBUG_TAG:<subsystem>]`).
+- Choose an unused task-specific tag such as `[AGENT_DEBUG_TAG:menu-fix]`; use the same tag for capture and cleanup. The tag is a convention, not a required CLI token.
 - Keep arguments serializable (numbers, strings, plain objects). Avoid circular structures or heavy DOM elements.
+- Never log credentials, cookies, tokens, or user records; redaction is not a guarantee.
 
 ## Phase 2: Targeted Inspection with agentsEye
 
@@ -21,13 +22,13 @@ Run agentsEye targeting your local dev server, filtering stdout to only your tag
 
 ```bash
 # Direct run with console filter
-node agentsEye.mjs http://localhost:3000 --temp --focus console --console-filter '[AGENT_DEBUG_TAG]'
+node agentsEye.mjs http://localhost:3000 --temp --focus console --console-filter '[AGENT_DEBUG_TAG:menu-fix]'
 
 # Or capture logs after an interactive click/action (e.g. accordion, tab, or modal toggle):
-node agentsEye.mjs http://localhost:3000 --temp --click "#toggle-btn" --focus console --console-filter '[AGENT_DEBUG_TAG]'
+node agentsEye.mjs http://localhost:3000 --temp --click "#toggle-btn" --focus console --console-filter '[AGENT_DEBUG_TAG:menu-fix]'
 
 # Or query a previous run offline:
-node agentsEye.mjs show <run-id> console --console-filter '[AGENT_DEBUG_TAG]'
+node agentsEye.mjs show <run-id> console --console-filter '[AGENT_DEBUG_TAG:menu-fix]'
 ```
 
 > [!NOTE]
@@ -40,12 +41,10 @@ Using `--console-filter` cuts through noisy framework output and third-party scr
 After diagnosing and applying the code fix, you must safely remove only the injected logs:
 
 1. **Never** run broad search-and-replace patterns like `console.log` or wipe existing application logs. Real apps rely on legitimate logging (`console.warn`, error monitors, dev telemetry).
-2. Search strictly for the unique tag:
-   ```bash
-   Select-String -Path src -Pattern '\[AGENT_DEBUG_TAG'
-   ```
-3. Surgically delete only the injected lines containing `[AGENT_DEBUG_TAG]`.
+2. Search source files recursively with your editor/search tool for the exact task-specific tag.
+3. Delete only logs you added for this task; matching a shared tag alone does not authorize deleting existing logs.
 4. Review file diffs to verify that:
    - All injected debug statements are completely gone.
    - Existing user/application logs remain untouched.
-   - No syntax errors, stray commas, or broken code blocks were left behind.
+    - No syntax errors, stray commas, or broken code blocks were left behind.
+5. Rerun the same scenario without instrumentation and verify that the original defect remains fixed.

@@ -1,6 +1,6 @@
 # Semantic Ref Locators Guide (`@e1`, `@e2`, ...)
 
-`agentsEye` provides a deterministic semantic ref locator system (`@e1`, `@e2`, ...) designed for AI coding assistants and developers. While raw CSS selectors are brittle and break easily on modern component libraries, Tailwind CSS, or CSS Modules, semantic refs assign stable, 1-based sequential tokens to all actionable DOM elements.
+`agentsEye` assigns snapshot-specific, 1-based refs (`@e1`, `@e2`, ...) to discovered interactive elements, associated with their names and roles. This reduces selector guesswork, but refs are not persistent identifiers or proof that a control can be clicked.
 
 ---
 
@@ -13,19 +13,21 @@ Modern web applications present significant challenges for automated browser int
 
 Semantic refs solve this by:
 1. Scanning actionable elements during DOM inspection.
-2. Allocating stable, 1-based numerical ref tokens (`@e1`, `@e2`, ..., `@eN`).
+2. Allocating snapshot-specific numerical ref tokens (`@e1`, `@e2`, ..., `@eN`).
 3. Associating each ref with its accessible name, tag, ARIA role, and bounding box.
-4. Allowing agents to interact with zero selector guesswork via `--click @e1`, `--hover @e2`, or `--scroll @e3`.
+4. Letting agents select targets from the catalog via `--click e1`, `--hover e2`, or `--scroll e3`.
 
 ---
 
-## 2. 1-to-N Universal Indexing
+## 2. Bounded Snapshot Indexing
 
-Unlike tools that artificially truncate element discovery, `agentsEye` indexes **every** actionable element on the page into an internal registry:
+Discovery is bounded by traversal and collection limits. Inspect truncation indicators before treating the catalog as complete:
 - **Sequential Assignment**: Elements receive refs from `@e1` through `@eN` in document order, traversing open Shadow DOM roots and main document flow.
 - **Actionable Criteria**: Elements are indexed if they match interactive tags (`button`, `a`, `input`, `select`, `textarea`, `summary`), interactive ARIA roles (`button`, `link`, `tab`, `menuitem`, `checkbox`, `radio`, `switch`), or have CSS `cursor: pointer`.
 - **Physical Visibility**: Only rendered elements with non-zero dimensions (`width > 0 && height > 0`) and visible styles (`visibility !== 'hidden'`) receive refs.
-- **Actionability**: Every allocated ref (e.g. `@e42`) remains immediately actionable via CLI interaction flags, even if it falls beyond the compact summary preview.
+- **Actionability**: Indexed controls can still fail safety/hit-test gates or become stale. A skipped action is not a passed test; a performed action still requires checking its expected result.
+
+Each run opens a fresh tab and reallocates refs. Match scope, viewport, and pre-action state when using a previous catalog; replay prerequisites. Refs are not rediscovered between actions in a chain, so use CSS selectors for controls revealed later.
 
 ---
 
@@ -47,18 +49,18 @@ When scoped, elements outside the specified container are excluded from ref allo
 
 ## 4. CLI Interaction Commands
 
-Semantic refs can be passed anywhere a CSS selector is accepted:
+Refs are accepted by `--click`, `--hover`, and `--scroll`, not by DOM selectors such as `--selector` or `--wait-for`. In PowerShell use bare `e1` or quote `'@e1'`; unquoted `@e1` is splatting. Replace example IDs with targets from your catalog.
 
 ### Click via Ref
 ```bash
 # Click an actionable button or tab by ref
-node agentsEye.mjs http://localhost:3000 --click @e1 --temp
+node agentsEye.mjs http://localhost:3000 --click e1 --temp
 ```
 
 ### Hover via Ref
 ```bash
 # Hover over a navigation dropdown or tooltip trigger
-node agentsEye.mjs http://localhost:3000 --hover @e2 --temp
+node agentsEye.mjs http://localhost:3000 --hover e2 --temp
 ```
 
 ### Element-Centric Scrolling
@@ -68,17 +70,17 @@ node agentsEye.mjs http://localhost:3000 --hover @e2 --temp
 
 ```bash
 # Scroll element @e5 into viewport center
-node agentsEye.mjs http://localhost:3000 --scroll @e5 --temp
+node agentsEye.mjs http://localhost:3000 --scroll e5 --temp
 ```
 
 ### Chained Action Sequences
 You can chain multiple ref and keyboard interactions sequentially (up to 50 actions):
 ```bash
 node agentsEye.mjs http://localhost:3000 \
-  --click @e1 \
+  --click e1 \
   --key Tab \
-  --hover @e3 \
-  --scroll @e7 \
+  --hover e3 \
+  --scroll e7 \
   --temp
 ```
 
@@ -121,7 +123,7 @@ Default CLI runs emit a compact summary with metadata and the top visible intera
 ```
 
 ### 2. Deep Slice (`--focus interactive`)
-To inspect the complete catalog of all interactive elements across the page:
+To inspect the collected catalog (subject to collection and output limits):
 ```bash
 node agentsEye.mjs http://localhost:3000 --focus interactive --temp
 ```
@@ -140,11 +142,13 @@ node agentsEye.mjs show <run-id> interactive.items[15]
 For ultra-dense token consumption during interactive loops:
 ```bash
 # Format interactive elements as compact indented text (pruning non-interactive wrappers)
-node agentsEye.mjs http://localhost:3000 --focus interactive --compact --temp
+node agentsEye.mjs http://localhost:3000 --focus interactive --compact --format text --temp
 
 # Execute interaction and receive only the delta changes (or { kind: "unchanged" })
-node agentsEye.mjs http://localhost:3000 --click @e1 --delta --temp
+node agentsEye.mjs http://localhost:3000 --click e1 --delta --temp
 ```
+
+This delta compares interactive items/tree, not all layout, errors, network, or page content. An unchanged delta is not a passed regression check.
 
 ---
 
@@ -168,7 +172,7 @@ Interactive elements whose normalized labels or related attributes match the key
 
 This is a text heuristic, not a guarantee about an action's effects. Standalone `cancel`, `terminate`, and `انصراف` do not match the keyword gate; structural safeguards still apply.
 
-### Safe Dev Server Override (`--allow-destructive`)
+### Controlled Test Override (`--allow-destructive`)
 On controlled development servers, pass `--allow-destructive` to relax keyword filtering for labels like "Save" or "Submit". Even with this flag enabled, **hard structural blocks (navigation links and form submit buttons) remain permanently enforced**.
 
 ### Diagnosing Skipped Actions
@@ -190,4 +194,4 @@ Common skip reasons:
 Temporary DOM markers and in-memory structures used during ref inspection adhere to strict hygiene rules:
 - **No Residual DOM Attributes**: The probe tags matched elements with `data-agentseye-ref="eN"` during interaction phases. Upon session completion, interaction end, or navigation, a cleanup routine strips all `data-agentseye-ref` attributes from the DOM.
 - **Memory Cleanup**: The in-page registry stored on `globalThis.__agentsEyeRefsV1` is cleared when inspection finishes.
-- **Telemetry Cleanup**: Passing `--ephemeral` unlinks all telemetry on exit. Passing `--temp` writes runs to OS temporary storage.
+- **Telemetry Cleanup**: `--ephemeral` writes files first, then attempts to delete the run directory on exit; explicit exports remain and cleanup may fail. `--temp` keeps runs in OS temporary storage for follow-up queries. Clean only this task's run IDs.

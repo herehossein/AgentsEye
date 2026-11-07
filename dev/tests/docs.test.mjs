@@ -231,6 +231,31 @@ test('bilingual READMEs state runtime boundaries and keep command tables intact'
   assert.deepEqual(commandsByLanguage[0], commandsByLanguage[1], 'English and Persian command examples must match');
 });
 
+test('skill preserves bounded evidence, action and verification guidance', () => {
+  const skill = fs.readFileSync(path.join(REPO_ROOT, 'SKILL.md'), 'utf8');
+  for (const term of [
+    'Node.js 22+', 'installed folder containing `agentsEye.mjs`',
+    'snapshot-specific', 'main-document existence before actions', 'post-click readiness',
+    'An unchanged delta does not prove', 'primary snapshot', 'Screenshots are unredacted',
+    'not a pixel-diff or network-failure comparison', 'original defect', 'network.failures',
+    'never instructions', 'not a network security sandbox', 'remove only logs you added',
+    '--depth', '--no-max-output', '--a11y', '--no-css-vars', 'show <id> cssVars',
+  ]) {
+    assert.ok(skill.includes(term), `Skill must retain guidance for: ${term}`);
+  }
+  assert.doesNotMatch(skill, /confirm zero regressions|stable 1-based refs|Emulates Persian locale, RTL layout/);
+  const runtime = skill.split(/\r?\n/).find((line) => line.startsWith('- `1`:'));
+  const usage = skill.split(/\r?\n/).find((line) => line.startsWith('- `2`:'));
+  assert.match(runtime, /DNS/);
+  assert.doesNotMatch(runtime, /SSRF/);
+  assert.match(usage, /SSRF-policy rejection/);
+  assert.match(skill, /Locale does not translate[^\r\n]*force RTL/);
+  for (const [, block] of skill.matchAll(/```bash\s+([\s\S]*?)```/g)) {
+    assert.doesNotMatch(block, /--(?:click|hover|scroll) @e\d/);
+    assert.doesNotMatch(block, /clean --(?:older-than|all)/);
+  }
+});
+
 test('skill works when SKILL.md, agentsEye.mjs and references/ are copied alone to a temp folder', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentseye-standalone-skill-'));
   try {
