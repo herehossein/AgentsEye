@@ -198,7 +198,7 @@ IDs such as `e1` come from the latest list of controls. Use the same scope when 
 | **List Controls** | `node agentsEye.mjs <url> --focus interactive --compact --temp` | Lists controls, their names, input types, and positions, within the collection limits. |
 | **Run Actions in Order** | `node agentsEye.mjs <url> --click "#menu" --key Escape --scroll 0,500 --temp` | Runs up to 50 click, hover, scroll, and keyboard actions in order. |
 | **Try Expandable Controls** | `node agentsEye.mjs <url> --explore --temp` | Tries supported menus, tabs, and expandable sections—not every button or a full user workflow. |
-| **Wait for an Element** | `node agentsEye.mjs <url> --wait-for "#results" --temp` | Waits for a matching element to exist. It may still be hidden; a timeout produces a warning. |
+| **Wait for Initial Content** | `node agentsEye.mjs <url> --wait-for "#results" --temp` | Waits before actions for a matching element to exist in the main document. It may still be hidden; a timeout produces a warning. |
 | **Dark Mode & Contrast** | `node agentsEye.mjs <url> --color-scheme dark --focus issues --temp` | Tests a dark-mode preference and flags possible text-contrast issues on solid backgrounds. |
 | **Locale & Time Zone** | `node agentsEye.mjs <url> --locale fa-IR --timezone Asia/Tehran --temp` | Changes locale-based formatting and the time zone, not the app's language or right-to-left layout. |
 | **Use a Running Browser** | `node agentsEye.mjs <url> --cdp http://127.0.0.1:9222 --temp` | Uses a running browser but opens a new private session. It does not reuse your signed-in tabs. |
@@ -208,6 +208,16 @@ IDs such as `e1` come from the latest list of controls. Use the same scope when 
 | **Compare Before and After** | `node agentsEye.mjs diff <before-id> <after-id>` | Shows changes in page structure and styles, plus new errors and issues. Recheck the original bug and network requests separately. |
 | **Inspect Browser Storage** | `node agentsEye.mjs <url> --focus storage --temp` | Includes browser-stored values. Recognized secrets are masked, but review the report before sharing it. |
 | **One-Time Check** | `node agentsEye.mjs <url> --ephemeral --summary-only` | Attempts to delete the saved inspection after output. Use only when you do not need later `show` or `diff`. |
+
+For content loaded by a click, choose a selector that matches only when the result is ready:
+
+```bash
+node agentsEye.mjs <url> --click "#load-results" --wait-after "#results[data-ready]" --temp
+```
+
+`--wait-after` checks main-document selector existence once after the entire action sequence, only if an explicit action and the final action were performed without a safety stop. It does not check visibility, shadow DOM, or iframe content. A pre-existing container can match too soon.
+
+Read-only and exploration-only runs do not wait. `--timeout` limits the wait; a timeout warns and inspection continues without retrying inputs. Document/URL changes stop the wait. See the [interaction guide](references/interactive-refs-guide.md#post-action-readiness) for the full behavior.
 
 For multiple screen sizes, `--matrix` stores separate snapshots in `matrix.snapshots`. A normal `diff` compares only the primary snapshot, so review the other sizes separately.
 

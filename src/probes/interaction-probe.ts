@@ -50,6 +50,12 @@ export function inPageInteractionProbe(command, safety) {
     state.href = location.href;
     state.navigation += 1;
   }
+  const context = {
+    documentToken: state.token,
+    navigationToken: state.navigation,
+    url: `${location.origin}${location.pathname}`,
+  };
+  if (command.op === 'context') return context;
   const roots = [document];
   // Deliberately exclude iframe contents: CDP mouse coordinates are main-frame
   // coordinates and cross-origin frames cannot be conservatively inspected here.
@@ -207,11 +213,6 @@ export function inPageInteractionProbe(command, safety) {
   const publicTarget = (info) => {
     const { safetyText: _safetyText, ...safe } = info;
     return safe;
-  };
-  const context = {
-    documentToken: state.token,
-    navigationToken: state.navigation,
-    url: `${location.origin}${location.pathname}`,
   };
   if (command.op === 'snapshot') {
     const nodes = elements.slice(0, 500).map((el) => {

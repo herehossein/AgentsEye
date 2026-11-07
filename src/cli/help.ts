@@ -49,8 +49,13 @@ Viewport / emulation:
   --header "Name: Value"        Extra request header (repeatable; exact-origin scoped)
 
 Loading / waiting:
-  --timeout <ms>                Navigation and probe timeout (default ${DEFAULTS.timeoutMs})
-  --wait-for <css-selector>     Wait until the selector exists
+  --timeout <ms>                Navigation/probe timeout and selector-wait budget (default ${DEFAULTS.timeoutMs})
+  --wait-for <css-selector>     Main-document selector existence before actions
+  --wait-after <css-selector>   Wait once after actions for main-document selector existence;
+                                requires performed explicit input and a performed final action;
+                                ignored for read-only/explore-only, skipped/failed endings or safety stops;
+                                timeout warns and continues; document/URL changes stop waiting;
+                                no visibility, shadow/frame or semantic-ref matching
   --wait-ms <ms>                Extra settle time after load (default ${DEFAULTS.waitMs})
   --idle-ms <ms>                Network-idle window (default ${DEFAULTS.idleMs})
   --no-network-idle             Skip the network-idle wait

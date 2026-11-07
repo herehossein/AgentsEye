@@ -528,20 +528,27 @@ export async function waitForSelector(
   cdp: CdpClient,
   selector: string | undefined,
   options: { timeoutMs: number },
+  checkCurrent?: (timeoutMs: number) => Promise<void>,
 ): Promise<boolean> {
   if (!selector) return true;
   const deadline = Date.now() + options.timeoutMs;
   const expression = `Boolean(document.querySelector(${JSON.stringify(selector)}))`;
+  const remaining = () => Math.max(1, Math.min(5_000, deadline - Date.now()));
   while (Date.now() < deadline) {
+    await checkCurrent?.(remaining());
     try {
       const found = await evaluate(cdp, expression, options, {
-        timeoutMs: Math.min(5_000, options.timeoutMs),
+        timeoutMs: remaining(),
       });
-      if (found) return true;
-    } catch {
+      if (found) {
+        await checkCurrent?.(remaining());
+        return true;
+      }
+    } catch (error) {
+      if (checkCurrent) throw error;
       // The execution context may be replaced during a navigation; retry.
     }
-    await sleep(100);
+    await sleep(Math.min(100, Math.max(0, deadline - Date.now())));
   }
   return false;
 }

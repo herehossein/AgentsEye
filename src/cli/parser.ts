@@ -167,6 +167,7 @@ export interface ParsedArgs {
   headers: Array<{ name: string; value: string }>;
   timeoutMs: number;
   waitFor: string | null;
+  waitAfter: string | null;
   waitMs: number;
   idleMs: number;
   networkIdle: boolean;
@@ -254,6 +255,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     headers: [],
     timeoutMs: DEFAULTS.timeoutMs,
     waitFor: null,
+    waitAfter: null,
     waitMs: DEFAULTS.waitMs,
     idleMs: DEFAULTS.idleMs,
     networkIdle: true,
@@ -492,6 +494,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
       case 'wait-for':
         options.waitFor = take();
         break;
+      case 'wait-after': {
+        const selector = take().trim();
+        if (!selector || selector.startsWith('--') || ['-h', '-V', '-c'].includes(selector))
+          throw new UsageError('--wait-after expects a non-empty CSS selector, not a flag');
+        options.waitAfter = selector;
+        break;
+      }
       case 'wait-ms':
         options.waitMs = parseInteger(take(), '--wait-ms', { min: 0, max: 120_000 });
         break;

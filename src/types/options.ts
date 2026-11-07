@@ -41,6 +41,7 @@ export interface InspectorOptions {
   idleMs: number;
   networkIdle: boolean;
   waitForSelector?: string;
+  waitAfter?: string | null;
   colorScheme?: 'light' | 'dark';
   reducedMotion?: 'reduce' | 'no-preference';
   timezone?: string;

@@ -103,7 +103,7 @@ Token Budgeting & Security:
   ```
 
 ### 7. Waits, Emulation & Screenshots
-- `--wait-for "<css-selector>"` checks main-document existence before actions, not visibility, shadow/frame content, or post-click readiness. Timeout warns and continues. Initial `--wait-ms`/network-idle settings do not await click-triggered async completion; inspect actual post-action state. Use `--no-network-idle` for long-polling (WebSockets/SSE excluded).
+- `--wait-for "<css>"` checks main-document existence before actions; `--wait-after "<css>"` checks post-click readiness once after performed actions (explicit input required). Neither checks visibility/shadow/frame content. Timeout warns and continues. Use `--no-network-idle` for long-polling (WebSockets/SSE excluded).
 - **Offline Regex Console Filtering**: Filter captured console messages using substrings or `/pattern/flags` regex:
   ```bash
   node agentsEye.mjs show <run-id> console --console-filter "/\[AUTH\]|hydration/i" --console-level error,warn
@@ -149,7 +149,7 @@ The autonomous verification loop:
 
 - Wrong UI state: reproduce with `--click`, `--hover`, `--scroll`, or `--key`; inspect action results and `--delta`.
 - Wrong CSS/visibility: scope with `--selector` and explicit `--style-props`.
-- Missing async content: use an app-specific `--wait-for "#results"` and appropriate wait settings.
+- Missing async content: `--wait-for "#results"` for initial load; `--wait-after "#results[data-ready]"` after clicks. Match only when ready.
 - Environment-dependent bug: match the failing viewport/theme/locale; expand to `--matrix` only when needed.
 - No root cause in static evidence: use tagged logs. After a fix, follow the matched before/after loop, not another unrelated snapshot.
 

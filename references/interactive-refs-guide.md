@@ -49,7 +49,7 @@ When scoped, elements outside the specified container are excluded from ref allo
 
 ## 4. CLI Interaction Commands
 
-Refs are accepted by `--click`, `--hover`, and `--scroll`, not by DOM selectors such as `--selector` or `--wait-for`. In PowerShell use bare `e1` or quote `'@e1'`; unquoted `@e1` is splatting. Replace example IDs with targets from your catalog.
+Refs are accepted by `--click`, `--hover`, and `--scroll`, not by DOM selectors such as `--selector`, `--wait-for` or `--wait-after`. In PowerShell use bare `e1` or quote `'@e1'`; unquoted `@e1` is splatting. Replace example IDs with targets from your catalog.
 
 ### Click via Ref
 ```bash
@@ -83,6 +83,23 @@ node agentsEye.mjs http://localhost:3000 \
   --scroll e7 \
   --temp
 ```
+
+### Post-action readiness
+
+For click-triggered async results, choose an app-specific CSS selector that matches **only when the result is ready**, not merely a container that already exists:
+
+```bash
+node agentsEye.mjs http://localhost:3000 --click "#load" \
+  --wait-after "#results[data-ready]" --timeout 10000 --temp
+```
+
+`--wait-for` checks main-document existence before actions; `--wait-after` checks it once after the entire action/exploration sequence, regardless of the flag's position. It does not wait between actions. Both check existence only, not visibility, shadow DOM, iframe content or semantic refs. `--interactive-scope` limits collected refs, not the wait selector.
+
+The post-action wait requires at least one performed explicit action and a performed final action. Read-only and exploration-only runs do not wait. A skipped/failed final action or an existing navigation/document/uncertain-input stop skips the wait; a document or URL change during polling stops it. Waiting never retries clicks or relaxes safety gates.
+
+Timeout uses `--timeout`, warns and continues inspection; invalid CSS or a context/CDP error also warns and stops the wait, not the inspection. `status: 'performed'` still means the input was performed, **not** that async work completed. Check `show <run-id> warnings` and the expected result; exit `0` is not proof of readiness. A pre-existing match returns immediately.
+
+After a wait attempt, the final action's `after` snapshot/diff and aggregate `afterSnapshot`/diff are refreshed before the final DOM probe. Earlier action snapshots retain their immediate post-action state. Saved `show`/`diff` and interactive `--delta` therefore use the settled final state, subject to existing collection limits; a timeout still reports the state actually observed.
 
 ---
 

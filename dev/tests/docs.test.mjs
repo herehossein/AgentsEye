@@ -259,6 +259,46 @@ test('skill preserves bounded evidence, action and verification guidance', () =>
   }
 });
 
+test('wait entry points distinguish initial loading from guarded post-action readiness', () => {
+  const help = spawnSync(process.execPath, [path.join(REPO_ROOT, 'dist/agentsEye.mjs'), '--help'], { encoding: 'utf8' });
+  assert.equal(help.status, 0, help.stderr);
+  const cli = fs.readFileSync(path.join(REPO_ROOT, 'references/cli-reference.md'), 'utf8');
+  const skill = fs.readFileSync(path.join(REPO_ROOT, 'SKILL.md'), 'utf8');
+  const guide = fs.readFileSync(path.join(REPO_ROOT, 'references/interactive-refs-guide.md'), 'utf8');
+  for (const [name, content] of [['CLI help', help.stdout], ['CLI reference', cli], ['SKILL.md', skill], ['Interaction guide', guide]]) {
+    assert.ok(content.includes('--wait-after'), `${name} must document post-action waiting`);
+    assert.ok(content.includes('--wait-for'), `${name} must retain the initial-loading wait`);
+    assert.match(content, /main-document.*existence|existence.*main-document/i);
+    assert.match(content, /timeout.*warn.*continue/i);
+  }
+  assert.match(help.stdout, /--wait-for[^\r\n]*before actions/);
+  const row = cli.split(/\r?\n/).find(line => line.startsWith('| `--wait-after`'));
+  assert.match(row, /once.*performed explicit.*performed final/i);
+  assert.match(row, /--timeout.*warn.*continue/i);
+  assert.match(row, /document.*URL.*stop/i);
+  assert.match(guide, /read-only.*exploration-only.*do not wait/i);
+  assert.ok(guide.includes('#results[data-ready]'), 'The recipe must wait for readiness, not a pre-existing container');
+  const recipe = skill.split(/\r?\n/).find(line => line.startsWith('- Missing async content:'));
+  assert.match(recipe, /--wait-for.*initial load/);
+  assert.match(recipe, /--wait-after.*after clicks/);
+  for (const readme of ['README.md', 'README.fa.md']) {
+    const content = fs.readFileSync(path.join(REPO_ROOT, readme), 'utf8');
+    const advanced = content.match(/<details>\s*<summary><strong>(?:More Commands|دستورهای بیشتر)[\s\S]*?<\/details>/)?.[0];
+    assert.ok(advanced, `${readme} must keep waiting recipes in advanced guidance`);
+    assert.ok(
+      advanced.includes('node agentsEye.mjs <url> --click "#load-results" --wait-after "#results[data-ready]" --temp'),
+      `${readme} must show a post-click readiness selector, not a pre-existing container`,
+    );
+    const initial = advanced.split(/\r?\n/).find(line => line.includes('--wait-for "#results"'));
+    assert.match(initial, /before actions|پیش از تعامل‌ها/, `${readme} must distinguish initial waiting`);
+    assert.match(advanced, /--wait-after[^\r\n]*once|--wait-after[^\r\n]*یک‌بار/);
+    assert.match(advanced, /main-document selector existence|وجود عنصر در سند اصلی/);
+    assert.match(advanced, /--timeout[^\r\n]*timeout.*warn.*continues|--timeout[^\r\n]*پایان.*هشدار.*ادامه/);
+    assert.match(advanced, /Read-only.*exploration-only.*do not wait|فقط‌خواندنی.*فقط.*--explore.*انتظار نمی‌مانند/);
+    assert.match(advanced, /Document\/URL changes stop the wait|تغییر سند یا URL انتظار را متوقف می‌کند/);
+  }
+});
+
 test('storage entry points distinguish default metadata from opt-in values', () => {
   for (const [file, prefix] of [
     ['SKILL.md', '- `storage`:'],

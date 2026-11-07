@@ -83,8 +83,9 @@ node agentsEye.mjs --diff <before-run-id> <after-run-id>
 
 | Flag | Argument | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--timeout` | `<ms>` | `30000` | Maximum navigation and total operation timeout in milliseconds. |
-| `--wait-for` | `<css-selector>` | `null` | Delays DOM probe execution until the specified CSS selector matches in the DOM tree. |
+| `--timeout` | `<ms>` | `30000` | Navigation/probe timeout and the budget for each selector wait, not a whole-run deadline. |
+| `--wait-for` | `<css-selector>` | `null` | Checks main-document selector existence before actions, not visibility or shadow/iframe content. Timeout warns and continues inspection. |
+| `--wait-after` | `<css-selector>` | `null` | Waits once after the action/exploration sequence for main-document selector existence. Requires a performed explicit action and a performed final action; read-only/exploration-only runs, skipped/failed endings and safety stops do not wait. Uses `--timeout`; timeout or selector/context errors warn and continue inspection without changing action status. Document or URL changes stop waiting. No visibility, shadow/iframe or semantic-ref matching. Refreshes the terminal snapshot and diffs; see [post-action readiness](interactive-refs-guide.md#post-action-readiness). |
 | `--wait-ms` | `<ms>` | `400` | Additional settling delay in milliseconds after load and network-idle. |
 | `--idle-ms` | `<ms>` | `500` | Network-idle quiet window. Probe considers network idle when 0 in-flight requests remain for this duration. |
 | `--no-network-idle` | boolean | `false` | Skips the network-idle quiet window check and inspects immediately upon `DOMContentLoaded`/`load`. |

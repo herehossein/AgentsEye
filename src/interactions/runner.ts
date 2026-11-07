@@ -1,5 +1,6 @@
 import { sleep } from '../utils/helpers.js';
 import { CdpClient, evaluate } from '../cdp/client.js';
+import { waitForSelector } from '../cdp/capture.js';
 import { inPageProbe, makeProbeConfig } from '../probes/dom-probe.js';
 import { interactionSafety, inPageInteractionProbe } from '../probes/interaction-probe.js';
 import { formatInteractiveTreeText } from '../reporting/formatters.js';
@@ -197,7 +198,7 @@ export async function performInteractions(
   };
   if (!enabled) return telemetry;
   const evaluationOptions = { ...options, timeoutMs: options.timeoutMs ?? 10_000 };
-  const probe = (command: any) =>
+  const probe = (command: any, timeoutMs = evaluationOptions.timeoutMs) =>
     evaluate(
       cdp,
       `(${inPageInteractionProbe.toString()})(${JSON.stringify({
@@ -205,6 +206,7 @@ export async function performInteractions(
         allowDestructive: Boolean(options.allowDestructive),
       })}, (${interactionSafety.toString()}))`,
       evaluationOptions,
+      { timeoutMs },
     );
   let baseline: any;
   try {
@@ -451,6 +453,47 @@ export async function performInteractions(
       await run({ type: 'click', value: candidate.name || candidate.tag }, true, candidate);
       if (telemetry.actions.at(-1)?.status === 'performed') telemetry.exploration.performed += 1;
     }
+  }
+  const lastAction = telemetry.actions.at(-1);
+  if (
+    options.waitAfter &&
+    !stop &&
+    lastAction?.status === 'performed' &&
+    telemetry.actions.some((action: any) => !action.automatic && action.status === 'performed')
+  ) {
+    let waitWarning: string | null = null;
+    try {
+      const found = await waitForSelector(
+        cdp,
+        options.waitAfter,
+        evaluationOptions,
+        async (timeoutMs) => {
+          if (!sameDocument(await probe({ op: 'context' }, timeoutMs)))
+            throw new Error('Document or URL changed');
+        },
+      );
+      if (!found)
+        waitWarning = `--wait-after selector did not appear before timeout: ${options.waitAfter}`;
+    } catch (error: any) {
+      waitWarning = `--wait-after stopped: ${error.message}`;
+    }
+    try {
+      lastAction.after = await probe({ op: 'snapshot' });
+      lastAction.diff = diffInteractionSnapshots(lastAction.before, lastAction.after);
+      telemetry.afterSnapshot = lastAction.after;
+      if (!sameDocument(lastAction.after)) {
+        stop = true;
+        // Navigation can race the final negative selector poll at the deadline.
+        waitWarning = '--wait-after stopped: Document or URL changed';
+        telemetry.warnings.push(
+          'Interaction changed the document or URL; remaining inputs were stopped.',
+        );
+      }
+    } catch (error: any) {
+      waitWarning = `--wait-after stopped: Post-wait interaction snapshot unavailable: ${error.message}`;
+      stop = true;
+    }
+    if (waitWarning) telemetry.warnings.push(waitWarning);
   }
   if (stop)
     telemetry.exploration.stoppedReason =
